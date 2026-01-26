@@ -102,77 +102,93 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex relative overflow-hidden">
       {/* ============================================== */}
       {/* LEFT PANEL - BRANDING                         */}
       {/* ============================================== */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 relative">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-mps-blue-500 via-mps-blue-600 to-mps-green-500" />
-
-        {/* Animated background - Floating particles */}
-        <div className="absolute inset-0 overflow-hidden">
-          {/* Particle dots */}
-          {[...Array(6)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-2 h-2 rounded-full bg-white/20"
-              style={{
-                top: `${15 + i * 15}%`,
-                left: `${10 + i * 12}%`,
-              }}
-              animate={{
-                y: [0, -30, 0],
-                opacity: [0.2, 0.5, 0.2],
-              }}
-              transition={{
-                duration: 3 + i * 0.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: i * 0.3,
-              }}
+      <div className="hidden lg:block lg:w-1/2 xl:w-2/5 relative">
+        {/* Main gradient panel with curved edge */}
+        <div className="absolute inset-0">
+          <svg
+            className="h-full w-[calc(100%+80px)]"
+            viewBox="0 0 500 100"
+            preserveAspectRatio="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <linearGradient id="panelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#0ea5e9" />
+                <stop offset="50%" stopColor="#0284c7" />
+                <stop offset="100%" stopColor="#22c55e" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M0 0 L420 0 Q480 50, 420 100 L0 100 Z"
+              fill="url(#panelGradient)"
             />
-          ))}
-          {/* Gradient orb */}
+          </svg>
+        </div>
+
+        {/* Animated background - Gradient mesh */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Animated gradient blobs */}
           <motion.div
-            className="absolute w-64 h-64 rounded-full"
+            className="absolute w-[500px] h-[500px] rounded-full opacity-30"
             style={{
-              background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
-              top: '10%',
-              right: '10%',
+              background: 'radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 60%)',
+              top: '-20%',
+              left: '-10%',
+              filter: 'blur(40px)',
             }}
             animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.3, 0.5, 0.3],
+              x: [0, 50, 0],
+              y: [0, 30, 0],
             }}
             transition={{
-              duration: 5,
+              duration: 8,
               repeat: Infinity,
               ease: "easeInOut",
             }}
           />
           <motion.div
-            className="absolute w-48 h-48 rounded-full"
+            className="absolute w-[400px] h-[400px] rounded-full opacity-20"
             style={{
-              background: 'radial-gradient(circle, rgba(74,222,128,0.15) 0%, transparent 70%)',
-              bottom: '20%',
-              left: '5%',
+              background: 'radial-gradient(circle, rgba(74,222,128,0.5) 0%, transparent 60%)',
+              bottom: '-10%',
+              right: '10%',
+              filter: 'blur(40px)',
             }}
             animate={{
-              scale: [1, 1.15, 1],
-              opacity: [0.2, 0.4, 0.2],
+              x: [0, -30, 0],
+              y: [0, -40, 0],
             }}
             transition={{
-              duration: 6,
+              duration: 10,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: 1,
+              delay: 2,
+            }}
+          />
+          {/* Subtle shimmer lines */}
+          <motion.div
+            className="absolute inset-0 opacity-10"
+            style={{
+              background: 'linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.8) 50%, transparent 60%)',
+              backgroundSize: '200% 200%',
+            }}
+            animate={{
+              backgroundPosition: ['0% 0%', '200% 200%'],
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "linear",
             }}
           />
         </div>
 
         {/* Content - Centered */}
-        <div className="relative z-10 flex flex-col items-center justify-center w-full px-12 xl:px-16 text-white text-center">
+        <div className="relative z-10 flex flex-col items-center justify-center h-full px-12 xl:px-16 text-white text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -248,26 +264,6 @@ export default function LoginPage() {
             </div>
           </motion.div>
         </div>
-
-        {/* Smooth curvy divider */}
-        <svg
-          className="absolute top-0 right-0 h-full w-24 z-20"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <linearGradient id="dividerGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#f0f9ff" />
-              <stop offset="50%" stopColor="#f8fafc" />
-              <stop offset="100%" stopColor="#f0fdf4" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M30 0 Q 0 25, 20 50 Q 40 75, 10 100 L 100 100 L 100 0 Z"
-            fill="url(#dividerGradient)"
-          />
-        </svg>
       </div>
 
       {/* ============================================== */}
