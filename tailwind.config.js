@@ -34,8 +34,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        'display': ['Inter', 'sans-serif'],
-        'body': ['Inter', 'sans-serif'],
+        'display': ['Antic', 'sans-serif'],
+        'body': ['Antic', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
