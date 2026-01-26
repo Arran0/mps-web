@@ -104,74 +104,87 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* ============================================== */}
-      {/* LEFT PANEL - BRANDING (Edit text below)       */}
+      {/* LEFT PANEL - BRANDING                         */}
       {/* ============================================== */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 relative overflow-hidden">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-mps-blue-500 via-mps-blue-600 to-mps-green-500" />
-        
+
         {/* Decorative shapes */}
         <div className="absolute inset-0 overflow-hidden">
-          <motion.div 
+          <motion.div
             className="absolute w-96 h-96 rounded-full bg-white/10 -top-48 -left-48"
             animate={{ rotate: 360 }}
             transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
           />
-          <motion.div 
-            className="absolute w-64 h-64 rounded-full bg-white/10 bottom-20 right-20"
+          <motion.div
+            className="absolute w-64 h-64 rounded-full bg-white/10 bottom-20 left-20"
             animate={{ y: [-20, 20, -20] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           />
-          <motion.div 
-            className="absolute w-32 h-32 rounded-full bg-mps-green-400/30 top-1/4 right-1/4"
+          <motion.div
+            className="absolute w-32 h-32 rounded-full bg-mps-green-400/30 top-1/4 left-1/4"
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16 text-white">
+        {/* Content - Centered */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full px-12 xl:px-16 text-white text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
+            className="flex flex-col items-center"
           >
-            {/* Logo with school name */}
-            <div className="flex items-center gap-4 mb-12">
-              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl overflow-hidden ring-2 ring-white/30">
-                <Image
-                  src="/logo.png"
-                  alt="MPS Logo"
-                  width={64}
-                  height={64}
-                  className="object-cover w-full h-full rounded-full"
-                />
-              </div>
-              <div>
-                {/* ====== EDIT THIS: Website name ====== */}
-                <h1 className="text-2xl font-display font-semibold tracking-tight">MPS Web</h1>
-                {/* ====== EDIT THIS: School tagline ====== */}
-                <p className="text-white/70 text-sm font-light">Muthamil Public School</p>
-              </div>
-            </div>
+            {/* Big Circle Logo */}
+            <motion.div
+              className="w-32 h-32 xl:w-40 xl:h-40 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl overflow-hidden ring-4 ring-white/30 mb-6"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Image
+                src="/logo.png"
+                alt="MPS Logo"
+                width={160}
+                height={160}
+                className="object-cover w-full h-full rounded-full"
+              />
+            </motion.div>
 
-            {/* ====== EDIT THIS: Main heading ====== */}
-            <h2 className="font-display text-4xl xl:text-5xl font-semibold mb-4 leading-tight tracking-tight whitespace-nowrap">
-              Welcome to MPS Web
-            </h2>
-            {/* ====== EDIT THIS: Highlighted text ====== */}
-            <h3 className="text-2xl xl:text-3xl font-medium text-mps-green-200 mb-8 whitespace-nowrap">
+            {/* School Name */}
+            <motion.h1
+              className="text-3xl xl:text-4xl font-display font-semibold tracking-tight mb-3"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
               Muthamil Public School
-            </h3>
+            </motion.h1>
 
-            {/* ====== EDIT THIS: Tagline ====== */}
-            <p className="text-white/90 text-xl font-light tracking-wide mb-12 italic">
-              Excel &bull; Enrich &bull; Enlighten
-            </p>
+            {/* Tagline */}
+            <motion.p
+              className="text-white/90 text-lg xl:text-xl font-light tracking-wider mb-8"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              Excel . Enrich . Enlighten
+            </motion.p>
 
-            {/* ====== EDIT THIS: Feature list ====== */}
-            {/* You can add, remove, or modify these features */}
-            <div className="space-y-4">
+            {/* Welcome Text */}
+            <motion.h2
+              className="text-xl xl:text-2xl font-medium text-mps-green-200 mb-8"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
+              Welcome to MPS Web
+            </motion.h2>
+
+            {/* Feature list */}
+            <div className="space-y-3">
               {[
                 'Academic Progress Tracking',
                 'Homework & Coursework Management',
@@ -181,17 +194,33 @@ export default function LoginPage() {
                   key={feature}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + index * 0.1 }}
-                  className="flex items-center gap-3"
+                  transition={{ delay: 0.6 + index * 0.1 }}
+                  className="flex items-center gap-3 justify-center"
                 >
-                  <div className="w-6 h-6 rounded-full bg-mps-green-400/30 flex items-center justify-center">
-                    <CheckCircle size={14} className="text-mps-green-200" />
+                  <div className="w-5 h-5 rounded-full bg-mps-green-400/30 flex items-center justify-center">
+                    <CheckCircle size={12} className="text-mps-green-200" />
                   </div>
-                  <span className="text-white/90">{feature}</span>
+                  <span className="text-white/90 text-sm">{feature}</span>
                 </motion.div>
               ))}
             </div>
           </motion.div>
+        </div>
+
+        {/* Curvy divider */}
+        <div className="absolute top-0 right-0 h-full w-16 z-20">
+          <svg
+            className="h-full w-full"
+            viewBox="0 0 100 800"
+            preserveAspectRatio="none"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M100 0H60C60 0 0 100 0 200C0 300 60 350 60 400C60 450 0 500 0 600C0 700 60 800 60 800H100V0Z"
+              fill="#f8fafc"
+            />
+          </svg>
         </div>
       </div>
 
