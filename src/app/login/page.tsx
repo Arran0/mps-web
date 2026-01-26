@@ -113,71 +113,85 @@ export default function LoginPage() {
           borderBottomRightRadius: '3rem',
         }}
       >
-        {/* Aurora wave animation */}
-        <div className="absolute inset-0 overflow-hidden" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }}>
-          {/* Wave 1 */}
+        {/* Ripple animation from logo center */}
+        <div className="absolute inset-0 overflow-hidden flex items-center justify-center" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }}>
+          {/* Ripple 1 */}
           <motion.div
-            className="absolute w-[150%] h-[40%] opacity-20"
+            className="absolute rounded-full border-2 border-white/20"
             style={{
-              background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.4), transparent)',
-              borderRadius: '50%',
-              left: '-25%',
-              filter: 'blur(30px)',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
             }}
             animate={{
-              top: ['-20%', '120%'],
-              rotate: [-5, 5],
+              width: ['80px', '800px'],
+              height: ['80px', '800px'],
+              opacity: [0.4, 0],
             }}
             transition={{
-              duration: 7,
+              duration: 4,
               repeat: Infinity,
-              ease: "easeInOut",
+              ease: "easeOut",
             }}
           />
-          {/* Wave 2 */}
+          {/* Ripple 2 */}
           <motion.div
-            className="absolute w-[120%] h-[35%] opacity-15"
+            className="absolute rounded-full border-2 border-white/15"
             style={{
-              background: 'linear-gradient(180deg, transparent, rgba(74,222,128,0.5), transparent)',
-              borderRadius: '50%',
-              left: '-10%',
-              filter: 'blur(40px)',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
             }}
             animate={{
-              top: ['120%', '-20%'],
-              rotate: [5, -5],
+              width: ['80px', '800px'],
+              height: ['80px', '800px'],
+              opacity: [0.3, 0],
             }}
             transition={{
-              duration: 9,
+              duration: 4,
               repeat: Infinity,
-              ease: "easeInOut",
+              ease: "easeOut",
+              delay: 1,
+            }}
+          />
+          {/* Ripple 3 */}
+          <motion.div
+            className="absolute rounded-full border-2 border-white/10"
+            style={{
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+            }}
+            animate={{
+              width: ['80px', '800px'],
+              height: ['80px', '800px'],
+              opacity: [0.25, 0],
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeOut",
               delay: 2,
             }}
           />
-          {/* Wave 3 */}
+          {/* Ripple 4 */}
           <motion.div
-            className="absolute w-[130%] h-[30%] opacity-10"
+            className="absolute rounded-full border border-white/10"
             style={{
-              background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.6), transparent)',
-              borderRadius: '50%',
-              left: '-15%',
-              filter: 'blur(35px)',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
             }}
             animate={{
-              top: ['-10%', '110%'],
+              width: ['80px', '800px'],
+              height: ['80px', '800px'],
+              opacity: [0.2, 0],
             }}
             transition={{
-              duration: 11,
+              duration: 4,
               repeat: Infinity,
-              ease: "easeInOut",
-              delay: 4,
-            }}
-          />
-          {/* Static soft glow */}
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.2) 0%, transparent 60%)',
+              ease: "easeOut",
+              delay: 3,
             }}
           />
         </div>
