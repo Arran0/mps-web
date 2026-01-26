@@ -138,36 +138,35 @@ export default function LoginPage() {
           >
             {/* Logo with school name */}
             <div className="flex items-center gap-4 mb-12">
-              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl overflow-hidden">
-                <Image 
-                  src="/logo.png" 
-                  alt="MPS Logo" 
-                  width={56} 
-                  height={56}
-                  className="object-contain"
+              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl overflow-hidden ring-2 ring-white/30">
+                <Image
+                  src="/logo.png"
+                  alt="MPS Logo"
+                  width={64}
+                  height={64}
+                  className="object-cover w-full h-full rounded-full"
                 />
               </div>
               <div>
                 {/* ====== EDIT THIS: Website name ====== */}
-                <h1 className="text-2xl font-display font-bold">MPS Web</h1>
+                <h1 className="text-2xl font-display font-semibold tracking-tight">MPS Web</h1>
                 {/* ====== EDIT THIS: School tagline ====== */}
-                <p className="text-white/70 text-sm">Muthamil Public School</p>
+                <p className="text-white/70 text-sm font-light">Muthamil Public School</p>
               </div>
             </div>
 
             {/* ====== EDIT THIS: Main heading ====== */}
-            <h2 className="font-display text-4xl xl:text-5xl font-bold mb-6 leading-tight">
-              Welcome to MPS web
-              <br />
-              {/* ====== EDIT THIS: Highlighted text ====== */}
-              <span className="text-mps-green-200">Muthamil Public School</span>
+            <h2 className="font-display text-4xl xl:text-5xl font-semibold mb-4 leading-tight tracking-tight whitespace-nowrap">
+              Welcome to MPS Web
             </h2>
+            {/* ====== EDIT THIS: Highlighted text ====== */}
+            <h3 className="text-2xl xl:text-3xl font-medium text-mps-green-200 mb-8 whitespace-nowrap">
+              Muthamil Public School
+            </h3>
 
-            {/* ====== EDIT THIS: Description paragraph ====== */}
-            <p className="text-white/80 text-lg leading-relaxed mb-12 max-w-md">
-              Excel Enrich Enlighten
-
-              Access your academic portal to track progress and stay connected.
+            {/* ====== EDIT THIS: Tagline ====== */}
+            <p className="text-white/90 text-xl font-light tracking-wide mb-12 italic">
+              Excel &bull; Enrich &bull; Enlighten
             </p>
 
             {/* ====== EDIT THIS: Feature list ====== */}
@@ -208,18 +207,18 @@ export default function LoginPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg">
-              <Image 
-                src="/logo.png" 
-                alt="MPS Logo" 
-                width={48} 
+            <div className="w-12 h-12 rounded-full overflow-hidden shadow-lg ring-2 ring-slate-200">
+              <Image
+                src="/logo.png"
+                alt="MPS Logo"
+                width={48}
                 height={48}
-                className="object-contain"
+                className="object-cover w-full h-full rounded-full"
               />
             </div>
             <div>
-              <h1 className="font-display text-xl font-bold gradient-text">MPS Web</h1>
-              <p className="text-xs text-slate-500">Muthamil Public School</p>
+              <h1 className="font-display text-xl font-semibold gradient-text tracking-tight">MPS Web</h1>
+              <p className="text-xs text-slate-500 font-light">Muthamil Public School</p>
             </div>
           </div>
 
