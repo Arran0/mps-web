@@ -113,51 +113,71 @@ export default function LoginPage() {
           borderBottomRightRadius: '3rem',
         }}
       >
-        {/* Spotlight animation */}
+        {/* Aurora wave animation */}
         <div className="absolute inset-0 overflow-hidden" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }}>
+          {/* Wave 1 */}
           <motion.div
-            className="absolute w-[600px] h-[600px]"
+            className="absolute w-[150%] h-[40%] opacity-20"
             style={{
-              background: 'conic-gradient(from 0deg, transparent, rgba(255,255,255,0.15), transparent)',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-            }}
-            animate={{ rotate: 360 }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-          />
-          {/* Soft glow overlay */}
-          <motion.div
-            className="absolute inset-0"
-            style={{
-              background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)',
+              background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.4), transparent)',
+              borderRadius: '50%',
+              left: '-25%',
+              filter: 'blur(30px)',
             }}
             animate={{
-              opacity: [0.5, 0.8, 0.5],
+              top: ['-20%', '120%'],
+              rotate: [-5, 5],
             }}
             transition={{
-              duration: 4,
+              duration: 7,
               repeat: Infinity,
               ease: "easeInOut",
             }}
           />
+          {/* Wave 2 */}
           <motion.div
-            className="absolute inset-0"
+            className="absolute w-[120%] h-[35%] opacity-15"
             style={{
-              background: 'radial-gradient(ellipse at 70% 80%, rgba(74,222,128,0.1) 0%, transparent 50%)',
+              background: 'linear-gradient(180deg, transparent, rgba(74,222,128,0.5), transparent)',
+              borderRadius: '50%',
+              left: '-10%',
+              filter: 'blur(40px)',
             }}
             animate={{
-              opacity: [0.3, 0.6, 0.3],
+              top: ['120%', '-20%'],
+              rotate: [5, -5],
             }}
             transition={{
-              duration: 5,
+              duration: 9,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: 1,
+              delay: 2,
+            }}
+          />
+          {/* Wave 3 */}
+          <motion.div
+            className="absolute w-[130%] h-[30%] opacity-10"
+            style={{
+              background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.6), transparent)',
+              borderRadius: '50%',
+              left: '-15%',
+              filter: 'blur(35px)',
+            }}
+            animate={{
+              top: ['-10%', '110%'],
+            }}
+            transition={{
+              duration: 11,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 4,
+            }}
+          />
+          {/* Static soft glow */}
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.2) 0%, transparent 60%)',
             }}
           />
         </div>
