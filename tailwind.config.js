@@ -34,8 +34,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        'display': ['Playfair Display', 'serif'],
-        'body': ['DM Sans', 'sans-serif'],
+        'display': ['Inter', 'sans-serif'],
+        'body': ['Inter', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
