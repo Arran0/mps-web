@@ -106,15 +106,29 @@ export default function LoginPage() {
       {/* ============================================== */}
       {/* LEFT PANEL - BRANDING                         */}
       {/* ============================================== */}
-      <div
-        className="hidden lg:block lg:w-1/2 xl:w-2/5 relative bg-gradient-to-br from-mps-blue-500 via-mps-blue-600 to-mps-green-500"
-        style={{
-          borderTopRightRadius: '3rem',
-          borderBottomRightRadius: '3rem',
-        }}
-      >
+      <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 relative">
+        {/* Gradient background with curved edge */}
+        <svg
+          className="absolute inset-0 h-full w-[calc(100%+60px)]"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="panelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0ea5e9" />
+              <stop offset="50%" stopColor="#0284c7" />
+              <stop offset="100%" stopColor="#22c55e" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M0 0 L85 0 Q95 50 85 100 L0 100 Z"
+            fill="url(#panelGradient)"
+          />
+        </svg>
+
         {/* Overflow container for ripples */}
-        <div className="absolute inset-0 overflow-hidden" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }} />
+        <div className="absolute inset-0 overflow-hidden" />
 
         {/* Content - Centered */}
         <div className="relative z-10 flex flex-col items-center justify-center h-full px-12 xl:px-16 text-white text-center">
