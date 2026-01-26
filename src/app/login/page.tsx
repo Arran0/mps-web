@@ -110,21 +110,34 @@ export default function LoginPage() {
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-mps-blue-500 via-mps-blue-600 to-mps-green-500" />
 
-        {/* Decorative shapes */}
+        {/* Creative animated background - Flowing light beams */}
         <div className="absolute inset-0 overflow-hidden">
+          {/* Diagonal light beam 1 */}
           <motion.div
-            className="absolute w-96 h-96 rounded-full bg-white/10 -top-48 -left-48"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+            className="absolute w-[200%] h-32 bg-gradient-to-r from-transparent via-white/10 to-transparent -rotate-45"
+            style={{ top: '10%', left: '-50%' }}
+            animate={{ x: ['-100%', '100%'] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
           />
+          {/* Diagonal light beam 2 */}
           <motion.div
-            className="absolute w-64 h-64 rounded-full bg-white/10 bottom-20 left-20"
-            animate={{ y: [-20, 20, -20] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute w-[200%] h-24 bg-gradient-to-r from-transparent via-white/5 to-transparent -rotate-45"
+            style={{ top: '40%', left: '-50%' }}
+            animate={{ x: ['100%', '-100%'] }}
+            transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
           />
+          {/* Diagonal light beam 3 */}
           <motion.div
-            className="absolute w-32 h-32 rounded-full bg-mps-green-400/30 top-1/4 left-1/4"
-            animate={{ scale: [1, 1.2, 1] }}
+            className="absolute w-[200%] h-16 bg-gradient-to-r from-transparent via-mps-green-400/10 to-transparent -rotate-45"
+            style={{ top: '70%', left: '-50%' }}
+            animate={{ x: ['-100%', '100%'] }}
+            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+          />
+          {/* Subtle pulsing glow */}
+          <motion.div
+            className="absolute w-96 h-96 rounded-full bg-white/5 blur-3xl"
+            style={{ top: '20%', left: '10%' }}
+            animate={{ opacity: [0.3, 0.6, 0.3] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
@@ -183,8 +196,8 @@ export default function LoginPage() {
               Welcome to MPS Web
             </motion.h2>
 
-            {/* Feature list */}
-            <div className="space-y-3">
+            {/* Feature list - Left aligned on straight line */}
+            <div className="space-y-3 text-left">
               {[
                 'Academic Progress Tracking',
                 'Homework & Coursework Management',
@@ -195,9 +208,9 @@ export default function LoginPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6 + index * 0.1 }}
-                  className="flex items-center gap-3 justify-center"
+                  className="flex items-center gap-3"
                 >
-                  <div className="w-5 h-5 rounded-full bg-mps-green-400/30 flex items-center justify-center">
+                  <div className="w-5 h-5 rounded-full bg-mps-green-400/30 flex items-center justify-center flex-shrink-0">
                     <CheckCircle size={12} className="text-mps-green-200" />
                   </div>
                   <span className="text-white/90 text-sm">{feature}</span>
@@ -207,18 +220,24 @@ export default function LoginPage() {
           </motion.div>
         </div>
 
-        {/* Curvy divider */}
-        <div className="absolute top-0 right-0 h-full w-16 z-20">
+        {/* Curvy divider - seamless with gradient */}
+        <div className="absolute top-0 -right-1 h-full w-20 z-20">
           <svg
             className="h-full w-full"
-            viewBox="0 0 100 800"
+            viewBox="0 0 100 100"
             preserveAspectRatio="none"
-            fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
+            <defs>
+              <linearGradient id="curveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#f0f9ff" />
+                <stop offset="50%" stopColor="#f8fafc" />
+                <stop offset="100%" stopColor="#f0fdf4" />
+              </linearGradient>
+            </defs>
             <path
-              d="M100 0H60C60 0 0 100 0 200C0 300 60 350 60 400C60 450 0 500 0 600C0 700 60 800 60 800H100V0Z"
-              fill="#f8fafc"
+              d="M100 0 C 40 0, 40 25, 60 50 C 80 75, 40 100, 100 100 Z"
+              fill="url(#curveGradient)"
             />
           </svg>
         </div>
