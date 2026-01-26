@@ -106,39 +106,68 @@ export default function LoginPage() {
       {/* ============================================== */}
       {/* LEFT PANEL - BRANDING                         */}
       {/* ============================================== */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 relative">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-mps-blue-500 via-mps-blue-600 to-mps-green-500" />
 
-        {/* Creative animated background - Flowing light beams */}
+        {/* Animated background - Floating particles */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Diagonal light beam 1 */}
+          {/* Particle dots */}
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 rounded-full bg-white/20"
+              style={{
+                top: `${15 + i * 15}%`,
+                left: `${10 + i * 12}%`,
+              }}
+              animate={{
+                y: [0, -30, 0],
+                opacity: [0.2, 0.5, 0.2],
+              }}
+              transition={{
+                duration: 3 + i * 0.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 0.3,
+              }}
+            />
+          ))}
+          {/* Gradient orb */}
           <motion.div
-            className="absolute w-[200%] h-32 bg-gradient-to-r from-transparent via-white/10 to-transparent -rotate-45"
-            style={{ top: '10%', left: '-50%' }}
-            animate={{ x: ['-100%', '100%'] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            className="absolute w-64 h-64 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
+              top: '10%',
+              right: '10%',
+            }}
+            animate={{
+              scale: [1, 1.1, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
           />
-          {/* Diagonal light beam 2 */}
           <motion.div
-            className="absolute w-[200%] h-24 bg-gradient-to-r from-transparent via-white/5 to-transparent -rotate-45"
-            style={{ top: '40%', left: '-50%' }}
-            animate={{ x: ['100%', '-100%'] }}
-            transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-          />
-          {/* Diagonal light beam 3 */}
-          <motion.div
-            className="absolute w-[200%] h-16 bg-gradient-to-r from-transparent via-mps-green-400/10 to-transparent -rotate-45"
-            style={{ top: '70%', left: '-50%' }}
-            animate={{ x: ['-100%', '100%'] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-          />
-          {/* Subtle pulsing glow */}
-          <motion.div
-            className="absolute w-96 h-96 rounded-full bg-white/5 blur-3xl"
-            style={{ top: '20%', left: '10%' }}
-            animate={{ opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute w-48 h-48 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, rgba(74,222,128,0.15) 0%, transparent 70%)',
+              bottom: '20%',
+              left: '5%',
+            }}
+            animate={{
+              scale: [1, 1.15, 1],
+              opacity: [0.2, 0.4, 0.2],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1,
+            }}
           />
         </div>
 
@@ -166,9 +195,9 @@ export default function LoginPage() {
               />
             </motion.div>
 
-            {/* School Name */}
+            {/* School Name - BOLD */}
             <motion.h1
-              className="text-3xl xl:text-4xl font-display font-semibold tracking-tight mb-3"
+              className="text-3xl xl:text-4xl font-display font-bold tracking-tight mb-3"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
@@ -220,27 +249,25 @@ export default function LoginPage() {
           </motion.div>
         </div>
 
-        {/* Curvy divider - seamless with gradient */}
-        <div className="absolute top-0 -right-1 h-full w-20 z-20">
-          <svg
-            className="h-full w-full"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <linearGradient id="curveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#f0f9ff" />
-                <stop offset="50%" stopColor="#f8fafc" />
-                <stop offset="100%" stopColor="#f0fdf4" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M100 0 C 40 0, 40 25, 60 50 C 80 75, 40 100, 100 100 Z"
-              fill="url(#curveGradient)"
-            />
-          </svg>
-        </div>
+        {/* Smooth curvy divider */}
+        <svg
+          className="absolute top-0 right-0 h-full w-24 z-20"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="dividerGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#f0f9ff" />
+              <stop offset="50%" stopColor="#f8fafc" />
+              <stop offset="100%" stopColor="#f0fdf4" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M30 0 Q 0 25, 20 50 Q 40 75, 10 100 L 100 100 L 100 0 Z"
+            fill="url(#dividerGradient)"
+          />
+        </svg>
       </div>
 
       {/* ============================================== */}
