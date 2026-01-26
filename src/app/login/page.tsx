@@ -113,88 +113,8 @@ export default function LoginPage() {
           borderBottomRightRadius: '3rem',
         }}
       >
-        {/* Ripple animation from logo center - positioned at ~33% from top where logo sits */}
-        <div className="absolute inset-0 overflow-hidden" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }}>
-          {/* Ripple 1 */}
-          <motion.div
-            className="absolute rounded-full border-2 border-white/25"
-            style={{
-              top: '33%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-            }}
-            animate={{
-              width: ['120px', '1200px'],
-              height: ['120px', '1200px'],
-              opacity: [0.5, 0],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeOut",
-            }}
-          />
-          {/* Ripple 2 */}
-          <motion.div
-            className="absolute rounded-full border-2 border-white/20"
-            style={{
-              top: '33%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-            }}
-            animate={{
-              width: ['120px', '1200px'],
-              height: ['120px', '1200px'],
-              opacity: [0.4, 0],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeOut",
-              delay: 1.25,
-            }}
-          />
-          {/* Ripple 3 */}
-          <motion.div
-            className="absolute rounded-full border-2 border-white/15"
-            style={{
-              top: '33%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-            }}
-            animate={{
-              width: ['120px', '1200px'],
-              height: ['120px', '1200px'],
-              opacity: [0.3, 0],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeOut",
-              delay: 2.5,
-            }}
-          />
-          {/* Ripple 4 */}
-          <motion.div
-            className="absolute rounded-full border border-white/10"
-            style={{
-              top: '33%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-            }}
-            animate={{
-              width: ['120px', '1200px'],
-              height: ['120px', '1200px'],
-              opacity: [0.2, 0],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeOut",
-              delay: 3.75,
-            }}
-          />
-        </div>
+        {/* Overflow container for ripples */}
+        <div className="absolute inset-0 overflow-hidden" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }} />
 
         {/* Content - Centered */}
         <div className="relative z-10 flex flex-col items-center justify-center h-full px-12 xl:px-16 text-white text-center">
@@ -204,21 +124,87 @@ export default function LoginPage() {
             transition={{ duration: 0.6 }}
             className="flex flex-col items-center"
           >
-            {/* Big Circle Logo */}
-            <motion.div
-              className="w-32 h-32 xl:w-40 xl:h-40 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl overflow-hidden ring-4 ring-white/30 mb-6"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Image
-                src="/logo.png"
-                alt="MPS Logo"
-                width={160}
-                height={160}
-                className="object-cover w-full h-full rounded-full"
-              />
-            </motion.div>
+            {/* Logo container with ripples */}
+            <div className="relative mb-6">
+              {/* Ripple effects - positioned behind logo */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {/* Ripple 1 */}
+                <motion.div
+                  className="absolute rounded-full border-2 border-white/30"
+                  animate={{
+                    width: ['128px', '800px'],
+                    height: ['128px', '800px'],
+                    opacity: [0.6, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeOut",
+                  }}
+                />
+                {/* Ripple 2 */}
+                <motion.div
+                  className="absolute rounded-full border-2 border-white/25"
+                  animate={{
+                    width: ['128px', '800px'],
+                    height: ['128px', '800px'],
+                    opacity: [0.5, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeOut",
+                    delay: 1,
+                  }}
+                />
+                {/* Ripple 3 */}
+                <motion.div
+                  className="absolute rounded-full border-2 border-white/20"
+                  animate={{
+                    width: ['128px', '800px'],
+                    height: ['128px', '800px'],
+                    opacity: [0.4, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeOut",
+                    delay: 2,
+                  }}
+                />
+                {/* Ripple 4 */}
+                <motion.div
+                  className="absolute rounded-full border border-white/15"
+                  animate={{
+                    width: ['128px', '800px'],
+                    height: ['128px', '800px'],
+                    opacity: [0.3, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeOut",
+                    delay: 3,
+                  }}
+                />
+              </div>
+
+              {/* Big Circle Logo */}
+              <motion.div
+                className="relative z-10 w-32 h-32 xl:w-40 xl:h-40 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl overflow-hidden ring-4 ring-white/30"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <Image
+                  src="/logo.png"
+                  alt="MPS Logo"
+                  width={160}
+                  height={160}
+                  className="object-cover w-full h-full rounded-full"
+                />
+              </motion.div>
+            </div>
 
             {/* School Name - BOLD */}
             <motion.h1
