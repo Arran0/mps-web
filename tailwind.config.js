@@ -34,8 +34,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        'display': ['Jost', 'sans-serif'],
-        'body': ['Jost', 'sans-serif'],
+        'display': ['Poppins', 'sans-serif'],
+        'body': ['Poppins', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
