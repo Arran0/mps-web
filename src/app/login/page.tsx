@@ -113,85 +113,85 @@ export default function LoginPage() {
           borderBottomRightRadius: '3rem',
         }}
       >
-        {/* Ripple animation from logo center */}
-        <div className="absolute inset-0 overflow-hidden flex items-center justify-center" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }}>
+        {/* Ripple animation from logo center - positioned at ~33% from top where logo sits */}
+        <div className="absolute inset-0 overflow-hidden" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }}>
           {/* Ripple 1 */}
           <motion.div
-            className="absolute rounded-full border-2 border-white/20"
+            className="absolute rounded-full border-2 border-white/25"
             style={{
-              top: '50%',
+              top: '33%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
             }}
             animate={{
-              width: ['80px', '800px'],
-              height: ['80px', '800px'],
-              opacity: [0.4, 0],
+              width: ['120px', '1200px'],
+              height: ['120px', '1200px'],
+              opacity: [0.5, 0],
             }}
             transition={{
-              duration: 4,
+              duration: 5,
               repeat: Infinity,
               ease: "easeOut",
             }}
           />
           {/* Ripple 2 */}
           <motion.div
-            className="absolute rounded-full border-2 border-white/15"
+            className="absolute rounded-full border-2 border-white/20"
             style={{
-              top: '50%',
+              top: '33%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
             }}
             animate={{
-              width: ['80px', '800px'],
-              height: ['80px', '800px'],
-              opacity: [0.3, 0],
+              width: ['120px', '1200px'],
+              height: ['120px', '1200px'],
+              opacity: [0.4, 0],
             }}
             transition={{
-              duration: 4,
+              duration: 5,
               repeat: Infinity,
               ease: "easeOut",
-              delay: 1,
+              delay: 1.25,
             }}
           />
           {/* Ripple 3 */}
           <motion.div
-            className="absolute rounded-full border-2 border-white/10"
+            className="absolute rounded-full border-2 border-white/15"
             style={{
-              top: '50%',
+              top: '33%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
             }}
             animate={{
-              width: ['80px', '800px'],
-              height: ['80px', '800px'],
-              opacity: [0.25, 0],
+              width: ['120px', '1200px'],
+              height: ['120px', '1200px'],
+              opacity: [0.3, 0],
             }}
             transition={{
-              duration: 4,
+              duration: 5,
               repeat: Infinity,
               ease: "easeOut",
-              delay: 2,
+              delay: 2.5,
             }}
           />
           {/* Ripple 4 */}
           <motion.div
             className="absolute rounded-full border border-white/10"
             style={{
-              top: '50%',
+              top: '33%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
             }}
             animate={{
-              width: ['80px', '800px'],
-              height: ['80px', '800px'],
+              width: ['120px', '1200px'],
+              height: ['120px', '1200px'],
               opacity: [0.2, 0],
             }}
             transition={{
-              duration: 4,
+              duration: 5,
               repeat: Infinity,
               ease: "easeOut",
-              delay: 3,
+              delay: 3.75,
             }}
           />
         </div>
