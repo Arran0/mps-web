@@ -166,6 +166,7 @@ export default function LoginPage() {
             {/* ====== EDIT THIS: Description paragraph ====== */}
             <p className="text-white/80 text-lg leading-relaxed mb-12 max-w-md">
               Excel Enrich Enlighten
+
               Access your academic portal to track progress and stay connected.
             </p>
 

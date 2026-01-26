@@ -71,10 +71,6 @@ module.exports = {
           '50%': { opacity: '0.7' },
         },
       },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'mesh-gradient': 'linear-gradient(135deg, var(--tw-gradient-from) 0%, var(--tw-gradient-via) 50%, var(--tw-gradient-to) 100%)',
-      },
     },
   },
   plugins: [],
