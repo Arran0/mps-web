@@ -157,7 +157,7 @@ export default function LoginPage() {
 
             {/* ====== EDIT THIS: Main heading ====== */}
             <h2 className="font-display text-4xl xl:text-5xl font-bold mb-6 leading-tight">
-              Welcome to
+              Welcome to MPS web
               <br />
               {/* ====== EDIT THIS: Highlighted text ====== */}
               <span className="text-mps-green-200">Muthamil Public School</span>
@@ -165,7 +165,7 @@ export default function LoginPage() {
 
             {/* ====== EDIT THIS: Description paragraph ====== */}
             <p className="text-white/80 text-lg leading-relaxed mb-12 max-w-md">
-              Empowering students with knowledge, skills, and values for a brighter future. 
+              Excel Enrich Enlighten
               Access your academic portal to track progress and stay connected.
             </p>
 
