@@ -102,87 +102,62 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden">
+    <div className="min-h-screen flex relative bg-gradient-to-br from-slate-50 via-blue-50 to-green-50">
       {/* ============================================== */}
       {/* LEFT PANEL - BRANDING                         */}
       {/* ============================================== */}
-      <div className="hidden lg:block lg:w-1/2 xl:w-2/5 relative">
-        {/* Main gradient panel with curved edge */}
-        <div className="absolute inset-0">
-          <svg
-            className="h-full w-[calc(100%+80px)]"
-            viewBox="0 0 500 100"
-            preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <linearGradient id="panelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#0ea5e9" />
-                <stop offset="50%" stopColor="#0284c7" />
-                <stop offset="100%" stopColor="#22c55e" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0 0 L420 0 Q480 50, 420 100 L0 100 Z"
-              fill="url(#panelGradient)"
-            />
-          </svg>
-        </div>
-
-        {/* Animated background - Gradient mesh */}
-        <div className="absolute inset-0 overflow-hidden">
-          {/* Animated gradient blobs */}
+      <div
+        className="hidden lg:block lg:w-1/2 xl:w-2/5 relative bg-gradient-to-br from-mps-blue-500 via-mps-blue-600 to-mps-green-500"
+        style={{
+          borderTopRightRadius: '3rem',
+          borderBottomRightRadius: '3rem',
+        }}
+      >
+        {/* Spotlight animation */}
+        <div className="absolute inset-0 overflow-hidden" style={{ borderTopRightRadius: '3rem', borderBottomRightRadius: '3rem' }}>
           <motion.div
-            className="absolute w-[500px] h-[500px] rounded-full opacity-30"
+            className="absolute w-[600px] h-[600px]"
             style={{
-              background: 'radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 60%)',
-              top: '-20%',
-              left: '-10%',
-              filter: 'blur(40px)',
+              background: 'conic-gradient(from 0deg, transparent, rgba(255,255,255,0.15), transparent)',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
             }}
-            animate={{
-              x: [0, 50, 0],
-              y: [0, 30, 0],
-            }}
+            animate={{ rotate: 360 }}
             transition={{
               duration: 8,
               repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-          <motion.div
-            className="absolute w-[400px] h-[400px] rounded-full opacity-20"
-            style={{
-              background: 'radial-gradient(circle, rgba(74,222,128,0.5) 0%, transparent 60%)',
-              bottom: '-10%',
-              right: '10%',
-              filter: 'blur(40px)',
-            }}
-            animate={{
-              x: [0, -30, 0],
-              y: [0, -40, 0],
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 2,
-            }}
-          />
-          {/* Subtle shimmer lines */}
-          <motion.div
-            className="absolute inset-0 opacity-10"
-            style={{
-              background: 'linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.8) 50%, transparent 60%)',
-              backgroundSize: '200% 200%',
-            }}
-            animate={{
-              backgroundPosition: ['0% 0%', '200% 200%'],
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
               ease: "linear",
+            }}
+          />
+          {/* Soft glow overlay */}
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)',
+            }}
+            animate={{
+              opacity: [0.5, 0.8, 0.5],
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse at 70% 80%, rgba(74,222,128,0.1) 0%, transparent 50%)',
+            }}
+            animate={{
+              opacity: [0.3, 0.6, 0.3],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1,
             }}
           />
         </div>
