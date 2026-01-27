@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
 export const size = {
   width: 32,
@@ -7,6 +9,11 @@ export const size = {
 export const contentType = 'image/png'
 
 export default function Icon() {
+  // Read logo at build time and convert to base64
+  const logoPath = join(process.cwd(), 'public', 'logo.png')
+  const logoData = readFileSync(logoPath)
+  const base64Logo = `data:image/png;base64,${logoData.toString('base64')}`
+
   return new ImageResponse(
     (
       <div
@@ -17,14 +24,22 @@ export default function Icon() {
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%)',
-          color: 'white',
-          fontSize: 18,
-          fontWeight: 700,
-          fontFamily: 'system-ui, sans-serif',
+          overflow: 'hidden',
+          background: 'white',
         }}
       >
-        M
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={base64Logo}
+          width={32}
+          height={32}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+          alt="MPS"
+        />
       </div>
     ),
     {
