@@ -71,9 +71,9 @@ export default function ProfilePage() {
             </div>
 
             {/* Profile Info Section */}
-            <div className="px-6 sm:px-8 pb-6 pt-0">
-              <div className="flex flex-col sm:flex-row gap-5 -mt-12">
-                {/* Avatar */}
+            <div className="px-6 sm:px-8 pb-6">
+              {/* Avatar - positioned to overlap banner */}
+              <div className="flex items-end gap-5 -mt-10">
                 <div className="relative flex-shrink-0">
                   <div className="w-24 h-24 rounded-2xl bg-white p-1 shadow-2xl">
                     <div className="w-full h-full rounded-xl bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center">
@@ -87,39 +87,39 @@ export default function ProfilePage() {
                   </button>
                 </div>
 
-                {/* Name and Info */}
-                <div className="flex-1 pt-14 sm:pt-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <h1 className="font-display text-2xl font-bold text-slate-800 mb-1.5">
-                        {profile?.full_name || 'User'}
-                      </h1>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                          profile ? getRoleBadgeColor(profile.role) : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {profile ? getRoleDisplayName(profile.role) : 'Loading...'}
-                        </span>
-                        <span className="text-slate-400">•</span>
-                        <div className="flex items-center gap-1 text-mps-green-600 text-xs font-medium">
-                          <CheckCircle size={12} />
-                          <span>Verified</span>
-                        </div>
-                        <span className="text-slate-400">•</span>
-                        <span className="text-slate-500 text-xs">
-                          Since {profile?.created_at ? formatDate(profile.created_at) : '...'}
-                        </span>
-                      </div>
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="btn-primary flex items-center gap-2 self-start text-sm py-2.5"
-                    >
-                      <Edit3 size={14} />
-                      Edit Profile
-                    </motion.button>
+                {/* Edit button - aligned with avatar */}
+                <div className="flex-1 flex justify-end pb-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="btn-primary flex items-center gap-2 text-sm py-2.5"
+                  >
+                    <Edit3 size={14} />
+                    Edit Profile
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Name and Info - below avatar */}
+              <div className="mt-4">
+                <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">
+                  {profile?.full_name || 'User'}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                    profile ? getRoleBadgeColor(profile.role) : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {profile ? getRoleDisplayName(profile.role) : 'Loading...'}
+                  </span>
+                  <span className="text-slate-400">•</span>
+                  <div className="flex items-center gap-1 text-mps-green-600 text-xs font-medium">
+                    <CheckCircle size={12} />
+                    <span>Verified</span>
                   </div>
+                  <span className="text-slate-400">•</span>
+                  <span className="text-slate-500 text-xs">
+                    Since {profile?.created_at ? formatDate(profile.created_at) : '...'}
+                  </span>
                 </div>
               </div>
             </div>
