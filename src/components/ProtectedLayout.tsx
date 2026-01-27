@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import Navbar from '@/components/Navbar'
 
@@ -31,10 +32,20 @@ export default function ProtectedLayout({ children, staffOnly = false }: Protect
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="text-center">
-          <div className="spinner mx-auto mb-4" />
-          <p className="text-slate-500">Loading...</p>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full overflow-hidden shadow-lg">
+            <Image
+              src="/logo.png"
+              alt="MPS Logo"
+              width={64}
+              height={64}
+              className="object-cover w-full h-full"
+              priority
+            />
+          </div>
+          <div className="spinner mx-auto mb-2" />
+          <p className="text-slate-500 text-sm">Loading...</p>
         </div>
       </div>
     )
