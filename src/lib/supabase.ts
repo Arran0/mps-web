@@ -26,6 +26,21 @@ export const isAdminRole = (role: UserRole): boolean => {
   return role === 'admin'
 }
 
+// Check if user has coordinator tag
+export const isCoordinatorRole = (role: UserRole): boolean => {
+  return role === 'coordinator'
+}
+
+// Check if user has principal tag
+export const isPrincipalRole = (role: UserRole): boolean => {
+  return role === 'principal'
+}
+
+// Check if user can see Team Analytics (admin, coordinator, or principal)
+export const canViewTeamAnalytics = (role: UserRole): boolean => {
+  return ['admin', 'coordinator', 'principal'].includes(role)
+}
+
 export const getRoleDisplayName = (role: UserRole): string => {
   const roleNames: Record<UserRole, string> = {
     student: 'Student',

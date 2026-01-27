@@ -2,42 +2,18 @@
 
 import React from 'react'
 import ProtectedLayout from '@/components/ProtectedLayout'
+import { useAuth } from '@/contexts/AuthContext'
+import { isStaffRole } from '@/lib/supabase'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { 
-  MoreHorizontal, 
-  CreditCard, 
-  Bus, 
+import {
+  MoreHorizontal,
+  CreditCard,
+  Bus,
   Calendar,
+  CalendarDays,
   ArrowRight
 } from 'lucide-react'
-
-const moreSections = [
-  {
-    title: 'Fee Manager',
-    description: 'View fee structure, payment history, and make payments',
-    href: '/more/fees',
-    icon: <CreditCard size={28} />,
-    color: 'from-emerald-400 to-emerald-600',
-    bgColor: 'bg-emerald-50',
-  },
-  {
-    title: 'School Bus Manager',
-    description: 'Track bus routes, timings, and transportation details',
-    href: '/more/bus',
-    icon: <Bus size={28} />,
-    color: 'from-rose-400 to-rose-600',
-    bgColor: 'bg-rose-50',
-  },
-  {
-    title: 'Leave Manager',
-    description: 'Apply for leave, view leave balance, and track applications',
-    href: '/more/leave',
-    icon: <Calendar size={28} />,
-    color: 'from-cyan-400 to-cyan-600',
-    bgColor: 'bg-cyan-50',
-  },
-]
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -54,7 +30,64 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 }
 }
 
+interface MoreSection {
+  title: string
+  description: string
+  href: string
+  icon: React.ReactNode
+  color: string
+  bgColor: string
+  staffOnly?: boolean
+}
+
 export default function MorePage() {
+  const { profile } = useAuth()
+  const isStaff = profile ? isStaffRole(profile.role) : false
+
+  // Base sections available to all users
+  const baseSections: MoreSection[] = [
+    {
+      title: 'Fee Manager',
+      description: 'View fee structure, payment history, and make payments',
+      href: '/more/fees',
+      icon: <CreditCard size={28} />,
+      color: 'from-emerald-400 to-emerald-600',
+      bgColor: 'bg-emerald-50',
+    },
+    {
+      title: 'School Bus Manager',
+      description: 'Track bus routes, timings, and transportation details',
+      href: '/more/bus',
+      icon: <Bus size={28} />,
+      color: 'from-rose-400 to-rose-600',
+      bgColor: 'bg-rose-50',
+    },
+    {
+      title: 'Leave Manager',
+      description: 'Apply for leave, view leave balance, and track applications',
+      href: '/more/leave',
+      icon: <Calendar size={28} />,
+      color: 'from-cyan-400 to-cyan-600',
+      bgColor: 'bg-cyan-50',
+    },
+  ]
+
+  // Staff-only sections
+  const staffSections: MoreSection[] = [
+    {
+      title: 'Staff Leave Manager',
+      description: 'Manage staff leave requests and view leave history',
+      href: '/more/staff-leave',
+      icon: <CalendarDays size={28} />,
+      color: 'from-purple-400 to-purple-600',
+      bgColor: 'bg-purple-50',
+      staffOnly: true,
+    },
+  ]
+
+  // Combine sections based on role
+  const moreSections = isStaff ? [...baseSections, ...staffSections] : baseSections
+
   return (
     <ProtectedLayout>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -77,11 +110,16 @@ export default function MorePage() {
           </motion.div>
 
           {/* More Sections */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {moreSections.map((section, index) => (
               <motion.div key={section.href} variants={itemVariants}>
                 <Link href={section.href}>
-                  <div className="glass rounded-2xl p-6 h-full card-hover group">
+                  <div className="glass rounded-2xl p-6 h-full card-hover group relative overflow-hidden">
+                    {section.staffOnly && (
+                      <span className="absolute top-4 right-4 text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
+                        Staff
+                      </span>
+                    )}
                     <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${section.color} flex items-center justify-center text-white mb-5 shadow-lg group-hover:shadow-xl transition-shadow`}>
                       {section.icon}
                     </div>
