@@ -3,11 +3,10 @@
 import React from 'react'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { getRoleDisplayName, isStaffRole, isAdminRole, canViewTeamAnalytics } from '@/lib/supabase'
+import { getRoleDisplayName, isStaffRole, isAdminRole } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import {
-  BookOpen,
   ClipboardList,
   CreditCard,
   Bus,
@@ -51,7 +50,6 @@ export default function HomePage() {
   const { profile } = useAuth()
   const isStaff = profile ? isStaffRole(profile.role) : false
   const isAdmin = profile ? isAdminRole(profile.role) : false
-  const showTeamAnalytics = profile ? canViewTeamAnalytics(profile.role) : false
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -61,23 +59,14 @@ export default function HomePage() {
   }
 
   // Staff/Teacher navigation buttons (links into Task Manager)
+  // Note: Team Analytics removed for coordinator/principal as they already have 4 buttons
+  // They can still access Team Analytics via Task Manager tabs
   const staffNavButtons = [
     { label: 'Announcements', href: '/announcements', icon: <Megaphone size={24} />, color: 'from-mps-blue-400 to-mps-blue-600', description: 'View school announcements' },
     { label: "Today's Task List", href: '/tasks', icon: <ClipboardList size={24} />, color: 'from-amber-400 to-orange-500', description: 'Manage your daily tasks' },
     { label: 'Weekly Task Calendar', href: '/tasks?tab=weekly', icon: <CalendarDays size={24} />, color: 'from-purple-400 to-purple-600', description: 'View weekly task calendar' },
     { label: 'Advanced Dashboard', href: '/tasks?tab=dashboard', icon: <LayoutDashboard size={24} />, color: 'from-cyan-400 to-cyan-600', description: 'Access advanced analytics' },
   ]
-
-  // Add Team Analytics for coordinator/principal/admin
-  if (showTeamAnalytics && !isAdmin) {
-    staffNavButtons.push({
-      label: 'Team Analytics',
-      href: '/tasks?tab=team',
-      icon: <Users size={24} />,
-      color: 'from-rose-400 to-rose-600',
-      description: 'View team performance'
-    })
-  }
 
   // Admin navigation buttons
   const adminNavButtons = [

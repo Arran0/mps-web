@@ -107,7 +107,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex relative bg-gradient-to-br from-slate-50 via-blue-50 to-green-50">
+    <div className="min-h-screen flex relative bg-gradient-to-br from-mps-blue-100 via-blue-50 to-mps-green-100">
       {/* ============================================== */}
       {/* LEFT PANEL - BRANDING                         */}
       {/* ============================================== */}
