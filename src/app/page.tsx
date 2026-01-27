@@ -20,20 +20,20 @@ export default function RootPage() {
   }, [user, loading, router])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-mps-blue-100 via-slate-50 to-mps-green-100">
       <div className="text-center">
-        <div className="w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden shadow-lg">
+        <div className="w-24 h-24 mx-auto mb-6 rounded-full overflow-hidden shadow-xl ring-4 ring-white/80">
           <Image
             src="/logo.png"
             alt="MPS Logo"
-            width={80}
-            height={80}
+            width={96}
+            height={96}
             className="object-cover w-full h-full"
             priority
           />
         </div>
         <div className="spinner mx-auto" />
-        <p className="mt-4 text-slate-500 text-sm">Loading...</p>
+        <p className="mt-4 text-slate-600 text-sm font-medium">Loading MPS Web...</p>
       </div>
     </div>
   )
