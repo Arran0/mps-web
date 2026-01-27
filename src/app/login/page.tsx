@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import { UserRole } from '@/lib/supabase'
+import MPSLogo from '@/components/MPSLogo'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Eye, 
@@ -140,84 +140,7 @@ export default function LoginPage() {
           >
             {/* Logo container with ripples */}
             <div className="relative mb-6">
-              {/* Ripple effects - positioned behind logo */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                {/* Ripple 1 */}
-                <motion.div
-                  className="absolute rounded-full border-2 border-white/30"
-                  animate={{
-                    width: ['128px', '800px'],
-                    height: ['128px', '800px'],
-                    opacity: [0.6, 0],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: "easeOut",
-                  }}
-                />
-                {/* Ripple 2 */}
-                <motion.div
-                  className="absolute rounded-full border-2 border-white/25"
-                  animate={{
-                    width: ['128px', '800px'],
-                    height: ['128px', '800px'],
-                    opacity: [0.5, 0],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: "easeOut",
-                    delay: 1,
-                  }}
-                />
-                {/* Ripple 3 */}
-                <motion.div
-                  className="absolute rounded-full border-2 border-white/20"
-                  animate={{
-                    width: ['128px', '800px'],
-                    height: ['128px', '800px'],
-                    opacity: [0.4, 0],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: "easeOut",
-                    delay: 2,
-                  }}
-                />
-                {/* Ripple 4 */}
-                <motion.div
-                  className="absolute rounded-full border border-white/15"
-                  animate={{
-                    width: ['128px', '800px'],
-                    height: ['128px', '800px'],
-                    opacity: [0.3, 0],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: "easeOut",
-                    delay: 3,
-                  }}
-                />
-              </div>
-
-              {/* Big Circle Logo */}
-              <motion.div
-                className="relative z-10 w-32 h-32 xl:w-40 xl:h-40 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl overflow-hidden ring-4 ring-white/30"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Image
-                  src="/logo.png"
-                  alt="MPS Logo"
-                  width={160}
-                  height={160}
-                  className="object-cover w-full h-full rounded-full"
-                />
-              </motion.div>
+              <MPSLogo size="lg" withRipple />
             </div>
 
             {/* School Name - BOLD */}
@@ -287,15 +210,7 @@ export default function LoginPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-full overflow-hidden shadow-lg ring-2 ring-slate-200">
-              <Image
-                src="/logo.png"
-                alt="MPS Logo"
-                width={48}
-                height={48}
-                className="object-cover w-full h-full rounded-full"
-              />
-            </div>
+            <MPSLogo size="md" className="ring-2 ring-slate-200" />
             <div>
               <h1 className="font-display text-xl font-semibold gradient-text tracking-tight">MPS Web</h1>
               <p className="text-xs text-slate-500 font-light">Muthamil Public School</p>

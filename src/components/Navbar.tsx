@@ -2,15 +2,15 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { isStaffRole, getRoleDisplayName, getRoleBadgeColor } from '@/lib/supabase'
-import { 
-  Home, 
-  ClipboardList, 
-  BookOpen, 
-  MoreHorizontal, 
+import { isStaffRole, isAdminRole, getRoleDisplayName, getRoleBadgeColor } from '@/lib/supabase'
+import MPSLogo from './MPSLogo'
+import {
+  Home,
+  ClipboardList,
+  BookOpen,
+  MoreHorizontal,
   User,
   LogOut,
   ChevronDown,
@@ -21,7 +21,9 @@ import {
   Award,
   CreditCard,
   Bus,
-  Calendar
+  Calendar,
+  Megaphone,
+  CalendarDays
 } from 'lucide-react'
 
 interface NavItem {
@@ -36,19 +38,35 @@ interface NavItem {
   }[]
 }
 
-const navItems: NavItem[] = [
-  {
-    label: 'Home',
-    href: '/home',
-    icon: <Home size={20} />,
-  },
-  {
-    label: 'Task Manager',
-    href: '/tasks',
-    icon: <ClipboardList size={20} />,
-    staffOnly: true,
-  },
-  {
+interface DynamicNavItem extends NavItem {
+  staffOnlyChild?: boolean
+  adminOnlyChild?: boolean
+}
+
+const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
+  const items: NavItem[] = [
+    {
+      label: 'Home',
+      href: '/home',
+      icon: <Home size={20} />,
+    },
+    {
+      label: 'Announcements',
+      href: '/announcements',
+      icon: <Megaphone size={20} />,
+    },
+  ]
+
+  // Task Manager for staff only (no tag shown)
+  if (isStaff) {
+    items.push({
+      label: 'Task Manager',
+      href: '/tasks',
+      icon: <ClipboardList size={20} />,
+    })
+  }
+
+  items.push({
     label: 'Academics',
     href: '/academics',
     icon: <BookOpen size={20} />,
@@ -57,18 +75,29 @@ const navItems: NavItem[] = [
       { label: 'Coursework', href: '/academics/coursework', icon: <GraduationCap size={18} /> },
       { label: 'Grades', href: '/academics/grades', icon: <Award size={18} /> },
     ],
-  },
-  {
+  })
+
+  // Build More children based on role
+  const moreChildren: { label: string; href: string; icon: React.ReactNode }[] = [
+    { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={18} /> },
+    { label: 'School Bus', href: '/more/bus', icon: <Bus size={18} /> },
+    { label: 'Leave Manager', href: '/more/leave', icon: <Calendar size={18} /> },
+  ]
+
+  // Add Staff Leave Manager for staff only
+  if (isStaff) {
+    moreChildren.push({ label: 'Staff Leave Manager', href: '/more/staff-leave', icon: <CalendarDays size={18} /> })
+  }
+
+  items.push({
     label: 'More',
     href: '/more',
     icon: <MoreHorizontal size={20} />,
-    children: [
-      { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={18} /> },
-      { label: 'School Bus', href: '/more/bus', icon: <Bus size={18} /> },
-      { label: 'Leave Manager', href: '/more/leave', icon: <Calendar size={18} /> },
-    ],
-  },
-]
+    children: moreChildren,
+  })
+
+  return items
+}
 
 export default function Navbar() {
   const { user, profile, signOut, loading } = useAuth()
@@ -80,6 +109,7 @@ export default function Navbar() {
   const profileDropdownRef = useRef<HTMLDivElement>(null)
 
   const isStaff = profile ? isStaffRole(profile.role) : false
+  const isAdmin = profile ? isAdminRole(profile.role) : false
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -101,10 +131,8 @@ export default function Navbar() {
     return pathname.startsWith(href)
   }
 
-  const filteredNavItems = navItems.filter(item => {
-    if (item.staffOnly && !isStaff) return false
-    return true
-  })
+  // Get dynamic nav items based on role
+  const filteredNavItems = getNavItems(isStaff, isAdmin)
 
   if (loading) {
     return (
@@ -112,15 +140,7 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md">
-                <Image 
-                  src="/logo.png" 
-                  alt="MPS Logo" 
-                  width={48} 
-                  height={48}
-                  className="object-contain"
-                />
-              </div>
+              <MPSLogo size="md" className="transition-transform duration-300 hover:scale-105" />
               <div>
                 <h1 className="font-display text-xl font-bold gradient-text">MPS Web</h1>
                 <p className="text-xs text-slate-500">Muthamil Public School</p>
@@ -142,15 +162,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-20">
             {/* Logo Section */}
             <Link href="/home" className="flex items-center gap-4 group">
-              <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md transition-transform duration-300 group-hover:scale-105">
-                <Image 
-                  src="/logo.png" 
-                  alt="MPS Logo" 
-                  width={48} 
-                  height={48}
-                  className="object-contain"
-                />
-              </div>
+              <MPSLogo size="md" className="transition-transform duration-300 group-hover:scale-105" />
               <div>
                 <h1 className="font-display text-xl font-bold gradient-text">MPS Web</h1>
                 <p className="text-xs text-slate-500">Muthamil Public School</p>
@@ -186,11 +198,6 @@ export default function Navbar() {
                     >
                       {item.icon}
                       <span>{item.label}</span>
-                      {item.staffOnly && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
-                          Staff
-                        </span>
-                      )}
                     </Link>
                   )}
 
@@ -338,11 +345,6 @@ export default function Navbar() {
                     >
                       {item.icon}
                       <span className="font-medium">{item.label}</span>
-                      {item.staffOnly && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
-                          Staff
-                        </span>
-                      )}
                     </Link>
                   )}
                 </div>
