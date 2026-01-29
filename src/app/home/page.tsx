@@ -102,6 +102,42 @@ export default function HomePage() {
             </div>
           </motion.div>
 
+          {/* Latest Announcements - Top of Page */}
+          <motion.div variants={itemVariants} className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Bell className="text-mps-blue-600" size={20} />
+                <h2 className="font-display text-xl font-bold text-slate-800">Latest Announcements</h2>
+              </div>
+              <Link href="/announcements" className="text-mps-blue-600 hover:text-mps-blue-700 text-sm font-medium flex items-center gap-1">
+                View All <ArrowRight size={16} />
+              </Link>
+            </div>
+
+            <div className="glass rounded-2xl divide-y divide-slate-100">
+              {[
+                { title: 'Annual Sports Day Registration Open', date: 'Today', type: 'Event' },
+                { title: 'Mid-term Exam Schedule Released', date: 'Yesterday', type: 'Academic' },
+                { title: 'Parent-Teacher Meeting on Friday', date: '2 days ago', type: 'Meeting' },
+                { title: 'New Library Books Available for Checkout', date: '3 days ago', type: 'General' },
+              ].map((announcement, index) => (
+                <Link key={index} href="/announcements">
+                  <div className="p-4 hover:bg-slate-50/50 transition-colors cursor-pointer">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-medium text-slate-800 mb-0.5">{announcement.title}</h4>
+                        <p className="text-sm text-slate-500">{announcement.date}</p>
+                      </div>
+                      <span className="text-xs px-2 py-1 bg-mps-blue-50 text-mps-blue-600 rounded-full font-medium flex-shrink-0 ml-3">
+                        {announcement.type}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+
           {/* Admin Navigation Buttons */}
           {isAdmin && (
             <motion.div variants={itemVariants} className="mb-8">
@@ -204,40 +240,6 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Announcements Section */}
-          <motion.div variants={itemVariants} className="mt-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <Bell className="text-mps-blue-600" size={20} />
-                <h2 className="font-display text-xl font-bold text-slate-800">Recent Announcements</h2>
-              </div>
-              <Link href="/announcements" className="text-mps-blue-600 hover:text-mps-blue-700 text-sm font-medium flex items-center gap-1">
-                View All <ArrowRight size={16} />
-              </Link>
-            </div>
-
-            <div className="glass rounded-2xl divide-y divide-slate-100">
-              {[
-                { title: 'Annual Sports Day Registration Open', date: 'Today', type: 'Event' },
-                { title: 'Mid-term Exam Schedule Released', date: 'Yesterday', type: 'Academic' },
-                { title: 'Parent-Teacher Meeting on Friday', date: '2 days ago', type: 'Meeting' },
-              ].map((announcement, index) => (
-                <Link key={index} href="/announcements">
-                  <div className="p-5 hover:bg-slate-50/50 transition-colors cursor-pointer">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-slate-800 mb-1">{announcement.title}</h4>
-                        <p className="text-sm text-slate-500">{announcement.date}</p>
-                      </div>
-                      <span className="text-xs px-2 py-1 bg-mps-blue-50 text-mps-blue-600 rounded-full font-medium">
-                        {announcement.type}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </motion.div>
         </motion.div>
       </div>
     </ProtectedLayout>

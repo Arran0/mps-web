@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { canViewTeamAnalytics } from '@/lib/supabase'
+import { canViewTeamAnalytics, UserProfile } from '@/lib/supabase'
+import { fetchTeamMembers } from '@/lib/tasks'
 import { motion } from 'framer-motion'
 import {
   ClipboardList,
@@ -12,10 +13,13 @@ import {
   BarChart3,
   LayoutDashboard,
   Users,
-  Construction,
-  ArrowLeft
 } from 'lucide-react'
-import Link from 'next/link'
+import TodayTaskList from '@/components/tasks/TodayTaskList'
+import WeeklyCalendar from '@/components/tasks/WeeklyCalendar'
+import TaskAnalytics from '@/components/tasks/TaskAnalytics'
+import AdvancedDashboard from '@/components/tasks/AdvancedDashboard'
+import TeamAnalytics from '@/components/tasks/TeamAnalytics'
+import TeamMemberSelector from '@/components/tasks/TeamMemberSelector'
 
 type TabId = 'today' | 'weekly' | 'analytics' | 'dashboard' | 'team'
 
@@ -23,29 +27,48 @@ interface Tab {
   id: TabId
   label: string
   icon: React.ReactNode
-  description: string
-  requiresTeamAccess?: boolean
 }
 
 const tabs: Tab[] = [
-  { id: 'today', label: "Today's Task List", icon: <ClipboardList size={18} />, description: 'View and manage your daily tasks' },
-  { id: 'weekly', label: 'Weekly Calendar', icon: <CalendarDays size={18} />, description: 'Plan your week with the task calendar' },
-  { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Track your productivity and task completion' },
-  { id: 'dashboard', label: 'Advanced Dashboard', icon: <LayoutDashboard size={18} />, description: 'Access detailed insights and metrics' },
-  { id: 'team', label: 'Team Analytics', icon: <Users size={18} />, description: 'View team performance and collaboration', requiresTeamAccess: true },
+  { id: 'today', label: "Today's Task List", icon: <ClipboardList size={18} /> },
+  { id: 'weekly', label: 'Weekly Calendar', icon: <CalendarDays size={18} /> },
+  { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+  { id: 'team', label: 'Team Analytics', icon: <Users size={18} /> },
 ]
 
 function TasksPageContent() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<TabId>('today')
+  const [teamMembers, setTeamMembers] = useState<UserProfile[]>([])
+  const [viewingUserId, setViewingUserId] = useState<string>('')
 
   const showTeamAnalytics = profile ? canViewTeamAnalytics(profile.role) : false
+  const canAssignToOthers = profile ? ['coordinator', 'principal', 'admin'].includes(profile.role) : false
+  // Teachers can cycle: not_done -> partial -> done
+  // Coordinators, principals, admins can also set: done -> checked
+  const canCheck = profile ? ['coordinator', 'principal', 'admin'].includes(profile.role) : false
 
   const visibleTabs = tabs.filter(tab => {
-    if (tab.requiresTeamAccess && !showTeamAnalytics) return false
+    if (tab.id === 'team' && !showTeamAnalytics) return false
     return true
   })
+
+  // Load team members for coordinator/principal/admin
+  const loadTeamMembers = useCallback(async () => {
+    if (!user || !profile || !canAssignToOthers) return
+    const members = await fetchTeamMembers(user.id, profile.role)
+    setTeamMembers(members)
+  }, [user, profile, canAssignToOthers])
+
+  useEffect(() => {
+    loadTeamMembers()
+  }, [loadTeamMembers])
+
+  useEffect(() => {
+    if (user) setViewingUserId(user.id)
+  }, [user])
 
   useEffect(() => {
     const tabParam = searchParams.get('tab')
@@ -58,7 +81,13 @@ function TasksPageContent() {
     }
   }, [searchParams, showTeamAnalytics])
 
-  const activeTabData = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0]
+  if (!user || !profile) return null
+
+  // Include self + team members for assignee options
+  const allAssignees: UserProfile[] = [
+    profile,
+    ...teamMembers,
+  ]
 
   return (
     <ProtectedLayout staffOnly>
@@ -76,10 +105,23 @@ function TasksPageContent() {
           </div>
         </div>
 
+        {/* Team Member Selector (for coordinator/principal/admin) */}
+        {canAssignToOthers && teamMembers.length > 0 && activeTab !== 'team' && (
+          <div className="mb-4">
+            <TeamMemberSelector
+              members={teamMembers}
+              selectedUserId={viewingUserId}
+              currentUserId={user.id}
+              currentUserName={profile.full_name}
+              onSelect={setViewingUserId}
+            />
+          </div>
+        )}
+
         {/* Navigation Tabs */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="glass rounded-2xl p-2">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {visibleTabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -98,60 +140,56 @@ function TasksPageContent() {
           </div>
         </div>
 
-        {/* Under Construction Content */}
+        {/* Tab Content */}
         <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 20 }}
+          key={`${activeTab}-${viewingUserId}`}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-center py-12"
+          transition={{ duration: 0.2 }}
         >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-            className="relative w-32 h-32 mx-auto mb-8"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full animate-pulse-soft" />
-            <div className="absolute inset-2 bg-gradient-to-br from-amber-50 to-orange-50 rounded-full" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Construction className="w-14 h-14 text-amber-500" strokeWidth={1.5} />
-            </div>
-            <motion.div
-              className="absolute -top-2 -right-2 w-6 h-6 bg-amber-400 rounded-full"
-              animate={{ y: [-5, 5, -5] }}
-              transition={{ repeat: Infinity, duration: 2 }}
+          {activeTab === 'today' && (
+            <TodayTaskList
+              userId={user.id}
+              profile={profile}
+              canCheck={canCheck}
+              canAssignToOthers={canAssignToOthers}
+              availableAssignees={allAssignees}
+              viewingUserId={viewingUserId !== user.id ? viewingUserId : undefined}
             />
-            <motion.div
-              className="absolute -bottom-1 -left-1 w-4 h-4 bg-orange-400 rounded-full"
-              animate={{ y: [5, -5, 5] }}
-              transition={{ repeat: Infinity, duration: 2.5 }}
+          )}
+
+          {activeTab === 'weekly' && (
+            <WeeklyCalendar
+              userId={user.id}
+              profile={profile}
+              canCheck={canCheck}
+              canAssignToOthers={canAssignToOthers}
+              availableAssignees={allAssignees}
+              viewingUserId={viewingUserId !== user.id ? viewingUserId : undefined}
             />
-          </motion.div>
+          )}
 
-          <span className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-sm font-medium mb-4">
-            <Construction size={16} />
-            Under Construction
-          </span>
+          {activeTab === 'analytics' && (
+            <TaskAnalytics
+              userId={user.id}
+              viewingUserId={viewingUserId !== user.id ? viewingUserId : undefined}
+            />
+          )}
 
-          <h2 className="font-display text-2xl font-bold text-slate-800 mt-4 mb-3">
-            {activeTabData.label}
-          </h2>
+          {activeTab === 'dashboard' && (
+            <AdvancedDashboard
+              userId={user.id}
+              viewingUserId={viewingUserId !== user.id ? viewingUserId : undefined}
+              canCheck={canCheck}
+            />
+          )}
 
-          <p className="text-slate-500 leading-relaxed mb-8 max-w-md mx-auto">
-            {activeTabData.description}. This feature is coming soon!
-          </p>
-
-          <Link href="/home">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="btn-ghost inline-flex items-center gap-2"
-            >
-              <ArrowLeft size={18} />
-              Back to Home
-            </motion.button>
-          </Link>
+          {activeTab === 'team' && showTeamAnalytics && (
+            <TeamAnalytics
+              userId={user.id}
+              userRole={profile.role}
+            />
+          )}
         </motion.div>
       </div>
     </ProtectedLayout>
