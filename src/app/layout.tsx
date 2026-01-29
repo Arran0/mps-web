@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: 'MPS Web - Muthamil Public School',
   description: 'Educational management system for Muthamil Public School',
   keywords: ['school', 'education', 'management', 'MPS', 'Muthamil Public School'],
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 }
 
 export default function RootLayout({
