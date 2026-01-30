@@ -233,53 +233,96 @@ CREATE TRIGGER tasks_updated_at
 -- ============================================
 -- 9. Sample Seed Data: Teams A, B, C
 -- Each team has 1 coordinator + 3 teachers
--- Run AFTER creating user accounts in Supabase Auth
+-- Default password for all sample users: MPS@2026
 -- ============================================
 
--- Step 1: Create sample teams
+-- Step 1: Create auth users (required before profiles due to FK constraint)
+-- All users get password: MPS@2026
+INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, confirmation_token, recovery_token, email_change_token_new, email_change_token_current)
+VALUES
+  -- Principal
+  ('b0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'ramesh.kumar@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  -- Admin
+  ('b0000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'anitha.sundaram@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  -- Team A
+  ('c0000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'priya.venkatesh@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'karthik.rajan@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lakshmi.narayanan@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000a4', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'suresh.babu@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  -- Team B
+  ('c0000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'deepa.krishnan@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'arjun.selvam@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'meena.devi@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000b4', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'rajesh.pandian@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  -- Team C
+  ('c0000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'saranya.murugan@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'vijay.shankar@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'divya.prakash@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
+  ('c0000000-0000-0000-0000-0000000000c4', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'ganesh.kumar@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', '')
+ON CONFLICT (id) DO NOTHING;
+
+-- Also create identities for each auth user (required by Supabase Auth)
+INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+VALUES
+  (gen_random_uuid(), 'b0000000-0000-0000-0000-000000000001', '{"sub":"b0000000-0000-0000-0000-000000000001","email":"ramesh.kumar@mps.edu"}', 'email', 'b0000000-0000-0000-0000-000000000001', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'b0000000-0000-0000-0000-000000000002', '{"sub":"b0000000-0000-0000-0000-000000000002","email":"anitha.sundaram@mps.edu"}', 'email', 'b0000000-0000-0000-0000-000000000002', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a1', '{"sub":"c0000000-0000-0000-0000-0000000000a1","email":"priya.venkatesh@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000a1', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a2', '{"sub":"c0000000-0000-0000-0000-0000000000a2","email":"karthik.rajan@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000a2', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a3', '{"sub":"c0000000-0000-0000-0000-0000000000a3","email":"lakshmi.narayanan@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000a3', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a4', '{"sub":"c0000000-0000-0000-0000-0000000000a4","email":"suresh.babu@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000a4', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b1', '{"sub":"c0000000-0000-0000-0000-0000000000b1","email":"deepa.krishnan@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000b1', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b2', '{"sub":"c0000000-0000-0000-0000-0000000000b2","email":"arjun.selvam@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000b2', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b3', '{"sub":"c0000000-0000-0000-0000-0000000000b3","email":"meena.devi@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000b3', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b4', '{"sub":"c0000000-0000-0000-0000-0000000000b4","email":"rajesh.pandian@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000b4', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c1', '{"sub":"c0000000-0000-0000-0000-0000000000c1","email":"saranya.murugan@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000c1', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c2', '{"sub":"c0000000-0000-0000-0000-0000000000c2","email":"vijay.shankar@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000c2', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c3', '{"sub":"c0000000-0000-0000-0000-0000000000c3","email":"divya.prakash@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000c3', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c4', '{"sub":"c0000000-0000-0000-0000-0000000000c4","email":"ganesh.kumar@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000c4', NOW(), NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+-- Step 2: Create profiles
+-- Principal
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('b0000000-0000-0000-0000-000000000001', 'ramesh.kumar@mps.edu', 'Dr. Ramesh Kumar', 'principal')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Admin
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('b0000000-0000-0000-0000-000000000002', 'anitha.sundaram@mps.edu', 'Anitha Sundaram', 'admin')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Team A: Coordinator + 3 Teachers
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000a1', 'priya.venkatesh@mps.edu', 'Priya Venkatesh', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000a2', 'karthik.rajan@mps.edu', 'Karthik Rajan', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000a3', 'lakshmi.narayanan@mps.edu', 'Lakshmi Narayanan', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000a4', 'suresh.babu@mps.edu', 'Suresh Babu', 'teacher')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Team B: Coordinator + 3 Teachers
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000b1', 'deepa.krishnan@mps.edu', 'Deepa Krishnan', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000b2', 'arjun.selvam@mps.edu', 'Arjun Selvam', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000b3', 'meena.devi@mps.edu', 'Meena Devi', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000b4', 'rajesh.pandian@mps.edu', 'Rajesh Pandian', 'teacher')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Team C: Coordinator + 3 Teachers
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000c1', 'saranya.murugan@mps.edu', 'Saranya Murugan', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000c2', 'vijay.shankar@mps.edu', 'Vijay Shankar', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000c3', 'divya.prakash@mps.edu', 'Divya Prakash', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000c4', 'ganesh.kumar@mps.edu', 'Ganesh Kumar', 'teacher')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Step 3: Create teams
 INSERT INTO public.teams (id, name) VALUES
   ('a0000000-0000-0000-0000-000000000001', 'Team A'),
   ('a0000000-0000-0000-0000-000000000002', 'Team B'),
   ('a0000000-0000-0000-0000-000000000003', 'Team C')
 ON CONFLICT DO NOTHING;
 
--- Step 2: Create sample profiles (these UUIDs must match Supabase Auth user IDs)
--- NOTE: Replace these UUIDs with actual user IDs from your Supabase Auth after creating accounts
--- Principal
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('b0000000-0000-0000-0000-000000000001', 'Dr. Ramesh Kumar', 'principal')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
-
--- Admin
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('b0000000-0000-0000-0000-000000000002', 'Anitha Sundaram', 'admin')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
-
--- Team A: Coordinator + 3 Teachers
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('c0000000-0000-0000-0000-0000000000a1', 'Priya Venkatesh', 'coordinator'),
-  ('c0000000-0000-0000-0000-0000000000a2', 'Karthik Rajan', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000a3', 'Lakshmi Narayanan', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000a4', 'Suresh Babu', 'teacher')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
-
--- Team B: Coordinator + 3 Teachers
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('c0000000-0000-0000-0000-0000000000b1', 'Deepa Krishnan', 'coordinator'),
-  ('c0000000-0000-0000-0000-0000000000b2', 'Arjun Selvam', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000b3', 'Meena Devi', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000b4', 'Rajesh Pandian', 'teacher')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
-
--- Team C: Coordinator + 3 Teachers
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('c0000000-0000-0000-0000-0000000000c1', 'Saranya Murugan', 'coordinator'),
-  ('c0000000-0000-0000-0000-0000000000c2', 'Vijay Shankar', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000c3', 'Divya Prakash', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000c4', 'Ganesh Kumar', 'teacher')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
-
--- Step 3: Assign members to teams
+-- Step 4: Assign members to teams
 -- Team A members
 INSERT INTO public.team_members (team_id, user_id) VALUES
   ('a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-0000000000a1'),  -- Priya (Coordinator)
