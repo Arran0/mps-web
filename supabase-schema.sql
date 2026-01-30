@@ -246,38 +246,38 @@ ON CONFLICT DO NOTHING;
 -- Step 2: Create sample profiles (these UUIDs must match Supabase Auth user IDs)
 -- NOTE: Replace these UUIDs with actual user IDs from your Supabase Auth after creating accounts
 -- Principal
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('b0000000-0000-0000-0000-000000000001', 'Dr. Ramesh Kumar', 'principal')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('b0000000-0000-0000-0000-000000000001', 'ramesh.kumar@mps.edu', 'Dr. Ramesh Kumar', 'principal')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
 -- Admin
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('b0000000-0000-0000-0000-000000000002', 'Anitha Sundaram', 'admin')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('b0000000-0000-0000-0000-000000000002', 'anitha.sundaram@mps.edu', 'Anitha Sundaram', 'admin')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
 -- Team A: Coordinator + 3 Teachers
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('c0000000-0000-0000-0000-0000000000a1', 'Priya Venkatesh', 'coordinator'),
-  ('c0000000-0000-0000-0000-0000000000a2', 'Karthik Rajan', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000a3', 'Lakshmi Narayanan', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000a4', 'Suresh Babu', 'teacher')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000a1', 'priya.venkatesh@mps.edu', 'Priya Venkatesh', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000a2', 'karthik.rajan@mps.edu', 'Karthik Rajan', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000a3', 'lakshmi.narayanan@mps.edu', 'Lakshmi Narayanan', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000a4', 'suresh.babu@mps.edu', 'Suresh Babu', 'teacher')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
 -- Team B: Coordinator + 3 Teachers
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('c0000000-0000-0000-0000-0000000000b1', 'Deepa Krishnan', 'coordinator'),
-  ('c0000000-0000-0000-0000-0000000000b2', 'Arjun Selvam', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000b3', 'Meena Devi', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000b4', 'Rajesh Pandian', 'teacher')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000b1', 'deepa.krishnan@mps.edu', 'Deepa Krishnan', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000b2', 'arjun.selvam@mps.edu', 'Arjun Selvam', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000b3', 'meena.devi@mps.edu', 'Meena Devi', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000b4', 'rajesh.pandian@mps.edu', 'Rajesh Pandian', 'teacher')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
 -- Team C: Coordinator + 3 Teachers
-INSERT INTO public.profiles (id, full_name, role) VALUES
-  ('c0000000-0000-0000-0000-0000000000c1', 'Saranya Murugan', 'coordinator'),
-  ('c0000000-0000-0000-0000-0000000000c2', 'Vijay Shankar', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000c3', 'Divya Prakash', 'teacher'),
-  ('c0000000-0000-0000-0000-0000000000c4', 'Ganesh Kumar', 'teacher')
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000c1', 'saranya.murugan@mps.edu', 'Saranya Murugan', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000c2', 'vijay.shankar@mps.edu', 'Vijay Shankar', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000c3', 'divya.prakash@mps.edu', 'Divya Prakash', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000c4', 'ganesh.kumar@mps.edu', 'Ganesh Kumar', 'teacher')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
 -- Step 3: Assign members to teams
 -- Team A members
