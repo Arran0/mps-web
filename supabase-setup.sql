@@ -23,14 +23,10 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own profile" ON public.profiles
   FOR SELECT USING (auth.uid() = id);
 
--- Staff can view ALL profiles (required for team member selector, task assignees, comments)
+-- Staff can view ALL profiles (uses JWT metadata - no circular dependency)
 CREATE POLICY "Staff can view all profiles" ON public.profiles
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid()
-      AND role IN ('teacher', 'coordinator', 'principal', 'admin')
-    )
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 -- Allow users to update their own profile
