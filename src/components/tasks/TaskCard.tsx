@@ -97,15 +97,17 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
         onClick={() => setIsOpen(true)}
       >
         <div className="flex items-center gap-3">
-          {/* Status tap button */}
+          {/* Status cycle button - tap to advance status */}
           <button
             onClick={handleStatusTap}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 border ${STATUS_COLORS[task.status]} transition-all hover:scale-110`}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 font-semibold text-xs transition-all active:scale-95 hover:shadow-md ${STATUS_COLORS[task.status]}`}
+            title={`Tap to change status (${STATUS_LABELS[task.status]} → ${STATUS_LABELS[getNextStatus(task.status, canCheck)]})`}
           >
-            <div className={`w-3 h-3 rounded-full ${STATUS_DOT_COLORS[task.status]}`} />
+            <div className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT_COLORS[task.status]}`} />
+            {STATUS_LABELS[task.status]}
           </button>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0" onClick={() => setIsOpen(true)}>
             <p className={`font-medium text-sm truncate ${task.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-800'}`}>
               {task.title}
             </p>
@@ -186,20 +188,17 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
         <div className="flex items-start gap-3">
           <button
             onClick={handleStatusTap}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${STATUS_COLORS[task.status]} transition-all hover:scale-110`}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 font-semibold text-xs transition-all active:scale-95 hover:shadow-md ${STATUS_COLORS[task.status]}`}
+            title={`Tap to change status (${STATUS_LABELS[task.status]} → ${STATUS_LABELS[getNextStatus(task.status, canCheck)]})`}
           >
-            <div className={`w-3.5 h-3.5 rounded-full ${STATUS_DOT_COLORS[task.status]}`} />
+            <div className={`w-3 h-3 rounded-full ${STATUS_DOT_COLORS[task.status]}`} />
+            {STATUS_LABELS[task.status]}
           </button>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between">
-              <h3 className={`font-semibold ${task.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-                {task.title}
-              </h3>
-              <span className={`text-xs px-2 py-1 rounded-full border font-medium ml-2 flex-shrink-0 ${STATUS_COLORS[task.status]}`}>
-                {STATUS_LABELS[task.status]}
-              </span>
-            </div>
+            <h3 className={`font-semibold ${task.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+              {task.title}
+            </h3>
 
             {task.description && (
               <p className="text-sm text-slate-500 mt-1 line-clamp-2">{task.description}</p>
@@ -319,13 +318,13 @@ function TaskModal({
           <div className="flex items-center gap-3">
             <button
               onClick={onStatusTap}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center border ${STATUS_COLORS[task.status]} transition-all hover:scale-110`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 font-bold text-sm transition-all active:scale-95 hover:shadow-lg ${STATUS_COLORS[task.status]}`}
+              title={`Tap to change status`}
             >
-              <div className={`w-3.5 h-3.5 rounded-full ${STATUS_DOT_COLORS[task.status]}`} />
-            </button>
-            <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${STATUS_COLORS[task.status]}`}>
+              <div className={`w-3.5 h-3.5 rounded-full ${STATUS_DOT_COLORS[task.status]} animate-pulse`} />
               {STATUS_LABELS[task.status]}
-            </span>
+              <ChevronRight size={14} className="opacity-50" />
+            </button>
             {task.tag === 'bonus' && (
               <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
                 <Star size={10} /> Bonus
