@@ -6,6 +6,7 @@ import { supabase, UserProfile, UserRole } from './supabase'
 
 export type TaskStatus = 'not_done' | 'partial' | 'done' | 'checked'
 export type TaskTag = 'bonus' | null
+export type TaskRecurrence = 'none' | 'daily' | 'weekly' | 'monthly'
 
 export interface Task {
   id: string
@@ -16,6 +17,7 @@ export interface Task {
   due_date: string | null
   timing: string | null
   tag: TaskTag
+  recurrence: TaskRecurrence
   created_by: string
   created_at: string
   updated_at: string
@@ -71,6 +73,7 @@ export interface NewTaskInput {
   due_date?: string
   timing?: string
   tag?: TaskTag
+  recurrence?: TaskRecurrence
   assignee_ids: string[]
   checklist_items?: string[]
 }
@@ -107,10 +110,19 @@ export const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
   checked: 'bg-blue-500',
 }
 
+export const RECURRENCE_LABELS: Record<TaskRecurrence, string> = {
+  none: 'No Repeat',
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+}
+
 export function getNextStatus(current: TaskStatus, canCheck: boolean): TaskStatus {
   if (current === 'not_done') return 'partial'
   if (current === 'partial') return 'done'
   if (current === 'done' && canCheck) return 'checked'
+  if (current === 'done' && !canCheck) return 'not_done' // cycle back for teachers
+  if (current === 'checked') return 'not_done' // cycle back for coordinators+
   return current
 }
 
@@ -127,6 +139,7 @@ export async function createTask(input: NewTaskInput, createdBy: string): Promis
       due_date: input.due_date || null,
       timing: input.timing || null,
       tag: input.tag || null,
+      recurrence: input.recurrence || 'none',
       created_by: createdBy,
     })
     .select()
@@ -172,7 +185,7 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
   return true
 }
 
-export async function updateTask(taskId: string, updates: Partial<Pick<Task, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'is_overdue'>>): Promise<boolean> {
+export async function updateTask(taskId: string, updates: Partial<Pick<Task, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'is_overdue' | 'recurrence'>>): Promise<boolean> {
   const { error } = await supabase
     .from('tasks')
     .update(updates)
@@ -203,7 +216,6 @@ export async function deleteTask(taskId: string): Promise<boolean> {
 // ============================================
 
 export async function fetchTasksForUser(userId: string): Promise<TaskWithDetails[]> {
-  // Get task IDs assigned to this user
   const { data: assignees, error: aErr } = await supabase
     .from('task_assignees')
     .select('task_id')
@@ -228,20 +240,17 @@ export async function fetchTasksByIds(taskIds: string[]): Promise<TaskWithDetail
 
   if (error || !tasks) return []
 
-  // Fetch assignees with profiles
   const { data: allAssignees } = await supabase
     .from('task_assignees')
     .select('*, user:profiles(*)')
     .in('task_id', taskIds)
 
-  // Fetch checklists
   const { data: allChecklists } = await supabase
     .from('task_checklist_items')
     .select('*')
     .in('task_id', taskIds)
     .order('sort_order', { ascending: true })
 
-  // Fetch comments with user profiles
   const { data: allComments } = await supabase
     .from('task_comments')
     .select('*, user:profiles(*)')
@@ -250,6 +259,7 @@ export async function fetchTasksByIds(taskIds: string[]): Promise<TaskWithDetail
 
   return (tasks as Task[]).map(task => ({
     ...task,
+    recurrence: task.recurrence || 'none',
     assignees: (allAssignees || []).filter(a => a.task_id === task.id),
     checklist: (allChecklists || []).filter(c => c.task_id === task.id),
     comments: (allComments || []).filter(c => c.task_id === task.id),
@@ -326,7 +336,6 @@ export async function toggleChecklistItem(itemId: string, isCompleted: boolean):
     .from('task_checklist_items')
     .update({ is_completed: isCompleted })
     .eq('id', itemId)
-
   return !error
 }
 
@@ -336,7 +345,6 @@ export async function addChecklistItem(taskId: string, text: string, sortOrder: 
     .insert({ task_id: taskId, text, sort_order: sortOrder })
     .select()
     .single()
-
   if (error) return null
   return data as TaskChecklistItem
 }
@@ -351,22 +359,44 @@ export async function addComment(taskId: string, userId: string, content: string
     .insert({ task_id: taskId, user_id: userId, content })
     .select('*, user:profiles(*)')
     .single()
-
   if (error) return null
   return data as TaskComment
 }
 
 // ============================================
-// Team queries
+// Team queries - FIXED hierarchy
 // ============================================
 
+/**
+ * Fetch accessible team members based on role hierarchy:
+ * - Teacher: no access to others
+ * - Coordinator: only teachers in their own team
+ * - Principal: all teachers + coordinators (all teams)
+ * - Admin: all teachers + coordinators + principals (everyone)
+ *
+ * NEVER includes the current user (no duplicates)
+ */
 export async function fetchTeamMembers(userId: string, userRole: UserRole): Promise<UserProfile[]> {
-  if (userRole === 'principal' || userRole === 'admin') {
-    // See all staff
+  if (userRole === 'admin') {
+    // Admin sees all: teachers, coordinators, principals
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .in('role', ['teacher', 'coordinator', 'principal'])
+      .neq('id', userId) // exclude self
+      .order('full_name')
+
+    if (error) return []
+    return (data || []) as UserProfile[]
+  }
+
+  if (userRole === 'principal') {
+    // Principal sees all teachers and coordinators (NOT other principals, NOT admin)
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('role', ['teacher', 'coordinator'])
+      .neq('id', userId) // exclude self
       .order('full_name')
 
     if (error) return []
@@ -374,7 +404,7 @@ export async function fetchTeamMembers(userId: string, userRole: UserRole): Prom
   }
 
   if (userRole === 'coordinator') {
-    // See team members of same team
+    // Coordinator sees only teachers in their same team(s)
     const { data: myTeams } = await supabase
       .from('team_members')
       .select('team_id')
@@ -389,13 +419,20 @@ export async function fetchTeamMembers(userId: string, userRole: UserRole): Prom
       .in('team_id', teamIds)
 
     if (!members) return []
+
     const uniqueUsers = new Map<string, UserProfile>()
     members.forEach(m => {
-      if (m.user && m.user_id !== userId) {
-        uniqueUsers.set(m.user_id, m.user as unknown as UserProfile)
+      const profile = m.user as unknown as UserProfile
+      // Exclude self, only include teachers (not other coordinators)
+      if (profile && m.user_id !== userId && profile.role === 'teacher') {
+        uniqueUsers.set(m.user_id, profile)
       }
     })
-    return Array.from(uniqueUsers.values())
+
+    // Sort alphabetically
+    return Array.from(uniqueUsers.values()).sort((a, b) =>
+      (a.full_name || '').localeCompare(b.full_name || '')
+    )
   }
 
   return []
@@ -405,7 +442,8 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
   members: { user: UserProfile; stats: { completed: number; bonus: number; overdue: number; total: number; completionRate: number } }[]
 }> {
   const teamMembers = await fetchTeamMembers(userId, userRole)
-  // Also include self
+
+  // Include self for stats
   const { data: selfProfile } = await supabase
     .from('profiles')
     .select('*')

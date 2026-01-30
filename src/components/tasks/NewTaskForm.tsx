@@ -11,8 +11,9 @@ import {
   FileText,
   Users,
   Trash2,
+  Repeat,
 } from 'lucide-react'
-import { createTask, NewTaskInput, TaskTag } from '@/lib/tasks'
+import { createTask, NewTaskInput, TaskTag, TaskRecurrence, RECURRENCE_LABELS } from '@/lib/tasks'
 import { UserProfile } from '@/lib/supabase'
 
 interface NewTaskFormProps {
@@ -22,9 +23,7 @@ interface NewTaskFormProps {
   currentUserId: string
   defaultAssigneeId?: string
   defaultDate?: string
-  /** Available assignees for coordinator/principal who can assign to multiple people */
   availableAssignees?: UserProfile[]
-  /** Whether user can assign to others (coordinator/principal/admin) */
   canAssignToOthers: boolean
 }
 
@@ -43,6 +42,7 @@ export default function NewTaskForm({
   const [dueDate, setDueDate] = useState(defaultDate || '')
   const [timing, setTiming] = useState('')
   const [tag, setTag] = useState<TaskTag>(null)
+  const [recurrence, setRecurrence] = useState<TaskRecurrence>('none')
   const [checklistItems, setChecklistItems] = useState<string[]>([])
   const [newCheckItem, setNewCheckItem] = useState('')
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>(
@@ -79,7 +79,8 @@ export default function NewTaskForm({
       due_date: dueDate || undefined,
       timing: timing || undefined,
       tag,
-      assignee_ids: selectedAssignees.length > 0 ? selectedAssignees : [currentUserId],
+      recurrence,
+      assignee_ids: selectedAssignees.length > 0 ? selectedAssignees : [defaultAssigneeId || currentUserId],
       checklist_items: checklistItems.length > 0 ? checklistItems : undefined,
     }
 
@@ -87,18 +88,23 @@ export default function NewTaskForm({
     setSubmitting(false)
 
     if (task) {
-      // Reset form
       setTitle('')
       setDescription('')
       setDueDate(defaultDate || '')
       setTiming('')
       setTag(null)
+      setRecurrence('none')
       setChecklistItems([])
       setSelectedAssignees([defaultAssigneeId || currentUserId])
       onTaskCreated()
       onClose()
     }
   }
+
+  // Quick date helpers
+  const todayStr = new Date().toISOString().split('T')[0]
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  const nextWeekStr = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
 
   return (
     <AnimatePresence>
@@ -157,46 +163,107 @@ export default function NewTaskForm({
                 />
               </div>
 
-              {/* Date and Time row */}
+              {/* Due Date - with quick select buttons for desktop */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1">
+                  <Calendar size={14} /> Due Date
+                </label>
+                {/* Quick date buttons (desktop) */}
+                <div className="hidden sm:flex gap-2 mb-2">
+                  {[
+                    { label: 'Today', value: todayStr },
+                    { label: 'Tomorrow', value: tomorrowStr },
+                    { label: 'Next Week', value: nextWeekStr },
+                    { label: 'None', value: '' },
+                  ].map(opt => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => setDueDate(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        dueDate === opt.value
+                          ? 'bg-mps-blue-500 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={e => setDueDate(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500"
+                />
+              </div>
+
+              {/* Timing - with quick select for desktop */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1">
+                  <Clock size={14} /> Timing
+                  <span className="text-xs font-normal text-slate-400">(optional)</span>
+                </label>
+                {/* Quick time buttons (desktop) */}
+                <div className="hidden sm:flex gap-2 mb-2">
+                  {[
+                    { label: '9:00 AM', value: '09:00' },
+                    { label: '12:00 PM', value: '12:00' },
+                    { label: '3:00 PM', value: '15:00' },
+                    { label: '5:00 PM', value: '17:00' },
+                    { label: 'None', value: '' },
+                  ].map(opt => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => setTiming(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        timing === opt.value
+                          ? 'bg-mps-blue-500 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="time"
+                  value={timing}
+                  onChange={e => setTiming(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500"
+                />
+              </div>
+
+              {/* Recurrence & Tag row */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                    <Calendar size={14} /> Due Date
+                    <Repeat size={14} /> Repeat
                   </label>
-                  <input
-                    type="date"
-                    value={dueDate}
-                    onChange={e => setDueDate(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500"
-                  />
+                  <select
+                    value={recurrence}
+                    onChange={e => setRecurrence(e.target.value as TaskRecurrence)}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500 bg-white"
+                  >
+                    {(Object.keys(RECURRENCE_LABELS) as TaskRecurrence[]).map(r => (
+                      <option key={r} value={r}>{RECURRENCE_LABELS[r]}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                    <Clock size={14} /> Timing
+                    <Tag size={14} /> Tag
                   </label>
-                  <input
-                    type="time"
-                    value={timing}
-                    onChange={e => setTiming(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500"
-                  />
+                  <select
+                    value={tag || ''}
+                    onChange={e => setTag(e.target.value === 'bonus' ? 'bonus' : null)}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500 bg-white"
+                  >
+                    <option value="">No tag</option>
+                    <option value="bonus">Bonus</option>
+                  </select>
                 </div>
-              </div>
-
-              {/* Tag */}
-              <div>
-                <label className="text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                  <Tag size={14} /> Tag
-                  <span className="text-xs font-normal text-slate-400">(optional)</span>
-                </label>
-                <select
-                  value={tag || ''}
-                  onChange={e => setTag(e.target.value === 'bonus' ? 'bonus' : null)}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500 bg-white"
-                >
-                  <option value="">No tag</option>
-                  <option value="bonus">Bonus</option>
-                </select>
               </div>
 
               {/* Assignees (only for coordinator/principal/admin) */}

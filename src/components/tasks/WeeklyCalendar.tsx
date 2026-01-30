@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, LayoutGrid } from 'lucide-react'
 import TaskCard from './TaskCard'
 import NewTaskForm from './NewTaskForm'
 import {
@@ -10,6 +10,7 @@ import {
   TaskWithDetails,
   TaskStatus,
   STATUS_DOT_COLORS,
+  STATUS_LABELS,
 } from '@/lib/tasks'
 import { UserProfile } from '@/lib/supabase'
 
@@ -25,7 +26,7 @@ interface WeeklyCalendarProps {
 function getWeekStart(date: Date): Date {
   const d = new Date(date)
   const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Mon as first day
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
   d.setDate(diff)
   d.setHours(0, 0, 0, 0)
   return d
@@ -60,6 +61,7 @@ export default function WeeklyCalendar({
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showNewTask, setShowNewTask] = useState(false)
   const [newTaskDate, setNewTaskDate] = useState('')
+  const [showWeekView, setShowWeekView] = useState(false)
 
   const targetUserId = viewingUserId || userId
 
@@ -101,7 +103,6 @@ export default function WeeklyCalendar({
 
   const handleDayClick = (dateStr: string) => {
     if (selectedDay === dateStr) {
-      // Double click = create new task for that day
       setNewTaskDate(dateStr)
       setShowNewTask(true)
     } else {
@@ -126,12 +127,23 @@ export default function WeeklyCalendar({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold text-slate-800">Weekly Calendar</h2>
-        <button
-          onClick={() => { setNewTaskDate(''); setShowNewTask(true) }}
-          className="btn-primary flex items-center gap-2 text-sm"
-        >
-          <Plus size={16} /> New Task
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowWeekView(!showWeekView)}
+            className={`p-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+              showWeekView ? 'bg-mps-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <LayoutGrid size={14} />
+            <span className="hidden sm:inline">Week View</span>
+          </button>
+          <button
+            onClick={() => { setNewTaskDate(''); setShowNewTask(true) }}
+            className="btn-primary flex items-center gap-2 text-sm"
+          >
+            <Plus size={16} /> New Task
+          </button>
+        </div>
       </div>
 
       {/* Week Navigation */}
@@ -182,7 +194,6 @@ export default function WeeklyCalendar({
                   <p className={`text-lg font-bold ${isToday ? 'text-mps-green-700' : isSelected ? 'text-mps-blue-700' : 'text-slate-800'}`}>
                     {day.date}
                   </p>
-                  {/* Task dots */}
                   {dayTasks.length > 0 && (
                     <div className="flex justify-center gap-0.5 mt-1.5">
                       {dayTasks.slice(0, 4).map(t => (
@@ -202,7 +213,7 @@ export default function WeeklyCalendar({
           </div>
 
           {/* Selected Day Tasks */}
-          {selectedDay && (
+          {selectedDay && !showWeekView && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -245,6 +256,73 @@ export default function WeeklyCalendar({
               )}
             </motion.div>
           )}
+
+          {/* Whole Week View - shows ALL tasks for the week at a glance */}
+          {showWeekView && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-1"
+            >
+              <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <LayoutGrid size={16} className="text-mps-blue-600" />
+                Full Week Overview
+              </h3>
+              <div className="glass rounded-2xl overflow-hidden">
+                {weekDays.map((day) => {
+                  const dayTasks = getTasksForDay(day.full)
+                  const isToday = day.full === todayStr
+
+                  return (
+                    <div
+                      key={day.full}
+                      className={`border-b border-slate-100 last:border-b-0 ${isToday ? 'bg-mps-green-50/50' : ''}`}
+                    >
+                      <div className="flex items-start gap-3 p-3">
+                        {/* Day label */}
+                        <div className={`w-14 text-center flex-shrink-0 pt-0.5 ${isToday ? 'text-mps-green-700' : 'text-slate-500'}`}>
+                          <p className="text-xs font-medium">{day.day}</p>
+                          <p className={`text-lg font-bold ${isToday ? 'text-mps-green-700' : 'text-slate-800'}`}>{day.date}</p>
+                        </div>
+
+                        {/* Tasks for this day */}
+                        <div className="flex-1 min-w-0">
+                          {dayTasks.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {dayTasks.map(task => (
+                                <div key={task.id} className="flex items-center gap-2">
+                                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_DOT_COLORS[task.status]}`} />
+                                  <span className={`text-sm truncate ${task.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                                    {task.title}
+                                  </span>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${STATUS_COLORS_INLINE[task.status]}`}>
+                                    {STATUS_LABELS[task.status]}
+                                  </span>
+                                  {task.timing && (
+                                    <span className="text-[10px] text-slate-400 flex-shrink-0">{task.timing}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 py-1">No tasks</p>
+                          )}
+                        </div>
+
+                        {/* Add button */}
+                        <button
+                          onClick={() => { setNewTaskDate(day.full); setShowNewTask(true) }}
+                          className="p-1 text-slate-400 hover:text-mps-blue-600 hover:bg-mps-blue-50 rounded transition-colors flex-shrink-0"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
+          )}
         </>
       )}
 
@@ -260,4 +338,12 @@ export default function WeeklyCalendar({
       />
     </div>
   )
+}
+
+// Inline status colors (smaller badges for week view)
+const STATUS_COLORS_INLINE: Record<TaskStatus, string> = {
+  not_done: 'bg-red-50 text-red-600 border-red-200',
+  partial: 'bg-amber-50 text-amber-600 border-amber-200',
+  done: 'bg-green-50 text-green-600 border-green-200',
+  checked: 'bg-blue-50 text-blue-600 border-blue-200',
 }
