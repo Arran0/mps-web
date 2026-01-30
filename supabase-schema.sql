@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   due_date DATE,
   timing TEXT,
   tag TEXT CHECK (tag IS NULL OR tag IN ('bonus')),
+  recurrence TEXT NOT NULL DEFAULT 'none' CHECK (recurrence IN ('none', 'daily', 'weekly', 'monthly')),
   created_by UUID REFERENCES public.profiles(id) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -228,3 +229,77 @@ CREATE TRIGGER tasks_updated_at
   BEFORE UPDATE ON public.tasks
   FOR EACH ROW
   EXECUTE FUNCTION update_task_updated_at();
+
+-- ============================================
+-- 9. Sample Seed Data: Teams A, B, C
+-- Each team has 1 coordinator + 3 teachers
+-- Run AFTER creating user accounts in Supabase Auth
+-- ============================================
+
+-- Step 1: Create sample teams
+INSERT INTO public.teams (id, name) VALUES
+  ('a0000000-0000-0000-0000-000000000001', 'Team A'),
+  ('a0000000-0000-0000-0000-000000000002', 'Team B'),
+  ('a0000000-0000-0000-0000-000000000003', 'Team C')
+ON CONFLICT DO NOTHING;
+
+-- Step 2: Create sample profiles (these UUIDs must match Supabase Auth user IDs)
+-- NOTE: Replace these UUIDs with actual user IDs from your Supabase Auth after creating accounts
+-- Principal
+INSERT INTO public.profiles (id, full_name, role) VALUES
+  ('b0000000-0000-0000-0000-000000000001', 'Dr. Ramesh Kumar', 'principal')
+ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Admin
+INSERT INTO public.profiles (id, full_name, role) VALUES
+  ('b0000000-0000-0000-0000-000000000002', 'Anitha Sundaram', 'admin')
+ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Team A: Coordinator + 3 Teachers
+INSERT INTO public.profiles (id, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000a1', 'Priya Venkatesh', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000a2', 'Karthik Rajan', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000a3', 'Lakshmi Narayanan', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000a4', 'Suresh Babu', 'teacher')
+ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Team B: Coordinator + 3 Teachers
+INSERT INTO public.profiles (id, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000b1', 'Deepa Krishnan', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000b2', 'Arjun Selvam', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000b3', 'Meena Devi', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000b4', 'Rajesh Pandian', 'teacher')
+ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Team C: Coordinator + 3 Teachers
+INSERT INTO public.profiles (id, full_name, role) VALUES
+  ('c0000000-0000-0000-0000-0000000000c1', 'Saranya Murugan', 'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000c2', 'Vijay Shankar', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000c3', 'Divya Prakash', 'teacher'),
+  ('c0000000-0000-0000-0000-0000000000c4', 'Ganesh Kumar', 'teacher')
+ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+
+-- Step 3: Assign members to teams
+-- Team A members
+INSERT INTO public.team_members (team_id, user_id) VALUES
+  ('a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-0000000000a1'),  -- Priya (Coordinator)
+  ('a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-0000000000a2'),  -- Karthik (Teacher)
+  ('a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-0000000000a3'),  -- Lakshmi (Teacher)
+  ('a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-0000000000a4')   -- Suresh (Teacher)
+ON CONFLICT DO NOTHING;
+
+-- Team B members
+INSERT INTO public.team_members (team_id, user_id) VALUES
+  ('a0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-0000000000b1'),  -- Deepa (Coordinator)
+  ('a0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-0000000000b2'),  -- Arjun (Teacher)
+  ('a0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-0000000000b3'),  -- Meena (Teacher)
+  ('a0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-0000000000b4')   -- Rajesh (Teacher)
+ON CONFLICT DO NOTHING;
+
+-- Team C members
+INSERT INTO public.team_members (team_id, user_id) VALUES
+  ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c1'),  -- Saranya (Coordinator)
+  ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c2'),  -- Vijay (Teacher)
+  ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c3'),  -- Divya (Teacher)
+  ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c4')   -- Ganesh (Teacher)
+ON CONFLICT DO NOTHING;

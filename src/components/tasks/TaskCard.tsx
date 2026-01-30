@@ -15,6 +15,7 @@ import {
   Trash2,
   AlertTriangle,
   Star,
+  Repeat,
 } from 'lucide-react'
 import {
   TaskWithDetails,
@@ -22,6 +23,7 @@ import {
   STATUS_LABELS,
   STATUS_COLORS,
   STATUS_DOT_COLORS,
+  RECURRENCE_LABELS,
   getNextStatus,
   updateTaskStatus,
   toggleChecklistItem,
@@ -123,6 +125,11 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
                   <Star size={8} /> Bonus
                 </span>
               )}
+              {task.recurrence && task.recurrence !== 'none' && (
+                <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-medium flex items-center gap-0.5">
+                  <Repeat size={8} /> {RECURRENCE_LABELS[task.recurrence]}
+                </span>
+              )}
             </div>
           </div>
 
@@ -217,6 +224,11 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
               {task.tag === 'bonus' && (
                 <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
                   <Star size={10} /> Bonus
+                </span>
+              )}
+              {task.recurrence && task.recurrence !== 'none' && (
+                <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium flex items-center gap-1">
+                  <Repeat size={10} /> {RECURRENCE_LABELS[task.recurrence]}
                 </span>
               )}
               {totalChecklist > 0 && (
@@ -357,6 +369,12 @@ function TaskModal({
               <div className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 px-3 py-1.5 rounded-lg font-medium">
                 <AlertTriangle size={14} />
                 <span>Overdue</span>
+              </div>
+            )}
+            {task.recurrence && task.recurrence !== 'none' && (
+              <div className="flex items-center gap-1.5 text-sm text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg font-medium">
+                <Repeat size={14} />
+                <span>{RECURRENCE_LABELS[task.recurrence]}</span>
               </div>
             )}
           </div>
