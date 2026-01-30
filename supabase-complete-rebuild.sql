@@ -4,6 +4,16 @@
 -- This is the ONLY file you need to run.
 -- It DROPS everything first, then rebuilds.
 -- ============================================
+--
+-- IMPORTANT: After running this SQL, you MUST:
+-- 1. Go to Supabase Dashboard → Settings → General → Restart Project
+-- 2. Wait for restart to complete (~30 seconds)
+-- 3. Clear your browser cache/localStorage (or open Incognito)
+-- 4. Then try signing in
+--
+-- If you ALREADY ran the old rebuild and just need to fix
+-- the RLS policies, scroll to the bottom for QUICK FIX SQL.
+-- ============================================
 
 -- ============================================
 -- STEP 0: CLEAN WIPE (drop everything)
@@ -49,16 +59,14 @@ CREATE TABLE public.profiles (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+-- Any user can view their own profile
 CREATE POLICY "Users can view own profile" ON public.profiles
   FOR SELECT USING (auth.uid() = id);
 
+-- Staff can view ALL profiles (uses JWT metadata - NO circular dependency)
 CREATE POLICY "Staff can view all profiles" ON public.profiles
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid()
-      AND role IN ('teacher', 'coordinator', 'principal', 'admin')
-    )
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Users can update own profile" ON public.profiles
@@ -132,12 +140,10 @@ ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Team members viewable by authenticated" ON public.team_members
   FOR SELECT TO authenticated USING (true);
 
+-- Uses JWT metadata instead of profiles subquery
 CREATE POLICY "Team members manageable by staff" ON public.team_members
   FOR ALL TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('coordinator', 'principal', 'admin')
-    )
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('coordinator', 'principal', 'admin')
   );
 
 -- ============================================
@@ -161,24 +167,25 @@ CREATE TABLE public.tasks (
 
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
+-- All task RLS uses JWT metadata (no profiles subquery)
 CREATE POLICY "Tasks viewable by staff" ON public.tasks
   FOR SELECT TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Tasks insertable by staff" ON public.tasks
   FOR INSERT TO authenticated WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Tasks updatable by staff" ON public.tasks
   FOR UPDATE TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Tasks deletable by staff" ON public.tasks
   FOR DELETE TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 -- ============================================
@@ -196,12 +203,12 @@ ALTER TABLE public.task_assignees ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Task assignees viewable by staff" ON public.task_assignees
   FOR SELECT TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Task assignees manageable by staff" ON public.task_assignees
   FOR ALL TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 -- ============================================
@@ -221,12 +228,12 @@ ALTER TABLE public.task_checklist_items ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Checklist viewable by staff" ON public.task_checklist_items
   FOR SELECT TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Checklist manageable by staff" ON public.task_checklist_items
   FOR ALL TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 -- ============================================
@@ -245,12 +252,12 @@ ALTER TABLE public.task_comments ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Comments viewable by staff" ON public.task_comments
   FOR SELECT TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Comments insertable by staff" ON public.task_comments
   FOR INSERT TO authenticated WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'coordinator', 'principal', 'admin'))
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 -- ============================================
@@ -314,17 +321,17 @@ VALUES
 -- Identities (required for email/password login)
 INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
 VALUES
-  (gen_random_uuid(), 'b0000000-0000-0000-0000-000000000001', '{"sub":"b0000000-0000-0000-0000-000000000001","email":"principal@mps.edu"}',        'email', 'b0000000-0000-0000-0000-000000000001', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'b0000000-0000-0000-0000-000000000002', '{"sub":"b0000000-0000-0000-0000-000000000002","email":"admin@mps.edu"}',             'email', 'b0000000-0000-0000-0000-000000000002', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a1', '{"sub":"c0000000-0000-0000-0000-0000000000a1","email":"teama_coordinator@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000a1', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a2', '{"sub":"c0000000-0000-0000-0000-0000000000a2","email":"teama_teacher1@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000a2', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a3', '{"sub":"c0000000-0000-0000-0000-0000000000a3","email":"teama_teacher2@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000a3', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b1', '{"sub":"c0000000-0000-0000-0000-0000000000b1","email":"teamb_coordinator@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000b1', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b2', '{"sub":"c0000000-0000-0000-0000-0000000000b2","email":"teamb_teacher1@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000b2', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b3', '{"sub":"c0000000-0000-0000-0000-0000000000b3","email":"teamb_teacher2@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000b3', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c1', '{"sub":"c0000000-0000-0000-0000-0000000000c1","email":"teamc_coordinator@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000c1', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c2', '{"sub":"c0000000-0000-0000-0000-0000000000c2","email":"teamc_teacher1@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000c2', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c3', '{"sub":"c0000000-0000-0000-0000-0000000000c3","email":"teamc_teacher2@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000c3', NOW(), NOW(), NOW());
+  (gen_random_uuid(), 'b0000000-0000-0000-0000-000000000001', '{"sub":"b0000000-0000-0000-0000-000000000001","email":"principal@mps.edu","email_verified":true}',        'email', 'b0000000-0000-0000-0000-000000000001', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'b0000000-0000-0000-0000-000000000002', '{"sub":"b0000000-0000-0000-0000-000000000002","email":"admin@mps.edu","email_verified":true}',             'email', 'b0000000-0000-0000-0000-000000000002', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a1', '{"sub":"c0000000-0000-0000-0000-0000000000a1","email":"teama_coordinator@mps.edu","email_verified":true}', 'email', 'c0000000-0000-0000-0000-0000000000a1', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a2', '{"sub":"c0000000-0000-0000-0000-0000000000a2","email":"teama_teacher1@mps.edu","email_verified":true}',    'email', 'c0000000-0000-0000-0000-0000000000a2', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000a3', '{"sub":"c0000000-0000-0000-0000-0000000000a3","email":"teama_teacher2@mps.edu","email_verified":true}',    'email', 'c0000000-0000-0000-0000-0000000000a3', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b1', '{"sub":"c0000000-0000-0000-0000-0000000000b1","email":"teamb_coordinator@mps.edu","email_verified":true}', 'email', 'c0000000-0000-0000-0000-0000000000b1', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b2', '{"sub":"c0000000-0000-0000-0000-0000000000b2","email":"teamb_teacher1@mps.edu","email_verified":true}',    'email', 'c0000000-0000-0000-0000-0000000000b2', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b3', '{"sub":"c0000000-0000-0000-0000-0000000000b3","email":"teamb_teacher2@mps.edu","email_verified":true}',    'email', 'c0000000-0000-0000-0000-0000000000b3', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c1', '{"sub":"c0000000-0000-0000-0000-0000000000c1","email":"teamc_coordinator@mps.edu","email_verified":true}', 'email', 'c0000000-0000-0000-0000-0000000000c1', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c2', '{"sub":"c0000000-0000-0000-0000-0000000000c2","email":"teamc_teacher1@mps.edu","email_verified":true}',    'email', 'c0000000-0000-0000-0000-0000000000c2', NOW(), NOW(), NOW()),
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c3', '{"sub":"c0000000-0000-0000-0000-0000000000c3","email":"teamc_teacher2@mps.edu","email_verified":true}',    'email', 'c0000000-0000-0000-0000-0000000000c3', NOW(), NOW(), NOW());
 
 -- Safety net: if trigger didn't fire, explicitly create profiles
 INSERT INTO public.profiles (id, email, full_name, role) VALUES
@@ -362,6 +369,12 @@ INSERT INTO public.team_members (team_id, user_id) VALUES
   ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c2'),
   ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c3');
 
+-- Final GRANT + reload (repeat to ensure coverage)
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+NOTIFY pgrst, 'reload schema';
+
 -- ============================================
 -- ALL LOGINS (password: MPS@2026)
 -- ============================================
@@ -376,4 +389,88 @@ INSERT INTO public.team_members (team_id, user_id) VALUES
 -- teamc_coordinator@mps.edu (Team C Coordinator)
 -- teamc_teacher1@mps.edu    (Team C Teacher 1)
 -- teamc_teacher2@mps.edu    (Team C Teacher 2)
+-- ============================================
+
+-- ============================================
+-- QUICK FIX: If you already ran the old rebuild
+-- and just need to fix RLS policies, run ONLY
+-- the SQL below (not the whole file above).
+-- ============================================
+--
+-- -- Fix profiles RLS (remove circular dependency)
+-- DROP POLICY IF EXISTS "Staff can view all profiles" ON public.profiles;
+-- CREATE POLICY "Staff can view all profiles" ON public.profiles
+--   FOR SELECT USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+--
+-- -- Fix team_members RLS
+-- DROP POLICY IF EXISTS "Team members manageable by staff" ON public.team_members;
+-- CREATE POLICY "Team members manageable by staff" ON public.team_members
+--   FOR ALL TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('coordinator', 'principal', 'admin')
+--   );
+--
+-- -- Fix tasks RLS
+-- DROP POLICY IF EXISTS "Tasks viewable by staff" ON public.tasks;
+-- DROP POLICY IF EXISTS "Tasks insertable by staff" ON public.tasks;
+-- DROP POLICY IF EXISTS "Tasks updatable by staff" ON public.tasks;
+-- DROP POLICY IF EXISTS "Tasks deletable by staff" ON public.tasks;
+-- CREATE POLICY "Tasks viewable by staff" ON public.tasks
+--   FOR SELECT TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+-- CREATE POLICY "Tasks insertable by staff" ON public.tasks
+--   FOR INSERT TO authenticated WITH CHECK (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+-- CREATE POLICY "Tasks updatable by staff" ON public.tasks
+--   FOR UPDATE TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+-- CREATE POLICY "Tasks deletable by staff" ON public.tasks
+--   FOR DELETE TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+--
+-- -- Fix task_assignees RLS
+-- DROP POLICY IF EXISTS "Task assignees viewable by staff" ON public.task_assignees;
+-- DROP POLICY IF EXISTS "Task assignees manageable by staff" ON public.task_assignees;
+-- CREATE POLICY "Task assignees viewable by staff" ON public.task_assignees
+--   FOR SELECT TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+-- CREATE POLICY "Task assignees manageable by staff" ON public.task_assignees
+--   FOR ALL TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+--
+-- -- Fix checklist RLS
+-- DROP POLICY IF EXISTS "Checklist viewable by staff" ON public.task_checklist_items;
+-- DROP POLICY IF EXISTS "Checklist manageable by staff" ON public.task_checklist_items;
+-- CREATE POLICY "Checklist viewable by staff" ON public.task_checklist_items
+--   FOR SELECT TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+-- CREATE POLICY "Checklist manageable by staff" ON public.task_checklist_items
+--   FOR ALL TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+--
+-- -- Fix comments RLS
+-- DROP POLICY IF EXISTS "Comments viewable by staff" ON public.task_comments;
+-- DROP POLICY IF EXISTS "Comments insertable by staff" ON public.task_comments;
+-- CREATE POLICY "Comments viewable by staff" ON public.task_comments
+--   FOR SELECT TO authenticated USING (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+-- CREATE POLICY "Comments insertable by staff" ON public.task_comments
+--   FOR INSERT TO authenticated WITH CHECK (
+--     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+--   );
+--
+-- GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+-- GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+-- GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+-- NOTIFY pgrst, 'reload schema';
 -- ============================================
