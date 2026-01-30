@@ -2,13 +2,36 @@
 -- MPS Web - COMPLETE Supabase Rebuild
 -- Run this ONCE in your Supabase SQL Editor
 -- This is the ONLY file you need to run.
+-- It DROPS everything first, then rebuilds.
 -- ============================================
+
+-- ============================================
+-- STEP 0: CLEAN WIPE (drop everything)
+-- ============================================
+DROP TRIGGER IF EXISTS tasks_updated_at ON public.tasks;
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+DROP TABLE IF EXISTS public.task_comments CASCADE;
+DROP TABLE IF EXISTS public.task_checklist_items CASCADE;
+DROP TABLE IF EXISTS public.task_assignees CASCADE;
+DROP TABLE IF EXISTS public.tasks CASCADE;
+DROP TABLE IF EXISTS public.team_members CASCADE;
+DROP TABLE IF EXISTS public.teams CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+DELETE FROM auth.identities;
+DELETE FROM auth.users;
+
+DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS update_updated_at_column();
+DROP FUNCTION IF EXISTS update_task_updated_at();
 
 -- ============================================
 -- PART 1: PROFILES TABLE + RLS + TRIGGERS
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS public.profiles (
+CREATE TABLE public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email TEXT NOT NULL,
   full_name TEXT NOT NULL,
@@ -52,7 +75,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -69,14 +91,14 @@ CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
-CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+CREATE INDEX idx_profiles_email ON public.profiles(email);
+CREATE INDEX idx_profiles_role ON public.profiles(role);
 
 -- ============================================
 -- PART 2: TEAMS
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS public.teams (
+CREATE TABLE public.teams (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -91,7 +113,7 @@ CREATE POLICY "Teams viewable by authenticated" ON public.teams
 -- PART 3: TEAM MEMBERS
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS public.team_members (
+CREATE TABLE public.team_members (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
@@ -116,7 +138,7 @@ CREATE POLICY "Team members manageable by staff" ON public.team_members
 -- PART 4: TASKS
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS public.tasks (
+CREATE TABLE public.tasks (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
@@ -157,7 +179,7 @@ CREATE POLICY "Tasks deletable by staff" ON public.tasks
 -- PART 5: TASK ASSIGNEES
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS public.task_assignees (
+CREATE TABLE public.task_assignees (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
@@ -180,7 +202,7 @@ CREATE POLICY "Task assignees manageable by staff" ON public.task_assignees
 -- PART 6: TASK CHECKLIST ITEMS
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS public.task_checklist_items (
+CREATE TABLE public.task_checklist_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE NOT NULL,
   text TEXT NOT NULL,
@@ -205,7 +227,7 @@ CREATE POLICY "Checklist manageable by staff" ON public.task_checklist_items
 -- PART 7: TASK COMMENTS
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS public.task_comments (
+CREATE TABLE public.task_comments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES public.profiles(id) NOT NULL,
@@ -229,15 +251,15 @@ CREATE POLICY "Comments insertable by staff" ON public.task_comments
 -- PART 8: INDEXES & TRIGGERS
 -- ============================================
 
-CREATE INDEX IF NOT EXISTS idx_tasks_status ON public.tasks(status);
-CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON public.tasks(due_date);
-CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON public.tasks(created_by);
-CREATE INDEX IF NOT EXISTS idx_task_assignees_task_id ON public.task_assignees(task_id);
-CREATE INDEX IF NOT EXISTS idx_task_assignees_user_id ON public.task_assignees(user_id);
-CREATE INDEX IF NOT EXISTS idx_task_checklist_task_id ON public.task_checklist_items(task_id);
-CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON public.task_comments(task_id);
-CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON public.team_members(team_id);
-CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON public.team_members(user_id);
+CREATE INDEX idx_tasks_status ON public.tasks(status);
+CREATE INDEX idx_tasks_due_date ON public.tasks(due_date);
+CREATE INDEX idx_tasks_created_by ON public.tasks(created_by);
+CREATE INDEX idx_task_assignees_task_id ON public.task_assignees(task_id);
+CREATE INDEX idx_task_assignees_user_id ON public.task_assignees(user_id);
+CREATE INDEX idx_task_checklist_task_id ON public.task_checklist_items(task_id);
+CREATE INDEX idx_task_comments_task_id ON public.task_comments(task_id);
+CREATE INDEX idx_team_members_team_id ON public.team_members(team_id);
+CREATE INDEX idx_team_members_user_id ON public.team_members(user_id);
 
 CREATE OR REPLACE FUNCTION update_task_updated_at()
 RETURNS TRIGGER AS $$
@@ -260,7 +282,7 @@ CREATE TRIGGER tasks_updated_at
 -- Team C: 1 Coordinator + 2 Teachers
 -- ============================================
 
--- Auth users (trigger auto-creates profiles with name/role from raw_user_meta_data)
+-- Auth users (the on_auth_user_created trigger auto-creates profiles)
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, confirmation_token, recovery_token, email_change_token_new, email_change_token_current)
 VALUES
   ('b0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'principal@mps.edu',        crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Principal","role":"principal"}', '', '', '', ''),
@@ -273,8 +295,7 @@ VALUES
   ('c0000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'teamb_teacher2@mps.edu',    crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Team B Teacher 2","role":"teacher"}', '', '', '', ''),
   ('c0000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'teamc_coordinator@mps.edu', crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Team C Coordinator","role":"coordinator"}', '', '', '', ''),
   ('c0000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'teamc_teacher1@mps.edu',    crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Team C Teacher 1","role":"teacher"}', '', '', '', ''),
-  ('c0000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'teamc_teacher2@mps.edu',    crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Team C Teacher 2","role":"teacher"}', '', '', '', '')
-ON CONFLICT (id) DO NOTHING;
+  ('c0000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'teamc_teacher2@mps.edu',    crypt('MPS@2026', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Team C Teacher 2","role":"teacher"}', '', '', '', '');
 
 -- Identities (required for email/password login)
 INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
@@ -289,15 +310,28 @@ VALUES
   (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000b3', '{"sub":"c0000000-0000-0000-0000-0000000000b3","email":"teamb_teacher2@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000b3', NOW(), NOW(), NOW()),
   (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c1', '{"sub":"c0000000-0000-0000-0000-0000000000c1","email":"teamc_coordinator@mps.edu"}', 'email', 'c0000000-0000-0000-0000-0000000000c1', NOW(), NOW(), NOW()),
   (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c2', '{"sub":"c0000000-0000-0000-0000-0000000000c2","email":"teamc_teacher1@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000c2', NOW(), NOW(), NOW()),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c3', '{"sub":"c0000000-0000-0000-0000-0000000000c3","email":"teamc_teacher2@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000c3', NOW(), NOW(), NOW())
-ON CONFLICT DO NOTHING;
+  (gen_random_uuid(), 'c0000000-0000-0000-0000-0000000000c3', '{"sub":"c0000000-0000-0000-0000-0000000000c3","email":"teamc_teacher2@mps.edu"}',    'email', 'c0000000-0000-0000-0000-0000000000c3', NOW(), NOW(), NOW());
+
+-- Safety net: if trigger didn't fire, explicitly create profiles
+INSERT INTO public.profiles (id, email, full_name, role) VALUES
+  ('b0000000-0000-0000-0000-000000000001', 'principal@mps.edu',        'Principal',           'principal'),
+  ('b0000000-0000-0000-0000-000000000002', 'admin@mps.edu',             'Admin',               'admin'),
+  ('c0000000-0000-0000-0000-0000000000a1', 'teama_coordinator@mps.edu', 'Team A Coordinator',  'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000a2', 'teama_teacher1@mps.edu',    'Team A Teacher 1',    'teacher'),
+  ('c0000000-0000-0000-0000-0000000000a3', 'teama_teacher2@mps.edu',    'Team A Teacher 2',    'teacher'),
+  ('c0000000-0000-0000-0000-0000000000b1', 'teamb_coordinator@mps.edu', 'Team B Coordinator',  'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000b2', 'teamb_teacher1@mps.edu',    'Team B Teacher 1',    'teacher'),
+  ('c0000000-0000-0000-0000-0000000000b3', 'teamb_teacher2@mps.edu',    'Team B Teacher 2',    'teacher'),
+  ('c0000000-0000-0000-0000-0000000000c1', 'teamc_coordinator@mps.edu', 'Team C Coordinator',  'coordinator'),
+  ('c0000000-0000-0000-0000-0000000000c2', 'teamc_teacher1@mps.edu',    'Team C Teacher 1',    'teacher'),
+  ('c0000000-0000-0000-0000-0000000000c3', 'teamc_teacher2@mps.edu',    'Team C Teacher 2',    'teacher')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
 -- Teams
 INSERT INTO public.teams (id, name) VALUES
   ('a0000000-0000-0000-0000-000000000001', 'Team A'),
   ('a0000000-0000-0000-0000-000000000002', 'Team B'),
-  ('a0000000-0000-0000-0000-000000000003', 'Team C')
-ON CONFLICT DO NOTHING;
+  ('a0000000-0000-0000-0000-000000000003', 'Team C');
 
 -- Team memberships
 INSERT INTO public.team_members (team_id, user_id) VALUES
@@ -312,14 +346,13 @@ INSERT INTO public.team_members (team_id, user_id) VALUES
   -- Team C
   ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c1'),
   ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c2'),
-  ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c3')
-ON CONFLICT DO NOTHING;
+  ('a0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-0000000000c3');
 
 -- ============================================
 -- ALL LOGINS (password: MPS@2026)
 -- ============================================
--- principal@mps.edu        (Principal)
--- admin@mps.edu            (Admin)
+-- principal@mps.edu         (Principal)
+-- admin@mps.edu             (Admin)
 -- teama_coordinator@mps.edu (Team A Coordinator)
 -- teama_teacher1@mps.edu    (Team A Teacher 1)
 -- teama_teacher2@mps.edu    (Team A Teacher 2)
