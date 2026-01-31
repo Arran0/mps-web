@@ -73,26 +73,22 @@ mps-web/
 
 **IMPORTANT:** You must complete this step first or you'll get "Database error querying schema" when trying to sign in.
 
-1. Go to your Supabase project dashboard: https://supabase.com/dashboard/project/amrmcleaatsvjlponkgn
+1. Go to your Supabase project dashboard: https://supabase.com/dashboard/project/fgzerfpqyncpjpiadjqh
 
 2. Navigate to **SQL Editor** in the left sidebar
 
-3. **Option A - Quick Setup** (Recommended for fixing login errors):
-   - Open `supabase-quick-fix.sql` from your project folder
-   - Copy the entire content and paste it into the SQL Editor
-   - Click **Run** or press Cmd/Ctrl + Enter
-   - Wait for success message
-
-   **Option B - Complete Setup** (For new projects or full reset):
+3. **Complete Database Setup** (Run this to fix all database errors):
    - Open `supabase-complete-rebuild.sql` from your project folder
-   - This includes test users and sample data
-   - Copy and paste the entire file into SQL Editor
-   - Click **Run**
+   - This creates all tables, RLS policies, triggers, and test users
+   - Copy and paste the **entire file** into SQL Editor
+   - Click **Run** or press Cmd/Ctrl + Enter
+   - Wait for "Success" message
 
-4. **After running SQL:**
+4. **CRITICAL - After running SQL:**
    - Go to **Settings → General → Restart Project**
    - Wait ~30 seconds for restart to complete
-   - Clear browser cache or use Incognito mode
+   - Clear your browser cache/localStorage (or open Incognito)
+   - Then try signing in
 
 **Old Method** (if you prefer manual setup, run the SQL below):
 
@@ -166,8 +162,8 @@ npm install
 Make sure your `.env.local` file exists with:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://amrmcleaatsvjlponkgn.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtcm1jbGVhYXRzdmpscG9ua2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMzQ2NTksImV4cCI6MjA4NDcxMDY1OX0.gshQZhdH6pcJ8ofIIxXyaGl4o10M0Cy_9CxCSJHprbc
+NEXT_PUBLIC_SUPABASE_URL=https://fgzerfpqyncpjpiadjqh.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnemVyZnBxeW5jcGpwaWFkanFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjczMTEsImV4cCI6MjA4NTM0MzMxMX0.3nnKaI3Z3WUtyaQVEUuZSH-rDIPcL50C6rgWDVlaaNw
 ```
 
 ### Step 4: Run Development Server
@@ -268,19 +264,24 @@ Once the basic setup is working, we can implement:
 **"Database error querying schema" when signing in**
 This is the most common error and happens when the profiles table doesn't exist or has incorrect RLS policies.
 
-**QUICK FIX:**
-1. Go to your Supabase project: https://supabase.com/dashboard/project/amrmcleaatsvjlponkgn
+**COMPLETE FIX:**
+1. Go to your Supabase project: https://supabase.com/dashboard/project/fgzerfpqyncpjpiadjqh
 2. Click **SQL Editor** in the left sidebar
-3. Open the `supabase-quick-fix.sql` file from your project
-4. Copy the entire content and paste it into the SQL Editor
+3. Open the `supabase-complete-rebuild.sql` file from your project
+4. Copy the **entire content** and paste it into the SQL Editor
 5. Click **Run** (or press Cmd/Ctrl + Enter)
-6. Wait for "Success. No rows returned" message
-7. Go to **Settings → General → Restart Project** (wait ~30 seconds)
-8. Clear your browser cache or use Incognito mode
-9. Try logging in again
+6. Wait for "Success" message
+7. **CRITICAL:** Go to **Settings → General → Restart Project** (wait ~30 seconds)
+8. Clear your browser cache/localStorage or use Incognito mode
+9. Try logging in with test account: `principal@mps.edu` / `MPS@2026`
 
-If the error persists, run the complete rebuild:
-- Use `supabase-complete-rebuild.sql` instead (this will reset all data)
+**What the SQL does:**
+- Drops all existing tables and recreates them fresh
+- Creates `profiles` table with proper RLS policies
+- Creates `teams`, `tasks`, and related tables
+- Adds 11 test user accounts (1 principal, 1 admin, 9 staff members)
+- Sets up triggers for automatic profile creation
+- Configures JWT-based role checking to avoid circular dependencies
 
 **"npm: command not found"**
 - Install Node.js from https://nodejs.org/
