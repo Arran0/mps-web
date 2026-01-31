@@ -8,7 +8,7 @@ You're getting **"Database error querying schema"** when trying to sign in. This
 ### Step 1: Run the Database Setup SQL
 
 1. **Open Supabase Dashboard**
-   - Go to: https://supabase.com/dashboard/project/fgzerfpqyncpjpiadjqh
+   - Go to: https://supabase.com/dashboard/project/tgxxqzeaqxiwoqzopcku
    - Log in if needed
 
 2. **Open SQL Editor**
@@ -92,8 +92,8 @@ All accounts use password: **MPS@2026**
 Make sure your `.env.local` file has the correct values:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://fgzerfpqyncpjpiadjqh.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnemVyZnBxeW5jcGpwaWFkanFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjczMTEsImV4cCI6MjA4NTM0MzMxMX0.3nnKaI3Z3WUtyaQVEUuZSH-rDIPcL50C6rgWDVlaaNw
+NEXT_PUBLIC_SUPABASE_URL=https://tgxxqzeaqxiwoqzopcku.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRneHhxemVhcXhpd29xem9wY2t1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzE2MjIsImV4cCI6MjA4NTQ0NzYyMn0.gheXa7WzE6jR8XFt3g2GnzDU9VdjZKaMWlJofJf956Y
 ```
 
 ---

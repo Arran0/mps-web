@@ -18,10 +18,7 @@
 -- ============================================
 -- STEP 0: CLEAN WIPE (drop everything)
 -- ============================================
-DROP TRIGGER IF EXISTS tasks_updated_at ON public.tasks;
-DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
+-- Drop tables first (CASCADE will auto-drop their triggers)
 DROP TABLE IF EXISTS public.task_comments CASCADE;
 DROP TABLE IF EXISTS public.task_checklist_items CASCADE;
 DROP TABLE IF EXISTS public.task_assignees CASCADE;
@@ -29,6 +26,12 @@ DROP TABLE IF EXISTS public.tasks CASCADE;
 DROP TABLE IF EXISTS public.team_members CASCADE;
 DROP TABLE IF EXISTS public.teams CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
+
+-- Drop trigger on auth.users (safe even if trigger doesn't exist)
+DO $$ BEGIN
+  DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+EXCEPTION WHEN undefined_table THEN NULL;
+END $$;
 
 DELETE FROM auth.identities;
 DELETE FROM auth.users;

@@ -73,7 +73,7 @@ mps-web/
 
 **IMPORTANT:** You must complete this step first or you'll get "Database error querying schema" when trying to sign in.
 
-1. Go to your Supabase project dashboard: https://supabase.com/dashboard/project/fgzerfpqyncpjpiadjqh
+1. Go to your Supabase project dashboard: https://supabase.com/dashboard/project/tgxxqzeaqxiwoqzopcku
 
 2. Navigate to **SQL Editor** in the left sidebar
 
@@ -162,8 +162,8 @@ npm install
 Make sure your `.env.local` file exists with:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://fgzerfpqyncpjpiadjqh.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnemVyZnBxeW5jcGpwaWFkanFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjczMTEsImV4cCI6MjA4NTM0MzMxMX0.3nnKaI3Z3WUtyaQVEUuZSH-rDIPcL50C6rgWDVlaaNw
+NEXT_PUBLIC_SUPABASE_URL=https://tgxxqzeaqxiwoqzopcku.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRneHhxemVhcXhpd29xem9wY2t1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzE2MjIsImV4cCI6MjA4NTQ0NzYyMn0.gheXa7WzE6jR8XFt3g2GnzDU9VdjZKaMWlJofJf956Y
 ```
 
 ### Step 4: Run Development Server
@@ -265,7 +265,7 @@ Once the basic setup is working, we can implement:
 This is the most common error and happens when the profiles table doesn't exist or has incorrect RLS policies.
 
 **COMPLETE FIX:**
-1. Go to your Supabase project: https://supabase.com/dashboard/project/fgzerfpqyncpjpiadjqh
+1. Go to your Supabase project: https://supabase.com/dashboard/project/tgxxqzeaqxiwoqzopcku
 2. Click **SQL Editor** in the left sidebar
 3. Open the `supabase-complete-rebuild.sql` file from your project
 4. Copy the **entire content** and paste it into the SQL Editor
