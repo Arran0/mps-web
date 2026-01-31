@@ -71,9 +71,30 @@ mps-web/
 
 ### Step 1: Set up Supabase Database
 
+**IMPORTANT:** You must complete this step first or you'll get "Database error querying schema" when trying to sign in.
+
 1. Go to your Supabase project dashboard: https://supabase.com/dashboard/project/amrmcleaatsvjlponkgn
 
-2. Navigate to **SQL Editor** and run the following SQL to create the profiles table:
+2. Navigate to **SQL Editor** in the left sidebar
+
+3. **Option A - Quick Setup** (Recommended for fixing login errors):
+   - Open `supabase-quick-fix.sql` from your project folder
+   - Copy the entire content and paste it into the SQL Editor
+   - Click **Run** or press Cmd/Ctrl + Enter
+   - Wait for success message
+
+   **Option B - Complete Setup** (For new projects or full reset):
+   - Open `supabase-complete-rebuild.sql` from your project folder
+   - This includes test users and sample data
+   - Copy and paste the entire file into SQL Editor
+   - Click **Run**
+
+4. **After running SQL:**
+   - Go to **Settings → General → Restart Project**
+   - Wait ~30 seconds for restart to complete
+   - Clear browser cache or use Incognito mode
+
+**Old Method** (if you prefer manual setup, run the SQL below):
 
 ```sql
 -- Create profiles table
@@ -244,17 +265,35 @@ Once the basic setup is working, we can implement:
 
 ## 🆘 Troubleshooting
 
+**"Database error querying schema" when signing in**
+This is the most common error and happens when the profiles table doesn't exist or has incorrect RLS policies.
+
+**QUICK FIX:**
+1. Go to your Supabase project: https://supabase.com/dashboard/project/amrmcleaatsvjlponkgn
+2. Click **SQL Editor** in the left sidebar
+3. Open the `supabase-quick-fix.sql` file from your project
+4. Copy the entire content and paste it into the SQL Editor
+5. Click **Run** (or press Cmd/Ctrl + Enter)
+6. Wait for "Success. No rows returned" message
+7. Go to **Settings → General → Restart Project** (wait ~30 seconds)
+8. Clear your browser cache or use Incognito mode
+9. Try logging in again
+
+If the error persists, run the complete rebuild:
+- Use `supabase-complete-rebuild.sql` instead (this will reset all data)
+
 **"npm: command not found"**
 - Install Node.js from https://nodejs.org/
 
 **Supabase authentication errors**
-- Check that your environment variables are correct
-- Make sure the profiles table is created
-- Verify RLS policies are in place
+- Check that your environment variables are correct in `.env.local`
+- Make sure both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set
+- Verify the values match your Supabase project settings
 
 **Vercel deployment fails**
-- Check that all environment variables are set in Vercel
+- Check that all environment variables are set in Vercel dashboard
 - Review build logs for specific errors
+- Make sure you've run the database setup SQL in Supabase
 
 ---
 
