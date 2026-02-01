@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
@@ -49,6 +49,14 @@ export default function NewTaskForm({
     [defaultAssigneeId || currentUserId]
   )
   const [submitting, setSubmitting] = useState(false)
+
+  // Sync state when form opens with new defaults
+  useEffect(() => {
+    if (isOpen) {
+      setDueDate(defaultDate || '')
+      setSelectedAssignees([defaultAssigneeId || currentUserId])
+    }
+  }, [isOpen, defaultDate, defaultAssigneeId, currentUserId])
 
   const handleAddCheckItem = () => {
     if (!newCheckItem.trim()) return

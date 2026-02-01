@@ -257,9 +257,13 @@ export async function fetchTasksByIds(taskIds: string[]): Promise<TaskWithDetail
     .in('task_id', taskIds)
     .order('created_at', { ascending: true })
 
+  const todayStr = new Date().toISOString().split('T')[0]
+
   return (tasks as Task[]).map(task => ({
     ...task,
     recurrence: task.recurrence || 'none',
+    // Compute overdue dynamically: past due_date + not completed
+    is_overdue: !!(task.due_date && task.due_date < todayStr && task.status !== 'done' && task.status !== 'checked'),
     assignees: (allAssignees || []).filter(a => a.task_id === task.id),
     checklist: (allChecklists || []).filter(c => c.task_id === task.id),
     comments: (allComments || []).filter(c => c.task_id === task.id),
