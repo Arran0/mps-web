@@ -30,10 +30,6 @@ DO $$ BEGIN
 EXCEPTION WHEN undefined_table THEN NULL;
 END $$;
 
--- Only delete profiles, NOT auth.users (we don't want to delete manually created users)
-DELETE FROM public.profiles;
-DELETE FROM public.team_members;
-
 DROP FUNCTION IF EXISTS public.handle_new_user();
 DROP FUNCTION IF EXISTS update_updated_at_column();
 DROP FUNCTION IF EXISTS update_task_updated_at();
