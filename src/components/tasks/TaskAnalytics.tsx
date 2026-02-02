@@ -166,8 +166,8 @@ export default function TaskAnalytics({ userId, viewingUserId }: TaskAnalyticsPr
           <div className="grid grid-cols-2 gap-3 mt-8">
             <div className="bg-green-50 rounded-xl p-4 text-center">
               <p className="text-2xl font-bold text-green-700">
-                {data.done + data.checked > 0 && Object.values(data).reduce((s, v) => s + v, 0) > 0
-                  ? Math.round(((data.done + data.checked) / Object.values(data).reduce((s, v) => s + v, 0)) * 100)
+                {Object.values(data).reduce((s, v) => s + v, 0) > 0
+                  ? Math.round((data.checked / Object.values(data).reduce((s, v) => s + v, 0)) * 100)
                   : 0}%
               </p>
               <p className="text-xs text-green-600 font-medium">Completion Rate</p>

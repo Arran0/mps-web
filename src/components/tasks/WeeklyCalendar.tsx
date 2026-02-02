@@ -61,7 +61,7 @@ export default function WeeklyCalendar({
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showNewTask, setShowNewTask] = useState(false)
   const [newTaskDate, setNewTaskDate] = useState('')
-  const [showWeekView, setShowWeekView] = useState(false)
+  const [showWeekView, setShowWeekView] = useState(true)
 
   const targetUserId = viewingUserId || userId
 

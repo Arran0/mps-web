@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
@@ -89,6 +90,7 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
 
   if (compact) {
     return (
+      <>
       <motion.div
         layout
         initial={{ opacity: 0, y: 10 }}
@@ -149,7 +151,10 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
           </div>
         </div>
 
-        {/* Full task modal */}
+      </motion.div>
+
+      {/* Full task modal - rendered via portal to avoid z-index issues */}
+      {typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
           {isOpen && (
             <TaskModal
@@ -170,8 +175,10 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
               profile={profile}
             />
           )}
-        </AnimatePresence>
-      </motion.div>
+        </AnimatePresence>,
+        document.body
+      )}
+      </>
     )
   }
 
@@ -245,27 +252,31 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
         </div>
       </motion.div>
 
-      <AnimatePresence>
-        {isOpen && (
-          <TaskModal
-            task={task}
-            canCheck={canCheck}
-            isOpen={isOpen}
-            onClose={() => setIsOpen(false)}
-            onStatusTap={handleStatusTap}
-            onToggleChecklist={handleToggleChecklist}
-            onAddComment={handleAddComment}
-            onAddCheckItem={handleAddCheckItem}
-            onDelete={handleDelete}
-            newComment={newComment}
-            setNewComment={setNewComment}
-            newCheckItem={newCheckItem}
-            setNewCheckItem={setNewCheckItem}
-            submitting={submitting}
-            profile={profile}
-          />
-        )}
-      </AnimatePresence>
+      {/* Full task modal - rendered via portal to avoid z-index issues */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isOpen && (
+            <TaskModal
+              task={task}
+              canCheck={canCheck}
+              isOpen={isOpen}
+              onClose={() => setIsOpen(false)}
+              onStatusTap={handleStatusTap}
+              onToggleChecklist={handleToggleChecklist}
+              onAddComment={handleAddComment}
+              onAddCheckItem={handleAddCheckItem}
+              onDelete={handleDelete}
+              newComment={newComment}
+              setNewComment={setNewComment}
+              newCheckItem={newCheckItem}
+              setNewCheckItem={setNewCheckItem}
+              submitting={submitting}
+              profile={profile}
+            />
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   )
 }

@@ -182,7 +182,86 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
     console.error('Error updating task status:', error)
     return false
   }
+
+  // When a recurring task is marked "checked", auto-create the next occurrence
+  if (status === 'checked') {
+    await spawnNextRecurrence(taskId)
+  }
+
   return true
+}
+
+/**
+ * When a recurring task is checked, create a new task with the next due date.
+ * daily  → +1 day
+ * weekly → +7 days
+ * monthly → +1 month
+ */
+async function spawnNextRecurrence(taskId: string): Promise<void> {
+  // Fetch the original task
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', taskId)
+    .single()
+
+  if (!task || !task.recurrence || task.recurrence === 'none') return
+
+  // Compute next due date
+  let nextDate: string | null = null
+  if (task.due_date) {
+    const d = new Date(task.due_date + 'T00:00:00')
+    if (task.recurrence === 'daily') d.setDate(d.getDate() + 1)
+    else if (task.recurrence === 'weekly') d.setDate(d.getDate() + 7)
+    else if (task.recurrence === 'monthly') d.setMonth(d.getMonth() + 1)
+    nextDate = d.toISOString().split('T')[0]
+  }
+
+  // Create new task (same properties, reset status)
+  const { data: newTask, error } = await supabase
+    .from('tasks')
+    .insert({
+      title: task.title,
+      description: task.description,
+      status: 'not_done',
+      due_date: nextDate,
+      timing: task.timing,
+      tag: task.tag,
+      recurrence: task.recurrence,
+      created_by: task.created_by,
+    })
+    .select()
+    .single()
+
+  if (error || !newTask) {
+    console.error('Error spawning recurrence:', error)
+    return
+  }
+
+  // Copy assignees from original task
+  const { data: assignees } = await supabase
+    .from('task_assignees')
+    .select('user_id')
+    .eq('task_id', taskId)
+
+  if (assignees && assignees.length > 0) {
+    await supabase.from('task_assignees').insert(
+      assignees.map(a => ({ task_id: newTask.id, user_id: a.user_id }))
+    )
+  }
+
+  // Copy checklist items (unchecked) from original task
+  const { data: checklist } = await supabase
+    .from('task_checklist_items')
+    .select('text, sort_order')
+    .eq('task_id', taskId)
+    .order('sort_order', { ascending: true })
+
+  if (checklist && checklist.length > 0) {
+    await supabase.from('task_checklist_items').insert(
+      checklist.map(c => ({ task_id: newTask.id, text: c.text, sort_order: c.sort_order }))
+    )
+  }
 }
 
 export async function updateTask(taskId: string, updates: Partial<Pick<Task, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'is_overdue' | 'recurrence'>>): Promise<boolean> {
@@ -262,8 +341,8 @@ export async function fetchTasksByIds(taskIds: string[]): Promise<TaskWithDetail
   return (tasks as Task[]).map(task => ({
     ...task,
     recurrence: task.recurrence || 'none',
-    // Compute overdue dynamically: past due_date + not completed
-    is_overdue: !!(task.due_date && task.due_date < todayStr && task.status !== 'done' && task.status !== 'checked'),
+    // Compute overdue dynamically: past due_date + not checked (done but unchecked is still overdue)
+    is_overdue: !!(task.due_date && task.due_date < todayStr && task.status !== 'checked'),
     assignees: (allAssignees || []).filter(a => a.task_id === task.id),
     checklist: (allChecklists || []).filter(c => c.task_id === task.id),
     comments: (allComments || []).filter(c => c.task_id === task.id),
@@ -277,7 +356,7 @@ export async function fetchTodayTasks(userId: string): Promise<{ today: TaskWith
   const today = allTasks.filter(t => t.due_date === todayStr)
   const overdueOrUndated = allTasks.filter(t => {
     if (!t.due_date) return true
-    if (t.due_date < todayStr && t.status !== 'checked' && t.status !== 'done') return true
+    if (t.due_date < todayStr && t.status !== 'checked') return true
     return false
   })
 
@@ -468,7 +547,7 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
         return false
       })
 
-      const completed = monthTasks.filter(t => t.status === 'done' || t.status === 'checked').length
+      const completed = monthTasks.filter(t => t.status === 'checked').length
       const bonus = monthTasks.filter(t => t.tag === 'bonus').length
       const overdue = monthTasks.filter(t => t.is_overdue).length
       const total = monthTasks.length
