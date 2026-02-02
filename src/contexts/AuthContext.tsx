@@ -136,10 +136,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    // Clear local state immediately for instant UI feedback
     setUser(null)
     setProfile(null)
     setSession(null)
+    // Revoke server session in background (don't await)
+    supabase.auth.signOut().catch(() => {})
   }
 
   return (
