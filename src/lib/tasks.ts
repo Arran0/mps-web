@@ -191,6 +191,15 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
   return true
 }
 
+/** Build a YYYY-MM-DD string from parts, letting Date handle overflow (e.g. day 32 → next month). */
+function formatDateParts(year: number, month: number, day: number): string {
+  const d = new Date(year, month - 1, day) // month is 0-indexed in Date constructor
+  const yy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
 /**
  * When a recurring task is checked, create a new task with the next due date.
  * daily  → +1 day
@@ -207,14 +216,17 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
 
   if (!task || !task.recurrence || task.recurrence === 'none') return
 
-  // Compute next due date
+  // Compute next due date using pure string math to avoid timezone shifts
   let nextDate: string | null = null
   if (task.due_date) {
-    const d = new Date(task.due_date + 'T00:00:00')
-    if (task.recurrence === 'daily') d.setDate(d.getDate() + 1)
-    else if (task.recurrence === 'weekly') d.setDate(d.getDate() + 7)
-    else if (task.recurrence === 'monthly') d.setMonth(d.getMonth() + 1)
-    nextDate = d.toISOString().split('T')[0]
+    const [y, m, d] = task.due_date.split('-').map(Number)
+    if (task.recurrence === 'daily') {
+      nextDate = formatDateParts(y, m, d + 1)
+    } else if (task.recurrence === 'weekly') {
+      nextDate = formatDateParts(y, m, d + 7)
+    } else if (task.recurrence === 'monthly') {
+      nextDate = formatDateParts(y, m + 1, d)
+    }
   }
 
   // Create new task (same properties, reset status)
