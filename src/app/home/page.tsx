@@ -63,7 +63,7 @@ export default function HomePage() {
   // They can still access Team Analytics via Task Manager tabs
   const staffNavButtons = [
     { label: 'Announcements', href: '/announcements', icon: <Megaphone size={24} />, color: 'from-mps-blue-400 to-mps-blue-600', description: 'View school announcements' },
-    { label: "Today's Task List", href: '/tasks', icon: <ClipboardList size={24} />, color: 'from-amber-400 to-orange-500', description: 'Manage your daily tasks' },
+    { label: 'Task Manager', href: '/tasks', icon: <ClipboardList size={24} />, color: 'from-amber-400 to-orange-500', description: 'Manage and track your tasks' },
     { label: 'Weekly Task Calendar', href: '/tasks?tab=weekly', icon: <CalendarDays size={24} />, color: 'from-purple-400 to-purple-600', description: 'View weekly task calendar' },
     { label: 'Advanced Dashboard', href: '/tasks?tab=dashboard', icon: <LayoutDashboard size={24} />, color: 'from-cyan-400 to-cyan-600', description: 'Access advanced analytics' },
   ]

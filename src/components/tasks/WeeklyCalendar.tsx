@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, LayoutGrid } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, LayoutGrid, AlertTriangle } from 'lucide-react'
 import TaskCard from './TaskCard'
 import NewTaskForm from './NewTaskForm'
 import {
   fetchWeekTasks,
+  fetchTodayTasks,
   TaskWithDetails,
   TaskStatus,
   STATUS_DOT_COLORS,
-  STATUS_LABELS,
 } from '@/lib/tasks'
 import { UserProfile } from '@/lib/supabase'
 
@@ -33,7 +33,10 @@ function getWeekStart(date: Date): Date {
 }
 
 function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0]
+  const yy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
 }
 
 function getDayLabel(date: Date): { day: string; date: number; month: string; full: string } {
@@ -57,18 +60,21 @@ export default function WeeklyCalendar({
 }: WeeklyCalendarProps) {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))
   const [tasks, setTasks] = useState<TaskWithDetails[]>([])
+  const [overdueUndated, setOverdueUndated] = useState<TaskWithDetails[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showNewTask, setShowNewTask] = useState(false)
   const [newTaskDate, setNewTaskDate] = useState('')
   const [showWeekView, setShowWeekView] = useState(true)
 
   const targetUserId = viewingUserId || userId
+  const todayStr = formatDate(new Date())
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
-    const data = await fetchWeekTasks(targetUserId, weekStart)
-    setTasks(data)
+    const weekData = await fetchWeekTasks(targetUserId, weekStart)
+    setTasks(weekData)
+    const todayData = await fetchTodayTasks(targetUserId)
+    setOverdueUndated(todayData.overdueOrUndated)
     setLoading(false)
   }, [targetUserId, weekStart])
 
@@ -80,50 +86,46 @@ export default function WeeklyCalendar({
     return getDayLabel(d)
   })
 
-  const todayStr = formatDate(new Date())
-
   const goToPrevWeek = () => {
     const prev = new Date(weekStart)
     prev.setDate(prev.getDate() - 7)
     setWeekStart(prev)
-    setSelectedDay(null)
   }
 
   const goToNextWeek = () => {
     const next = new Date(weekStart)
     next.setDate(next.getDate() + 7)
     setWeekStart(next)
-    setSelectedDay(null)
   }
 
   const goToThisWeek = () => {
     setWeekStart(getWeekStart(new Date()))
-    setSelectedDay(null)
-  }
-
-  const handleDayClick = (dateStr: string) => {
-    if (selectedDay === dateStr) {
-      setNewTaskDate(dateStr)
-      setShowNewTask(true)
-    } else {
-      setSelectedDay(dateStr)
-    }
   }
 
   const getTasksForDay = (dateStr: string) => tasks.filter(t => t.due_date === dateStr)
 
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
+    setOverdueUndated(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
   }
 
   const handleTaskDeleted = (taskId: string) => {
     setTasks(prev => prev.filter(t => t.id !== taskId))
+    setOverdueUndated(prev => prev.filter(t => t.id !== taskId))
   }
 
-  const weekLabel = `${weekDays[0].month} ${weekDays[0].date} - ${weekDays[6].month} ${weekDays[6].date}`
+  const weekLabel = `${weekDays[0].month} ${weekDays[0].date} – ${weekDays[6].month} ${weekDays[6].date}`
+
+  const todayTasks = getTasksForDay(todayStr)
+  const counts = {
+    not_done: todayTasks.filter(t => t.status === 'not_done').length,
+    partial: todayTasks.filter(t => t.status === 'partial').length,
+    done: todayTasks.filter(t => t.status === 'done').length,
+    checked: todayTasks.filter(t => t.status === 'checked').length,
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold text-slate-800">Weekly Calendar</h2>
@@ -135,10 +137,10 @@ export default function WeeklyCalendar({
             }`}
           >
             <LayoutGrid size={14} />
-            <span className="hidden sm:inline">Week View</span>
+            <span className="hidden sm:inline">Full Week</span>
           </button>
           <button
-            onClick={() => { setNewTaskDate(''); setShowNewTask(true) }}
+            onClick={() => { setNewTaskDate(todayStr); setShowNewTask(true) }}
             className="btn-primary flex items-center gap-2 text-sm"
           >
             <Plus size={16} /> New Task
@@ -162,6 +164,24 @@ export default function WeeklyCalendar({
         </button>
       </div>
 
+      {/* Today Status Summary */}
+      <div className="grid grid-cols-4 gap-2">
+        {([
+          { key: 'not_done' as const, label: 'Not Done', color: 'text-red-600', dot: 'bg-red-500' },
+          { key: 'partial' as const, label: 'Partial', color: 'text-amber-600', dot: 'bg-amber-500' },
+          { key: 'done' as const, label: 'Done', color: 'text-green-600', dot: 'bg-green-500' },
+          { key: 'checked' as const, label: 'Checked', color: 'text-blue-600', dot: 'bg-blue-500' },
+        ]).map(s => (
+          <div key={s.key} className="glass rounded-xl p-2.5 text-center">
+            <div className="flex items-center justify-center gap-1.5 mb-0.5">
+              <div className={`w-2 h-2 rounded-full ${s.dot}`} />
+              <span className={`text-lg font-bold ${s.color}`}>{counts[s.key]}</span>
+            </div>
+            <p className="text-[10px] text-slate-500">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
       {loading ? (
         <div className="text-center py-12">
           <div className="spinner mx-auto mb-3" />
@@ -169,69 +189,126 @@ export default function WeeklyCalendar({
         </div>
       ) : (
         <>
-          {/* Day Grid */}
-          <div className="grid grid-cols-7 gap-2">
+          {/* Day Selector Row */}
+          <div className="grid grid-cols-7 gap-1.5">
             {weekDays.map((day) => {
               const dayTasks = getTasksForDay(day.full)
               const isToday = day.full === todayStr
-              const isSelected = day.full === selectedDay
 
               return (
                 <button
                   key={day.full}
-                  onClick={() => handleDayClick(day.full)}
-                  className={`rounded-xl p-3 text-center transition-all border-2 ${
-                    isSelected
-                      ? 'border-mps-blue-500 bg-mps-blue-50 shadow-md'
-                      : isToday
-                        ? 'border-mps-green-400 bg-mps-green-50'
-                        : 'border-transparent glass hover:border-slate-200'
+                  onClick={() => { setNewTaskDate(day.full); setShowNewTask(true) }}
+                  className={`rounded-xl p-2 text-center transition-all border-2 ${
+                    isToday
+                      ? 'border-mps-green-400 bg-mps-green-50'
+                      : 'border-transparent glass hover:border-slate-200'
                   }`}
                 >
-                  <p className={`text-xs font-medium mb-1 ${isToday ? 'text-mps-green-700' : 'text-slate-500'}`}>
+                  <p className={`text-[10px] font-medium ${isToday ? 'text-mps-green-700' : 'text-slate-500'}`}>
                     {day.day}
                   </p>
-                  <p className={`text-lg font-bold ${isToday ? 'text-mps-green-700' : isSelected ? 'text-mps-blue-700' : 'text-slate-800'}`}>
+                  <p className={`text-base font-bold ${isToday ? 'text-mps-green-700' : 'text-slate-800'}`}>
                     {day.date}
                   </p>
                   {dayTasks.length > 0 && (
-                    <div className="flex justify-center gap-0.5 mt-1.5">
+                    <div className="flex justify-center gap-0.5 mt-1">
                       {dayTasks.slice(0, 4).map(t => (
                         <div key={t.id} className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT_COLORS[t.status]}`} />
                       ))}
                       {dayTasks.length > 4 && (
-                        <span className="text-[8px] text-slate-400 leading-none">+{dayTasks.length - 4}</span>
+                        <span className="text-[7px] text-slate-400">+{dayTasks.length - 4}</span>
                       )}
                     </div>
                   )}
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    {dayTasks.length > 0 ? `${dayTasks.length} task${dayTasks.length > 1 ? 's' : ''}` : ''}
-                  </p>
                 </button>
               )
             })}
           </div>
 
-          {/* Selected Day Tasks */}
-          {selectedDay && !showWeekView && (
+          {/* Full Week Overview - Horizontal scrollable columns */}
+          {showWeekView && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-slate-700">
-                  {new Date(selectedDay + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                </h3>
-                <button
-                  onClick={() => { setNewTaskDate(selectedDay); setShowNewTask(true) }}
-                  className="text-sm text-mps-blue-600 hover:text-mps-blue-700 font-medium flex items-center gap-1"
-                >
-                  <Plus size={14} /> Add Task
-                </button>
+              <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <LayoutGrid size={16} className="text-mps-blue-600" />
+                Full Week Overview
+              </h3>
+              <div className="overflow-x-auto pb-2 -mx-4 px-4">
+                <div className="flex gap-3" style={{ minWidth: 'max-content' }}>
+                  {weekDays.map((day) => {
+                    const dayTasks = getTasksForDay(day.full)
+                    const isToday = day.full === todayStr
+
+                    return (
+                      <div
+                        key={day.full}
+                        className={`flex-shrink-0 rounded-2xl border-2 ${
+                          isToday ? 'border-mps-green-300 bg-mps-green-50/50' : 'border-slate-100 bg-white/80'
+                        }`}
+                        style={{ width: '220px' }}
+                      >
+                        {/* Day header */}
+                        <div className={`px-3 py-2 border-b ${isToday ? 'border-mps-green-200' : 'border-slate-100'}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className={`text-xs font-medium ${isToday ? 'text-mps-green-700' : 'text-slate-500'}`}>
+                                {day.day}
+                              </span>
+                              <span className={`text-sm font-bold ml-1.5 ${isToday ? 'text-mps-green-700' : 'text-slate-800'}`}>
+                                {day.date}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => { setNewTaskDate(day.full); setShowNewTask(true) }}
+                              className="p-1 text-slate-400 hover:text-mps-blue-600 hover:bg-mps-blue-50 rounded transition-colors"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                          {dayTasks.length > 0 && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">{dayTasks.length} task{dayTasks.length !== 1 ? 's' : ''}</p>
+                          )}
+                        </div>
+
+                        {/* Tasks */}
+                        <div className="p-2 space-y-1.5 min-h-[80px] max-h-[300px] overflow-y-auto">
+                          {dayTasks.length > 0 ? dayTasks.map(task => (
+                            <TaskCard
+                              key={task.id}
+                              task={task}
+                              canCheck={canCheck}
+                              onStatusChange={handleStatusChange}
+                              onTaskDeleted={handleTaskDeleted}
+                              onTaskUpdated={loadTasks}
+                              compact
+                            />
+                          )) : (
+                            <p className="text-[10px] text-slate-400 text-center py-4">No tasks</p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-              {getTasksForDay(selectedDay).length > 0 ? (
+            </motion.div>
+          )}
+
+          {/* Today's Tasks (when week view is off) */}
+          {!showWeekView && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <h3 className="font-semibold text-slate-700 mb-3">
+                Today &middot; {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </h3>
+              {todayTasks.length > 0 ? (
                 <div className="space-y-2">
-                  {getTasksForDay(selectedDay).map(task => (
+                  {todayTasks.map(task => (
                     <TaskCard
                       key={task.id}
                       task={task}
@@ -245,81 +322,34 @@ export default function WeeklyCalendar({
                 </div>
               ) : (
                 <div className="glass rounded-xl p-6 text-center">
-                  <p className="text-sm text-slate-500">No tasks for this day</p>
-                  <button
-                    onClick={() => { setNewTaskDate(selectedDay); setShowNewTask(true) }}
-                    className="mt-2 text-sm text-mps-blue-600 hover:text-mps-blue-700 font-medium"
-                  >
-                    Create a task
-                  </button>
+                  <p className="text-sm text-slate-500">No tasks for today</p>
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* Whole Week View - shows ALL tasks for the week at a glance */}
-          {showWeekView && (
+          {/* Overdue & Undated */}
+          {overdueUndated.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-1"
             >
               <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                <LayoutGrid size={16} className="text-mps-blue-600" />
-                Full Week Overview
+                <AlertTriangle size={14} className="text-amber-500" />
+                Overdue &amp; Undated ({overdueUndated.length})
               </h3>
-              <div className="glass rounded-2xl overflow-hidden">
-                {weekDays.map((day) => {
-                  const dayTasks = getTasksForDay(day.full)
-                  const isToday = day.full === todayStr
-
-                  return (
-                    <div
-                      key={day.full}
-                      className={`border-b border-slate-100 last:border-b-0 ${isToday ? 'bg-mps-green-50/50' : ''}`}
-                    >
-                      <div className="flex items-start gap-3 p-3">
-                        {/* Day label */}
-                        <div className={`w-14 text-center flex-shrink-0 pt-0.5 ${isToday ? 'text-mps-green-700' : 'text-slate-500'}`}>
-                          <p className="text-xs font-medium">{day.day}</p>
-                          <p className={`text-lg font-bold ${isToday ? 'text-mps-green-700' : 'text-slate-800'}`}>{day.date}</p>
-                        </div>
-
-                        {/* Tasks for this day */}
-                        <div className="flex-1 min-w-0">
-                          {dayTasks.length > 0 ? (
-                            <div className="space-y-1.5">
-                              {dayTasks.map(task => (
-                                <div key={task.id} className="flex items-center gap-2">
-                                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_DOT_COLORS[task.status]}`} />
-                                  <span className={`text-sm truncate ${task.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-700'}`}>
-                                    {task.title}
-                                  </span>
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${STATUS_COLORS_INLINE[task.status]}`}>
-                                    {STATUS_LABELS[task.status]}
-                                  </span>
-                                  {task.timing && (
-                                    <span className="text-[10px] text-slate-400 flex-shrink-0">{task.timing}</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-slate-400 py-1">No tasks</p>
-                          )}
-                        </div>
-
-                        {/* Add button */}
-                        <button
-                          onClick={() => { setNewTaskDate(day.full); setShowNewTask(true) }}
-                          className="p-1 text-slate-400 hover:text-mps-blue-600 hover:bg-mps-blue-50 rounded transition-colors flex-shrink-0"
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="space-y-2">
+                {overdueUndated.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    canCheck={canCheck}
+                    onStatusChange={handleStatusChange}
+                    onTaskDeleted={handleTaskDeleted}
+                    onTaskUpdated={loadTasks}
+                    compact
+                  />
+                ))}
               </div>
             </motion.div>
           )}
@@ -338,12 +368,4 @@ export default function WeeklyCalendar({
       />
     </div>
   )
-}
-
-// Inline status colors (smaller badges for week view)
-const STATUS_COLORS_INLINE: Record<TaskStatus, string> = {
-  not_done: 'bg-red-50 text-red-600 border-red-200',
-  partial: 'bg-amber-50 text-amber-600 border-amber-200',
-  done: 'bg-green-50 text-green-600 border-green-200',
-  checked: 'bg-blue-50 text-blue-600 border-blue-200',
 }
