@@ -404,6 +404,140 @@ GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 
 -- ============================================
+-- PART 11: STUDENT PROFILES - GRADE & SECTION
+-- ============================================
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS grade INTEGER;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS section TEXT;
+
+-- ============================================
+-- PART 12: ANNOUNCEMENTS
+-- ============================================
+
+-- Announcements table
+CREATE TABLE IF NOT EXISTS public.announcements (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('student', 'staff')),
+  created_by UUID REFERENCES public.profiles(id) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Announcement audiences table
+-- For student announcements: grade + section (section NULL = all sections)
+-- For staff announcements: team_id (specific team) or all_teams = true
+CREATE TABLE IF NOT EXISTS public.announcement_audiences (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  announcement_id UUID REFERENCES public.announcements(id) ON DELETE CASCADE NOT NULL,
+  grade INTEGER,
+  section TEXT,
+  team_id UUID REFERENCES public.teams(id),
+  all_teams BOOLEAN DEFAULT FALSE
+);
+
+-- Enable RLS
+ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.announcement_audiences ENABLE ROW LEVEL SECURITY;
+
+-- Announcements policies
+-- Staff can view all announcements
+CREATE POLICY "Staff can view all announcements"
+  ON public.announcements FOR SELECT
+  USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+-- Students can view student announcements targeted at them
+CREATE POLICY "Students can view targeted student announcements"
+  ON public.announcements FOR SELECT
+  USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'student'
+    AND type = 'student'
+    AND EXISTS (
+      SELECT 1 FROM public.announcement_audiences aa
+      JOIN public.profiles p ON p.id = auth.uid()
+      WHERE aa.announcement_id = announcements.id
+      AND aa.grade = p.grade
+      AND (aa.section IS NULL OR aa.section = p.section)
+    )
+  );
+
+-- Staff can create announcements (teachers: student only; coordinators/principals/admins: both types)
+CREATE POLICY "Staff can create announcements"
+  ON public.announcements FOR INSERT
+  WITH CHECK (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+-- Staff can delete their own announcements
+CREATE POLICY "Staff can delete own announcements"
+  ON public.announcements FOR DELETE
+  USING (
+    created_by = auth.uid()
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
+  );
+
+-- Announcement audiences: viewable by staff
+CREATE POLICY "Staff can view announcement audiences"
+  ON public.announcement_audiences FOR SELECT
+  USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+-- Students can view audiences for announcements they can see
+CREATE POLICY "Students can view own announcement audiences"
+  ON public.announcement_audiences FOR SELECT
+  USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'student'
+    AND EXISTS (
+      SELECT 1 FROM public.announcements a
+      WHERE a.id = announcement_audiences.announcement_id
+      AND a.type = 'student'
+      AND EXISTS (
+        SELECT 1 FROM public.profiles p
+        WHERE p.id = auth.uid()
+        AND announcement_audiences.grade = p.grade
+        AND (announcement_audiences.section IS NULL OR announcement_audiences.section = p.section)
+      )
+    )
+  );
+
+-- Staff can insert audiences
+CREATE POLICY "Staff can insert announcement audiences"
+  ON public.announcement_audiences FOR INSERT
+  WITH CHECK (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+-- Staff can delete audiences (cascade from announcement delete)
+CREATE POLICY "Staff can delete announcement audiences"
+  ON public.announcement_audiences FOR DELETE
+  USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_announcements_type ON public.announcements(type);
+CREATE INDEX IF NOT EXISTS idx_announcements_created_at ON public.announcements(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_announcement_audiences_announcement_id ON public.announcement_audiences(announcement_id);
+CREATE INDEX IF NOT EXISTS idx_announcement_audiences_grade ON public.announcement_audiences(grade);
+CREATE INDEX IF NOT EXISTS idx_announcement_audiences_team_id ON public.announcement_audiences(team_id);
+
+-- Trigger for updated_at
+CREATE TRIGGER announcements_updated_at
+  BEFORE UPDATE ON public.announcements
+  FOR EACH ROW EXECUTE FUNCTION update_task_updated_at();
+
+-- Grant access
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ============================================
 -- DONE! Now create users manually.
 -- See MANUAL-USER-CREATION.md for instructions.
 -- ============================================

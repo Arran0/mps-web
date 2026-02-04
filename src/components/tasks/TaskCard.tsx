@@ -17,6 +17,8 @@ import {
   AlertTriangle,
   Star,
   Repeat,
+  Edit3,
+  Check,
 } from 'lucide-react'
 import {
   TaskWithDetails,
@@ -27,10 +29,13 @@ import {
   RECURRENCE_LABELS,
   getNextStatus,
   updateTaskStatus,
+  updateTask,
   toggleChecklistItem,
   addComment,
   addChecklistItem,
   deleteTask,
+  TaskRecurrence,
+  TaskTag,
 } from '@/lib/tasks'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -167,6 +172,7 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
               onAddComment={handleAddComment}
               onAddCheckItem={handleAddCheckItem}
               onDelete={handleDelete}
+              onTaskUpdated={onTaskUpdated}
               newComment={newComment}
               setNewComment={setNewComment}
               newCheckItem={newCheckItem}
@@ -266,6 +272,7 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
               onAddComment={handleAddComment}
               onAddCheckItem={handleAddCheckItem}
               onDelete={handleDelete}
+              onTaskUpdated={onTaskUpdated}
               newComment={newComment}
               setNewComment={setNewComment}
               newCheckItem={newCheckItem}
@@ -282,7 +289,7 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
 }
 
 // ============================================
-// Task Detail Modal
+// Task Detail Modal with Edit Support
 // ============================================
 
 interface TaskModalProps {
@@ -295,6 +302,7 @@ interface TaskModalProps {
   onAddComment: () => void
   onAddCheckItem: () => void
   onDelete: () => void
+  onTaskUpdated?: () => void
   newComment: string
   setNewComment: (v: string) => void
   newCheckItem: string
@@ -306,9 +314,50 @@ interface TaskModalProps {
 function TaskModal({
   task, canCheck, isOpen, onClose, onStatusTap,
   onToggleChecklist, onAddComment, onAddCheckItem, onDelete,
+  onTaskUpdated,
   newComment, setNewComment, newCheckItem, setNewCheckItem,
   submitting, profile,
 }: TaskModalProps) {
+  const canEdit = profile && ['coordinator', 'principal', 'admin'].includes(profile.role)
+
+  // Edit state
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [editDesc, setEditDesc] = useState(task.description || '')
+  const [editDueDate, setEditDueDate] = useState(task.due_date || '')
+  const [editTiming, setEditTiming] = useState(task.timing || '')
+  const [editTag, setEditTag] = useState<TaskTag>(task.tag)
+  const [editRecurrence, setEditRecurrence] = useState<TaskRecurrence>(task.recurrence || 'none')
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!editTitle.trim()) return
+    setSaving(true)
+    const ok = await updateTask(task.id, {
+      title: editTitle.trim(),
+      description: editDesc.trim() || null,
+      due_date: editDueDate || null,
+      timing: editTiming || null,
+      tag: editTag,
+      recurrence: editRecurrence,
+    })
+    setSaving(false)
+    if (ok) {
+      setEditing(false)
+      onTaskUpdated?.()
+    }
+  }
+
+  const handleStartEdit = () => {
+    setEditTitle(task.title)
+    setEditDesc(task.description || '')
+    setEditDueDate(task.due_date || '')
+    setEditTiming(task.timing || '')
+    setEditTag(task.tag)
+    setEditRecurrence(task.recurrence || 'none')
+    setEditing(true)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -336,13 +385,22 @@ function TaskModal({
               {STATUS_LABELS[task.status]}
               <ChevronRight size={14} className="opacity-50" />
             </button>
-            {task.tag === 'bonus' && (
+            {task.tag === 'bonus' && !editing && (
               <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
                 <Star size={10} /> Bonus
               </span>
             )}
           </div>
           <div className="flex items-center gap-2">
+            {canEdit && !editing && (
+              <button
+                onClick={handleStartEdit}
+                className="p-2 text-mps-blue-500 hover:text-mps-blue-700 hover:bg-mps-blue-50 rounded-lg transition-colors"
+                title="Edit task"
+              >
+                <Edit3 size={16} />
+              </button>
+            )}
             <button onClick={onDelete} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
               <Trash2 size={16} />
             </button>
@@ -354,40 +412,132 @@ function TaskModal({
 
         {/* Body */}
         <div className="p-5 space-y-5">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">{task.title}</h2>
-            {task.description && (
-              <p className="text-slate-600 mt-2 text-sm leading-relaxed">{task.description}</p>
-            )}
-          </div>
+          {editing ? (
+            // Edit Mode
+            <div className="space-y-3 border border-mps-blue-200 rounded-2xl p-4 bg-mps-blue-50/30">
+              <h4 className="text-sm font-semibold text-mps-blue-700 flex items-center gap-1.5">
+                <Edit3 size={14} /> Edit Task
+              </h4>
 
-          {/* Meta info */}
-          <div className="flex flex-wrap gap-3">
-            {task.due_date && (
-              <div className="flex items-center gap-1.5 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg">
-                <Calendar size={14} />
-                <span>{task.due_date}</span>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                placeholder="Title *"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+              />
+
+              <textarea
+                value={editDesc}
+                onChange={e => setEditDesc(e.target.value)}
+                placeholder="Description (optional)"
+                rows={2}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 resize-none bg-white"
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Due Date</label>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={e => setEditDueDate(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Timing</label>
+                  <input
+                    type="time"
+                    value={editTiming}
+                    onChange={e => setEditTiming(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                  />
+                </div>
               </div>
-            )}
-            {task.timing && (
-              <div className="flex items-center gap-1.5 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg">
-                <Clock size={14} />
-                <span>{task.timing}</span>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Recurrence</label>
+                  <select
+                    value={editRecurrence}
+                    onChange={e => setEditRecurrence(e.target.value as TaskRecurrence)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                  >
+                    {(Object.keys(RECURRENCE_LABELS) as TaskRecurrence[]).map(r => (
+                      <option key={r} value={r}>{RECURRENCE_LABELS[r]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Tag</label>
+                  <select
+                    value={editTag || ''}
+                    onChange={e => setEditTag(e.target.value === 'bonus' ? 'bonus' : null)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                  >
+                    <option value="">No tag</option>
+                    <option value="bonus">Bonus</option>
+                  </select>
+                </div>
               </div>
-            )}
-            {task.is_overdue && (
-              <div className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 px-3 py-1.5 rounded-lg font-medium">
-                <AlertTriangle size={14} />
-                <span>Overdue</span>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !editTitle.trim()}
+                  className="btn-primary text-sm flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Check size={14} />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="btn-secondary text-sm"
+                >
+                  Cancel
+                </button>
               </div>
-            )}
-            {task.recurrence && task.recurrence !== 'none' && (
-              <div className="flex items-center gap-1.5 text-sm text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg font-medium">
-                <Repeat size={14} />
-                <span>{RECURRENCE_LABELS[task.recurrence]}</span>
+            </div>
+          ) : (
+            // View Mode
+            <>
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">{task.title}</h2>
+                {task.description && (
+                  <p className="text-slate-600 mt-2 text-sm leading-relaxed">{task.description}</p>
+                )}
               </div>
-            )}
-          </div>
+
+              {/* Meta info */}
+              <div className="flex flex-wrap gap-3">
+                {task.due_date && (
+                  <div className="flex items-center gap-1.5 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg">
+                    <Calendar size={14} />
+                    <span>{task.due_date}</span>
+                  </div>
+                )}
+                {task.timing && (
+                  <div className="flex items-center gap-1.5 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg">
+                    <Clock size={14} />
+                    <span>{task.timing}</span>
+                  </div>
+                )}
+                {task.is_overdue && (
+                  <div className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 px-3 py-1.5 rounded-lg font-medium">
+                    <AlertTriangle size={14} />
+                    <span>Overdue</span>
+                  </div>
+                )}
+                {task.recurrence && task.recurrence !== 'none' && (
+                  <div className="flex items-center gap-1.5 text-sm text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg font-medium">
+                    <Repeat size={14} />
+                    <span>{RECURRENCE_LABELS[task.recurrence]}</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Assignees */}
           {task.assignees.length > 0 && (
@@ -404,50 +554,48 @@ function TaskModal({
           )}
 
           {/* Checklist */}
-          {(task.checklist.length > 0 || true) && (
-            <div>
-              <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
-                <CheckSquare size={14} />
-                Checklist
-                {task.checklist.length > 0 && (
-                  <span className="text-xs font-normal text-slate-500">
-                    ({task.checklist.filter(c => c.is_completed).length}/{task.checklist.length})
+          <div>
+            <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+              <CheckSquare size={14} />
+              Checklist
+              {task.checklist.length > 0 && (
+                <span className="text-xs font-normal text-slate-500">
+                  ({task.checklist.filter(c => c.is_completed).length}/{task.checklist.length})
+                </span>
+              )}
+            </h4>
+            <div className="space-y-1.5">
+              {task.checklist.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => onToggleChecklist(item.id, item.is_completed)}
+                  className="flex items-center gap-2 w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  {item.is_completed ? (
+                    <CheckSquare size={16} className="text-mps-green-600 flex-shrink-0" />
+                  ) : (
+                    <Square size={16} className="text-slate-400 flex-shrink-0" />
+                  )}
+                  <span className={`text-sm ${item.is_completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                    {item.text}
                   </span>
-                )}
-              </h4>
-              <div className="space-y-1.5">
-                {task.checklist.map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => onToggleChecklist(item.id, item.is_completed)}
-                    className="flex items-center gap-2 w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    {item.is_completed ? (
-                      <CheckSquare size={16} className="text-mps-green-600 flex-shrink-0" />
-                    ) : (
-                      <Square size={16} className="text-slate-400 flex-shrink-0" />
-                    )}
-                    <span className={`text-sm ${item.is_completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
-                      {item.text}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <input
-                  type="text"
-                  value={newCheckItem}
-                  onChange={e => setNewCheckItem(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && onAddCheckItem()}
-                  placeholder="Add checklist item..."
-                  className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-mps-blue-500"
-                />
-                <button onClick={onAddCheckItem} className="text-mps-blue-600 hover:text-mps-blue-700 p-1.5">
-                  <CheckSquare size={16} />
                 </button>
-              </div>
+              ))}
             </div>
-          )}
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="text"
+                value={newCheckItem}
+                onChange={e => setNewCheckItem(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && onAddCheckItem()}
+                placeholder="Add checklist item..."
+                className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-mps-blue-500"
+              />
+              <button onClick={onAddCheckItem} className="text-mps-blue-600 hover:text-mps-blue-700 p-1.5">
+                <CheckSquare size={16} />
+              </button>
+            </div>
+          </div>
 
           {/* Comments Thread */}
           <div>

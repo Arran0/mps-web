@@ -336,12 +336,17 @@ export async function fetchProjectById(
   return enriched.length > 0 ? enriched[0] : null
 }
 
+export interface SubtaskWithProject extends Subtask {
+  project_title: string
+  project_sequential: boolean
+}
+
 export async function fetchSubtasksForCalendar(
   userId: string
-): Promise<Subtask[]> {
+): Promise<SubtaskWithProject[]> {
   const { data, error } = await supabase
     .from('subtasks')
-    .select('*, assignee:profiles!subtasks_assignee_id_fkey(*)')
+    .select('*, assignee:profiles!subtasks_assignee_id_fkey(*), project:projects!subtasks_project_id_fkey(title, sequential_mode)')
     .eq('assignee_id', userId)
     .order('due_date', { ascending: true })
 
@@ -350,7 +355,28 @@ export async function fetchSubtasksForCalendar(
     return []
   }
 
-  return data as Subtask[]
+  return (data as any[]).map(d => ({
+    ...d,
+    project_title: d.project?.title || 'Unknown Project',
+    project_sequential: d.project?.sequential_mode || false,
+    project: undefined,
+  })) as SubtaskWithProject[]
+}
+
+export async function updateSubtask(
+  subtaskId: string,
+  updates: Partial<Pick<Subtask, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'assignee_id'>>
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('subtasks')
+    .update(updates)
+    .eq('id', subtaskId)
+
+  if (error) {
+    console.error('Error updating subtask:', error)
+    return false
+  }
+  return true
 }
 
 // ============================================
