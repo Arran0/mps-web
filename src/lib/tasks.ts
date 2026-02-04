@@ -131,45 +131,47 @@ export function getNextStatus(current: TaskStatus, canCheck: boolean): TaskStatu
 // ============================================
 
 export async function createTask(input: NewTaskInput, createdBy: string): Promise<Task | null> {
-  const { data: task, error } = await supabase
-    .from('tasks')
-    .insert({
-      title: input.title,
-      description: input.description || null,
-      due_date: input.due_date || null,
-      timing: input.timing || null,
-      tag: input.tag || null,
-      recurrence: input.recurrence || 'none',
-      created_by: createdBy,
-    })
-    .select()
-    .single()
+  // Create one individual task per assignee (bulk assign = separate tasks with same properties)
+  const assigneeIds = input.assignee_ids.length > 0 ? input.assignee_ids : [createdBy]
+  let firstTask: Task | null = null
 
-  if (error || !task) {
-    console.error('Error creating task:', error)
-    return null
+  for (const assigneeId of assigneeIds) {
+    const { data: task, error } = await supabase
+      .from('tasks')
+      .insert({
+        title: input.title,
+        description: input.description || null,
+        due_date: input.due_date || null,
+        timing: input.timing || null,
+        tag: input.tag || null,
+        recurrence: input.recurrence || 'none',
+        created_by: createdBy,
+      })
+      .select()
+      .single()
+
+    if (error || !task) {
+      console.error('Error creating task:', error)
+      continue
+    }
+
+    // Assign to this specific member
+    await supabase.from('task_assignees').insert({ task_id: task.id, user_id: assigneeId })
+
+    // Insert checklist items
+    if (input.checklist_items && input.checklist_items.length > 0) {
+      const checklistRecords = input.checklist_items.map((text, i) => ({
+        task_id: task.id,
+        text,
+        sort_order: i,
+      }))
+      await supabase.from('task_checklist_items').insert(checklistRecords)
+    }
+
+    if (!firstTask) firstTask = task as Task
   }
 
-  // Insert assignees
-  if (input.assignee_ids.length > 0) {
-    const assigneeRecords = input.assignee_ids.map(uid => ({
-      task_id: task.id,
-      user_id: uid,
-    }))
-    await supabase.from('task_assignees').insert(assigneeRecords)
-  }
-
-  // Insert checklist items
-  if (input.checklist_items && input.checklist_items.length > 0) {
-    const checklistRecords = input.checklist_items.map((text, i) => ({
-      task_id: task.id,
-      text,
-      sort_order: i,
-    }))
-    await supabase.from('task_checklist_items').insert(checklistRecords)
-  }
-
-  return task as Task
+  return firstTask
 }
 
 export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<boolean> {

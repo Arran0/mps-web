@@ -16,6 +16,9 @@
 -- STEP 0: CLEAN WIPE (drop everything)
 -- ============================================
 -- Drop tables first (CASCADE will auto-drop their triggers)
+DROP TABLE IF EXISTS public.subtasks CASCADE;
+DROP TABLE IF EXISTS public.project_members CASCADE;
+DROP TABLE IF EXISTS public.projects CASCADE;
 DROP TABLE IF EXISTS public.task_comments CASCADE;
 DROP TABLE IF EXISTS public.task_checklist_items CASCADE;
 DROP TABLE IF EXISTS public.task_assignees CASCADE;
@@ -300,6 +303,105 @@ INSERT INTO public.teams (id, name) VALUES
   ('a0000000-0000-0000-0000-000000000002', 'Team B'),
   ('a0000000-0000-0000-0000-000000000003', 'Team C')
 ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- PART 10: PROJECTS
+-- ============================================
+
+CREATE TABLE public.projects (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  start_date DATE,
+  end_date DATE,
+  sequential_mode BOOLEAN DEFAULT FALSE,
+  created_by UUID REFERENCES public.profiles(id) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Projects viewable by staff" ON public.projects
+  FOR SELECT TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+CREATE POLICY "Projects manageable by coordinators+" ON public.projects
+  FOR ALL TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('coordinator', 'principal', 'admin')
+  );
+
+CREATE TABLE public.project_members (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(project_id, user_id)
+);
+
+ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Project members viewable by staff" ON public.project_members
+  FOR SELECT TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+CREATE POLICY "Project members manageable by coordinators+" ON public.project_members
+  FOR ALL TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('coordinator', 'principal', 'admin')
+  );
+
+CREATE TABLE public.subtasks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'not_done' CHECK (status IN ('not_done', 'partial', 'done', 'checked')),
+  due_date DATE,
+  timing TEXT,
+  tag TEXT CHECK (tag IS NULL OR tag IN ('bonus')),
+  assignee_id UUID REFERENCES public.profiles(id),
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.subtasks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Subtasks viewable by staff" ON public.subtasks
+  FOR SELECT TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+CREATE POLICY "Subtasks manageable by staff" ON public.subtasks
+  FOR ALL TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+-- Indexes for project tables
+CREATE INDEX idx_project_members_project_id ON public.project_members(project_id);
+CREATE INDEX idx_project_members_user_id ON public.project_members(user_id);
+CREATE INDEX idx_subtasks_project_id ON public.subtasks(project_id);
+CREATE INDEX idx_subtasks_assignee_id ON public.subtasks(assignee_id);
+CREATE INDEX idx_subtasks_due_date ON public.subtasks(due_date);
+
+-- Triggers for updated_at (reuse update_task_updated_at function)
+CREATE TRIGGER projects_updated_at
+  BEFORE UPDATE ON public.projects
+  FOR EACH ROW EXECUTE FUNCTION update_task_updated_at();
+
+CREATE TRIGGER subtasks_updated_at
+  BEFORE UPDATE ON public.subtasks
+  FOR EACH ROW EXECUTE FUNCTION update_task_updated_at();
+
+-- Grant access on new tables
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+
+-- Reload PostgREST schema cache
+NOTIFY pgrst, 'reload schema';
 
 -- ============================================
 -- DONE! Now create users manually.

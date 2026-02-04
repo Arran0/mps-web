@@ -13,15 +13,16 @@ import {
   BarChart3,
   LayoutDashboard,
   Users,
+  FolderKanban,
 } from 'lucide-react'
-import TodayTaskList from '@/components/tasks/TodayTaskList'
 import WeeklyCalendar from '@/components/tasks/WeeklyCalendar'
 import TaskAnalytics from '@/components/tasks/TaskAnalytics'
 import AdvancedDashboard from '@/components/tasks/AdvancedDashboard'
 import TeamAnalytics from '@/components/tasks/TeamAnalytics'
 import TeamMemberSelector from '@/components/tasks/TeamMemberSelector'
+import ProjectsList from '@/components/tasks/ProjectsList'
 
-type TabId = 'today' | 'weekly' | 'analytics' | 'dashboard' | 'team'
+type TabId = 'weekly' | 'analytics' | 'team' | 'projects' | 'dashboard'
 
 interface Tab {
   id: TabId
@@ -30,17 +31,17 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { id: 'today', label: "Today's Task List", icon: <ClipboardList size={18} /> },
   { id: 'weekly', label: 'Weekly Calendar', icon: <CalendarDays size={18} /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { id: 'team', label: 'Team Analytics', icon: <Users size={18} /> },
+  { id: 'projects', label: 'Projects', icon: <FolderKanban size={18} /> },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
 ]
 
 function TasksPageContent() {
   const { user, profile } = useAuth()
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<TabId>('today')
+  const [activeTab, setActiveTab] = useState<TabId>('weekly')
   const [teamMembers, setTeamMembers] = useState<UserProfile[]>([])
   const [viewingUserId, setViewingUserId] = useState<string>('')
 
@@ -72,9 +73,9 @@ function TasksPageContent() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam && ['today', 'weekly', 'analytics', 'dashboard', 'team'].includes(tabParam)) {
+    if (tabParam && ['weekly', 'analytics', 'dashboard', 'team', 'projects'].includes(tabParam)) {
       if (tabParam === 'team' && !showTeamAnalytics) {
-        setActiveTab('today')
+        setActiveTab('weekly')
       } else {
         setActiveTab(tabParam as TabId)
       }
@@ -106,7 +107,7 @@ function TasksPageContent() {
         </div>
 
         {/* Team Member Selector (for coordinator/principal/admin) */}
-        {canAssignToOthers && teamMembers.length > 0 && activeTab !== 'team' && (
+        {canAssignToOthers && teamMembers.length > 0 && activeTab !== 'team' && activeTab !== 'projects' && (
           <div className="mb-4">
             <TeamMemberSelector
               members={teamMembers}
@@ -147,17 +148,6 @@ function TasksPageContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
         >
-          {activeTab === 'today' && (
-            <TodayTaskList
-              userId={user.id}
-              profile={profile}
-              canCheck={canCheck}
-              canAssignToOthers={canAssignToOthers}
-              availableAssignees={allAssignees}
-              viewingUserId={viewingUserId !== user.id ? viewingUserId : undefined}
-            />
-          )}
-
           {activeTab === 'weekly' && (
             <WeeklyCalendar
               userId={user.id}
@@ -176,18 +166,28 @@ function TasksPageContent() {
             />
           )}
 
+          {activeTab === 'team' && showTeamAnalytics && (
+            <TeamAnalytics
+              userId={user.id}
+              userRole={profile.role}
+            />
+          )}
+
+          {activeTab === 'projects' && (
+            <ProjectsList
+              userId={user.id}
+              userRole={profile.role}
+              canEdit={canAssignToOthers}
+              canCheck={canCheck}
+              availableAssignees={allAssignees}
+            />
+          )}
+
           {activeTab === 'dashboard' && (
             <AdvancedDashboard
               userId={user.id}
               viewingUserId={viewingUserId !== user.id ? viewingUserId : undefined}
               canCheck={canCheck}
-            />
-          )}
-
-          {activeTab === 'team' && showTeamAnalytics && (
-            <TeamAnalytics
-              userId={user.id}
-              userRole={profile.role}
             />
           )}
         </motion.div>
