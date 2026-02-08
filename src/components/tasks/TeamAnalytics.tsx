@@ -27,10 +27,13 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
   const [loading, setLoading] = useState(true)
   const [leaderboardBasis, setLeaderboardBasis] = useState<'completed' | 'bonus'>('completed')
 
+  const [teamCompletionRate, setTeamCompletionRate] = useState(0)
+
   const loadData = useCallback(async () => {
     setLoading(true)
     const data = await fetchTeamAnalytics(userId, userRole)
     setMembers(data.members)
+    setTeamCompletionRate(data.teamCompletionRate)
     setLoading(false)
   }, [userId, userRole])
 
@@ -49,9 +52,7 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
   const totalBonus = members.reduce((s, m) => s + m.stats.bonus, 0)
   const totalTasks = members.reduce((s, m) => s + m.stats.total, 0)
   const totalOverdue = members.reduce((s, m) => s + m.stats.overdue, 0)
-  const avgCompletionRate = members.length > 0
-    ? Math.round(members.reduce((s, m) => s + m.stats.completionRate, 0) / members.length)
-    : 0
+  // Use team-wide completion rate (all checked / all total)
 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
@@ -75,7 +76,7 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
                   <TrendingUp size={16} className="text-green-600" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-green-700">{avgCompletionRate}%</p>
+              <p className="text-2xl font-bold text-green-700">{teamCompletionRate}%</p>
               <p className="text-xs text-slate-500">Completion Rate</p>
             </div>
             <div className="glass rounded-xl p-4">
