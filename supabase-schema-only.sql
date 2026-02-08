@@ -538,6 +538,58 @@ GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 
 -- ============================================
+-- PART 13: SAMPLE STUDENT ACCOUNTS
+-- Run this AFTER creating auth users via Supabase dashboard
+-- or use the direct insert method below for testing
+-- ============================================
+
+-- Sample Student UUIDs (use these when creating auth users)
+-- Team A (grades 1-5):
+--   student1a: b0000000-0000-0000-0000-000000000001
+--   student2a: b0000000-0000-0000-0000-000000000002
+-- Team B (grades 6-8):
+--   student1b: b0000000-0000-0000-0000-000000000003
+--   student2b: b0000000-0000-0000-0000-000000000004
+-- Team C (grades 9-12):
+--   student1c: b0000000-0000-0000-0000-000000000005
+--   student2c: b0000000-0000-0000-0000-000000000006
+
+-- OPTION 1: If you created auth users with the UUIDs above, run this to set their profiles:
+-- UPDATE public.profiles SET role = 'student', grade = 3, section = 'A' WHERE id = 'b0000000-0000-0000-0000-000000000001';
+-- UPDATE public.profiles SET role = 'student', grade = 5, section = 'B' WHERE id = 'b0000000-0000-0000-0000-000000000002';
+-- UPDATE public.profiles SET role = 'student', grade = 6, section = 'A' WHERE id = 'b0000000-0000-0000-0000-000000000003';
+-- UPDATE public.profiles SET role = 'student', grade = 8, section = 'B' WHERE id = 'b0000000-0000-0000-0000-000000000004';
+-- UPDATE public.profiles SET role = 'student', grade = 9, section = 'A' WHERE id = 'b0000000-0000-0000-0000-000000000005';
+-- UPDATE public.profiles SET role = 'student', grade = 12, section = 'B' WHERE id = 'b0000000-0000-0000-0000-000000000006';
+
+-- OPTION 2: Direct insert for testing (bypasses auth, won't be able to login)
+-- Uncomment to use:
+/*
+INSERT INTO public.profiles (id, email, full_name, role, grade, section)
+VALUES
+  ('b0000000-0000-0000-0000-000000000001', 'student1a@test.local', 'Alice Student (3A)', 'student', 3, 'A'),
+  ('b0000000-0000-0000-0000-000000000002', 'student2a@test.local', 'Bob Student (5B)', 'student', 5, 'B'),
+  ('b0000000-0000-0000-0000-000000000003', 'student1b@test.local', 'Carol Student (6A)', 'student', 6, 'A'),
+  ('b0000000-0000-0000-0000-000000000004', 'student2b@test.local', 'David Student (8B)', 'student', 8, 'B'),
+  ('b0000000-0000-0000-0000-000000000005', 'student1c@test.local', 'Eve Student (9A)', 'student', 9, 'A'),
+  ('b0000000-0000-0000-0000-000000000006', 'student2c@test.local', 'Frank Student (12B)', 'student', 12, 'B')
+ON CONFLICT (id) DO UPDATE SET
+  role = EXCLUDED.role,
+  grade = EXCLUDED.grade,
+  section = EXCLUDED.section;
+*/
+
+-- ============================================
+-- MULTI-TEAM MEMBERSHIP FOR TEACHERS
+-- The schema already supports this! The unique constraint is (team_id, user_id),
+-- meaning a teacher can be in multiple different teams, just not the same team twice.
+-- Example: To add a teacher to multiple teams:
+-- INSERT INTO public.team_members (team_id, user_id) VALUES
+--   ('a0000000-0000-0000-0000-000000000001', '<teacher_uuid>'),  -- Team A
+--   ('a0000000-0000-0000-0000-000000000002', '<teacher_uuid>');  -- Team B
+-- ============================================
+
+-- ============================================
 -- DONE! Now create users manually.
 -- See MANUAL-USER-CREATION.md for instructions.
 -- ============================================
