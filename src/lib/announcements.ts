@@ -63,7 +63,7 @@ export async function createAnnouncement(
     .single()
 
   if (announcementError || !announcement) {
-    console.error('Failed to create announcement:', announcementError?.message)
+    console.error('Failed to create announcement:', announcementError?.message, announcementError?.details, announcementError?.hint, announcementError?.code)
     return null
   }
 
@@ -82,7 +82,7 @@ export async function createAnnouncement(
       .insert(audienceRows)
 
     if (audienceError) {
-      console.error('Failed to create announcement audiences:', audienceError.message)
+      console.error('Failed to create announcement audiences:', audienceError.message, audienceError.details, audienceError.hint, audienceError.code)
       // Roll back: delete the orphaned announcement
       await supabase.from('announcements').delete().eq('id', announcement.id)
       return null
