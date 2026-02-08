@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
 import { getRoleDisplayName, isStaffRole, isAdminRole } from '@/lib/supabase'
@@ -21,6 +21,11 @@ import {
   Users,
   LayoutDashboard
 } from 'lucide-react'
+import {
+  AnnouncementWithDetails,
+  fetchStudentAnnouncements,
+  fetchStudentAnnouncementsForStaff,
+} from '@/lib/announcements'
 
 const quickLinks = [
   { label: 'Homework', href: '/academics/homework', icon: <FileText size={24} />, color: 'from-blue-400 to-blue-600' },
@@ -46,10 +51,42 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 }
 }
 
+function formatRelativeDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 export default function HomePage() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const isStaff = profile ? isStaffRole(profile.role) : false
   const isAdmin = profile ? isAdminRole(profile.role) : false
+  const [announcements, setAnnouncements] = useState<AnnouncementWithDetails[]>([])
+
+  const loadAnnouncements = useCallback(async () => {
+    if (!user || !profile) return
+    try {
+      if (profile.role === 'student') {
+        if (profile.grade != null) {
+          const data = await fetchStudentAnnouncements(profile.grade, profile.section || '')
+          setAnnouncements(data.slice(0, 4))
+        }
+      } else {
+        const data = await fetchStudentAnnouncementsForStaff()
+        setAnnouncements(data.slice(0, 4))
+      }
+    } catch (err) {
+      console.error('Failed to load announcements for home:', err)
+    }
+  }, [user, profile])
+
+  useEffect(() => { loadAnnouncements() }, [loadAnnouncements])
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -115,26 +152,26 @@ export default function HomePage() {
             </div>
 
             <div className="glass rounded-2xl divide-y divide-slate-100">
-              {[
-                { title: 'Annual Sports Day Registration Open', date: 'Today', type: 'Event' },
-                { title: 'Mid-term Exam Schedule Released', date: 'Yesterday', type: 'Academic' },
-                { title: 'Parent-Teacher Meeting on Friday', date: '2 days ago', type: 'Meeting' },
-                { title: 'New Library Books Available for Checkout', date: '3 days ago', type: 'General' },
-              ].map((announcement, index) => (
-                <Link key={index} href="/announcements">
+              {announcements.length > 0 ? announcements.map((announcement) => (
+                <Link key={announcement.id} href="/announcements">
                   <div className="p-4 hover:bg-slate-50/50 transition-colors cursor-pointer">
                     <div className="flex items-start justify-between">
                       <div>
                         <h4 className="font-medium text-slate-800 mb-0.5">{announcement.title}</h4>
-                        <p className="text-sm text-slate-500">{announcement.date}</p>
+                        <p className="text-sm text-slate-500">{formatRelativeDate(announcement.created_at)}</p>
                       </div>
-                      <span className="text-xs px-2 py-1 bg-mps-blue-50 text-mps-blue-600 rounded-full font-medium flex-shrink-0 ml-3">
+                      <span className="text-xs px-2 py-1 bg-mps-blue-50 text-mps-blue-600 rounded-full font-medium flex-shrink-0 ml-3 capitalize">
                         {announcement.type}
                       </span>
                     </div>
                   </div>
                 </Link>
-              ))}
+              )) : (
+                <div className="p-6 text-center">
+                  <Megaphone size={24} className="text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">No announcements yet</p>
+                </div>
+              )}
             </div>
           </motion.div>
 

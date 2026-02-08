@@ -27,6 +27,7 @@ interface AnnouncementsListProps {
   userTeams?: { id: string; name: string }[]
   allTeams?: { id: string; name: string }[]
   availableTeamMembers?: UserProfile[]
+  teamGradeRanges?: { teamId: string; grades: number[] }[]
 }
 
 type TabId = 'student' | 'staff'
@@ -52,13 +53,13 @@ export default function AnnouncementsList({
   userTeams = [],
   allTeams = [],
   availableTeamMembers = [],
+  teamGradeRanges = [],
 }: AnnouncementsListProps) {
   const [activeTab, setActiveTab] = useState<TabId>('student')
   const [studentAnnouncements, setStudentAnnouncements] = useState<AnnouncementWithDetails[]>([])
   const [staffAnnouncements, setStaffAnnouncements] = useState<AnnouncementWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewForm, setShowNewForm] = useState(false)
-  const [newFormType, setNewFormType] = useState<'student' | 'staff'>('student')
 
   const isStudent = userRole === 'student'
   const isTeacher = userRole === 'teacher'
@@ -120,16 +121,11 @@ export default function AnnouncementsList({
     loadAll()
   }
 
-  const openNewForm = (type: 'student' | 'staff') => {
-    setNewFormType(type)
-    setShowNewForm(true)
-  }
-
   const currentAnnouncements = activeTab === 'student'
     ? studentAnnouncements
     : staffAnnouncements
 
-  const showCreateButton = activeTab === 'student' ? canCreateStudent : canCreateStaff
+  const canCreate = canCreateStudent || canCreateStaff
 
   return (
     <div className="space-y-6">
@@ -139,9 +135,9 @@ export default function AnnouncementsList({
           <Bell size={22} className="text-mps-blue-600" />
           Announcements
         </h2>
-        {!isStudent && showCreateButton && (
+        {!isStudent && canCreate && (
           <button
-            onClick={() => openNewForm(activeTab)}
+            onClick={() => setShowNewForm(true)}
             className="btn-primary flex items-center gap-2 text-sm"
           >
             <Plus size={16} /> New
@@ -199,9 +195,9 @@ export default function AnnouncementsList({
                 ? 'No student announcements yet.'
                 : 'No staff announcements yet.'}
             </p>
-            {showCreateButton && (
+            {canCreate && (
               <button
-                onClick={() => openNewForm(activeTab)}
+                onClick={() => setShowNewForm(true)}
                 className="mt-3 text-sm text-mps-blue-600 hover:text-mps-blue-700 font-medium"
               >
                 Create the first announcement
@@ -237,10 +233,9 @@ export default function AnnouncementsList({
         onCreated={handleCreated}
         currentUserId={userId}
         currentUserRole={userRole}
-        type={newFormType}
         userTeams={userTeams}
         allTeams={allTeams}
-        availableTeamMembers={availableTeamMembers}
+        teamGradeRanges={teamGradeRanges}
       />
     </div>
   )

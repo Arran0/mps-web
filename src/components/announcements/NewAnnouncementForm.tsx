@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
@@ -8,9 +8,11 @@ import {
   GraduationCap,
   Users,
   Check,
+  AlertCircle,
+  Megaphone,
 } from 'lucide-react'
 import { createAnnouncement } from '@/lib/announcements'
-import { UserRole, UserProfile } from '@/lib/supabase'
+import { UserRole } from '@/lib/supabase'
 
 interface NewAnnouncementFormProps {
   isOpen: boolean
@@ -18,13 +20,12 @@ interface NewAnnouncementFormProps {
   onCreated: () => void
   currentUserId: string
   currentUserRole: UserRole
-  type: 'student' | 'staff'
   userTeams?: { id: string; name: string }[]
   allTeams?: { id: string; name: string }[]
-  availableTeamMembers?: UserProfile[]
+  teamGradeRanges?: { teamId: string; grades: number[] }[]
 }
 
-const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
+const ALL_GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F']
 
 export default function NewAnnouncementForm({
@@ -33,31 +34,55 @@ export default function NewAnnouncementForm({
   onCreated,
   currentUserId,
   currentUserRole,
-  type,
   userTeams = [],
   allTeams = [],
+  teamGradeRanges = [],
 }: NewAnnouncementFormProps) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Student announcement state
+  // Student audience state
+  const [allStudents, setAllStudents] = useState(false)
   const [selectedGrades, setSelectedGrades] = useState<number[]>([])
-  // Map of grade -> selected sections (or ['all'] for all sections)
   const [selectedSections, setSelectedSections] = useState<Record<number, string[]>>({})
 
-  // Staff announcement state
+  // Staff audience state
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
   const [allStaff, setAllStaff] = useState(false)
 
+  const isTeacher = currentUserRole === 'teacher'
   const isCoordinator = currentUserRole === 'coordinator'
   const isPrincipalOrAdmin = currentUserRole === 'principal' || currentUserRole === 'admin'
+
+  const canCreateStudent = isTeacher || isCoordinator || isPrincipalOrAdmin
+  const canCreateStaff = isCoordinator || isPrincipalOrAdmin
+
+  // Compute available grades based on role and team grade ranges
+  const availableGrades = useMemo(() => {
+    if (isPrincipalOrAdmin) return ALL_GRADES
+    if (teamGradeRanges.length === 0) return ALL_GRADES
+
+    const userTeamIds = new Set(userTeams.map(t => t.id))
+    const grades = new Set<number>()
+    for (const range of teamGradeRanges) {
+      if (userTeamIds.has(range.teamId)) {
+        for (const g of range.grades) grades.add(g)
+      }
+    }
+
+    const result = Array.from(grades).sort((a, b) => a - b)
+    return result.length > 0 ? result : ALL_GRADES
+  }, [isPrincipalOrAdmin, teamGradeRanges, userTeams])
 
   const availableTeams = isPrincipalOrAdmin ? allTeams : userTeams
 
   const resetForm = () => {
     setTitle('')
     setContent('')
+    setError(null)
+    setAllStudents(false)
     setSelectedGrades([])
     setSelectedSections({})
     setSelectedTeamIds([])
@@ -67,7 +92,6 @@ export default function NewAnnouncementForm({
   const toggleGrade = (grade: number) => {
     setSelectedGrades(prev => {
       if (prev.includes(grade)) {
-        // Remove grade and its sections
         const next = prev.filter(g => g !== grade)
         setSelectedSections(s => {
           const copy = { ...s }
@@ -85,14 +109,12 @@ export default function NewAnnouncementForm({
       const current = prev[grade] || []
 
       if (section === 'all') {
-        // Toggle "All Sections"
         if (current.includes('all')) {
           return { ...prev, [grade]: [] }
         }
         return { ...prev, [grade]: ['all'] }
       }
 
-      // If "All" is selected, remove it when selecting individual sections
       let next = current.filter(s => s !== 'all')
 
       if (next.includes(section)) {
@@ -122,33 +144,35 @@ export default function NewAnnouncementForm({
     }
   }
 
-  const buildAudiences = () => {
-    const audiences: {
-      grade?: number
-      section?: string
-      team_id?: string
-      all_teams?: boolean
-    }[] = []
-
-    if (type === 'student') {
-      for (const grade of selectedGrades) {
-        const sections = selectedSections[grade] || []
-        if (sections.length === 0 || sections.includes('all')) {
-          // All sections for this grade (section omitted = null in DB)
-          audiences.push({ grade })
-        } else {
-          for (const section of sections) {
-            audiences.push({ grade, section })
-          }
-        }
-      }
+  const toggleAllStudents = () => {
+    if (!allStudents) {
+      setAllStudents(true)
+      setSelectedGrades([])
+      setSelectedSections({})
     } else {
-      // Staff
-      if (allStaff) {
-        audiences.push({ all_teams: true })
+      setAllStudents(false)
+    }
+  }
+
+  const buildStudentAudiences = () => {
+    if (!canCreateStudent) return []
+
+    const audiences: { grade?: number; section?: string }[] = []
+
+    if (allStudents) {
+      for (const grade of ALL_GRADES) {
+        audiences.push({ grade })
+      }
+      return audiences
+    }
+
+    for (const grade of selectedGrades) {
+      const sections = selectedSections[grade] || []
+      if (sections.includes('all')) {
+        audiences.push({ grade })
       } else {
-        for (const teamId of selectedTeamIds) {
-          audiences.push({ team_id: teamId })
+        for (const section of sections) {
+          audiences.push({ grade, section })
         }
       }
     }
@@ -156,19 +180,27 @@ export default function NewAnnouncementForm({
     return audiences
   }
 
+  const buildStaffAudiences = () => {
+    if (!canCreateStaff) return []
+
+    if (allStaff) return [{ all_teams: true }]
+    return selectedTeamIds.map(teamId => ({ team_id: teamId }))
+  }
+
   const canSubmit = () => {
     if (!title.trim() || !content.trim()) return false
-    if (type === 'student') {
-      if (selectedGrades.length === 0) return false
-      // Each grade must have at least "all" or specific sections
+
+    // If grades are selected, each must have sections chosen
+    if (!allStudents && selectedGrades.length > 0) {
       for (const grade of selectedGrades) {
-        const sections = selectedSections[grade] || []
-        if (sections.length === 0) return false
+        if ((selectedSections[grade] || []).length === 0) return false
       }
-      return true
     }
-    // Staff
-    return allStaff || selectedTeamIds.length > 0
+
+    const hasStudentAudience = allStudents || selectedGrades.length > 0
+    const hasStaffAudience = allStaff || selectedTeamIds.length > 0
+
+    return hasStudentAudience || hasStaffAudience
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,22 +208,50 @@ export default function NewAnnouncementForm({
     if (!canSubmit()) return
 
     setSubmitting(true)
-    const audiences = buildAudiences()
+    setError(null)
 
-    try {
-      await createAnnouncement({
-        title: title.trim(),
-        content: content.trim(),
-        type,
-        audiences,
-      }, currentUserId)
+    const studentAudiences = buildStudentAudiences()
+    const staffAudiences = buildStaffAudiences()
 
-      resetForm()
-      onCreated()
-      onClose()
-    } catch (err) {
-      console.error('Failed to create announcement:', err)
+    let hasError = false
+
+    // Create student announcement if there are student audiences
+    if (studentAudiences.length > 0) {
+      const result = await createAnnouncement(
+        {
+          title: title.trim(),
+          content: content.trim(),
+          type: 'student',
+          audiences: studentAudiences,
+        },
+        currentUserId
+      )
+      if (!result) hasError = true
     }
+
+    // Create staff announcement if there are staff audiences
+    if (staffAudiences.length > 0) {
+      const result = await createAnnouncement(
+        {
+          title: title.trim(),
+          content: content.trim(),
+          type: 'staff',
+          audiences: staffAudiences,
+        },
+        currentUserId
+      )
+      if (!result) hasError = true
+    }
+
+    if (hasError) {
+      setError('Failed to create announcement. Please try again.')
+      setSubmitting(false)
+      return
+    }
+
+    resetForm()
+    onCreated()
+    onClose()
     setSubmitting(false)
   }
 
@@ -215,12 +275,8 @@ export default function NewAnnouncementForm({
             {/* Header */}
             <div className="sticky top-0 bg-white rounded-t-3xl border-b border-slate-100 p-5 flex items-center justify-between z-10">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                {type === 'student' ? (
-                  <GraduationCap size={20} className="text-mps-blue-600" />
-                ) : (
-                  <Users size={20} className="text-purple-600" />
-                )}
-                New {type === 'student' ? 'Student' : 'Staff'} Announcement
+                <Megaphone size={20} className="text-mps-blue-600" />
+                New Announcement
               </h2>
               <button
                 onClick={onClose}
@@ -262,89 +318,120 @@ export default function NewAnnouncementForm({
                 />
               </div>
 
-              {/* Student-specific: Grade & Section selectors */}
-              {type === 'student' && (
+              {/* Student Audience Section */}
+              {canCreateStudent && (
                 <div className="space-y-3">
-                  {/* Grade selector */}
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
-                      <GraduationCap size={14} /> Target Grades <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {GRADES.map(grade => (
-                        <button
-                          key={grade}
-                          type="button"
-                          onClick={() => toggleGrade(grade)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            selectedGrades.includes(grade)
-                              ? 'bg-mps-blue-500 text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          Grade {grade}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                    <GraduationCap size={14} /> Student Audience
+                  </label>
 
-                  {/* Section selector per selected grade */}
-                  {selectedGrades.length > 0 && (
-                    <div className="space-y-3 border border-slate-200 rounded-xl p-3">
-                      {selectedGrades.map(grade => {
-                        const sections = selectedSections[grade] || []
-                        return (
-                          <div key={grade}>
-                            <p className="text-xs font-semibold text-slate-600 mb-1.5">
-                              Grade {grade} - Sections
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
+                  <div className="border border-slate-200 rounded-xl p-3 space-y-3">
+                    {/* All Students option - principal/admin only */}
+                    {isPrincipalOrAdmin && (
+                      <button
+                        type="button"
+                        onClick={toggleAllStudents}
+                        className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
+                          allStudents
+                            ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
+                            : 'hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          allStudents
+                            ? 'bg-mps-blue-500 border-mps-blue-500'
+                            : 'border-slate-300'
+                        }`}>
+                          {allStudents && <Check size={12} className="text-white" />}
+                        </div>
+                        <GraduationCap size={14} />
+                        <span className="font-medium">All Students</span>
+                      </button>
+                    )}
+
+                    {/* Grade selector */}
+                    {!allStudents && (
+                      <>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 mb-1.5">Select Grades</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {availableGrades.map(grade => (
                               <button
+                                key={grade}
                                 type="button"
-                                onClick={() => toggleSection(grade, 'all')}
+                                onClick={() => toggleGrade(grade)}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                  sections.includes('all')
-                                    ? 'bg-mps-green-500 text-white shadow-sm'
+                                  selectedGrades.includes(grade)
+                                    ? 'bg-mps-blue-500 text-white shadow-sm'
                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                 }`}
                               >
-                                All Sections
+                                Grade {grade}
                               </button>
-                              {SECTIONS.map(sec => (
-                                <button
-                                  key={sec}
-                                  type="button"
-                                  onClick={() => toggleSection(grade, sec)}
-                                  disabled={sections.includes('all')}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                    sections.includes(sec)
-                                      ? 'bg-mps-blue-500 text-white shadow-sm'
-                                      : sections.includes('all')
-                                        ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                  }`}
-                                >
-                                  {sec}
-                                </button>
-                              ))}
-                            </div>
+                            ))}
                           </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                        </div>
+
+                        {/* Section selector per selected grade */}
+                        {selectedGrades.length > 0 && (
+                          <div className="space-y-3 border-t border-slate-100 pt-3">
+                            {selectedGrades.map(grade => {
+                              const sections = selectedSections[grade] || []
+                              return (
+                                <div key={grade}>
+                                  <p className="text-xs font-semibold text-slate-600 mb-1.5">
+                                    Grade {grade} - Sections
+                                  </p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleSection(grade, 'all')}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                        sections.includes('all')
+                                          ? 'bg-mps-green-500 text-white shadow-sm'
+                                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                      }`}
+                                    >
+                                      All Sections
+                                    </button>
+                                    {SECTIONS.map(sec => (
+                                      <button
+                                        key={sec}
+                                        type="button"
+                                        onClick={() => toggleSection(grade, sec)}
+                                        disabled={sections.includes('all')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                          sections.includes(sec)
+                                            ? 'bg-mps-blue-500 text-white shadow-sm'
+                                            : sections.includes('all')
+                                              ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                      >
+                                        {sec}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Staff-specific: Team selector */}
-              {type === 'staff' && (
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
-                    <Users size={14} /> Target Audience <span className="text-red-500">*</span>
+              {/* Staff Audience Section */}
+              {canCreateStaff && (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                    <Users size={14} /> Staff Audience
                   </label>
 
                   <div className="border border-slate-200 rounded-xl p-3 space-y-1.5">
-                    {/* All Staff option - only for principal/admin */}
+                    {/* All Staff option - principal/admin only */}
                     {isPrincipalOrAdmin && (
                       <button
                         type="button"
@@ -396,6 +483,14 @@ export default function NewAnnouncementForm({
                       </p>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {error && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                  <AlertCircle size={16} className="flex-shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
 

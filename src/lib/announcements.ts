@@ -44,12 +44,13 @@ export interface NewAnnouncementInput {
 /**
  * Create an announcement with its audience targets.
  * Inserts the announcement row first, then bulk-inserts all audience rows.
+ * Returns the created announcement, or null if an error occurred.
  */
 export async function createAnnouncement(
   input: NewAnnouncementInput,
   createdBy: string
-): Promise<AnnouncementWithDetails> {
-  // 1. Insert the announcement
+): Promise<Announcement | null> {
+  // 1. Insert the announcement (no join — audiences don't exist yet)
   const { data: announcement, error: announcementError } = await supabase
     .from('announcements')
     .insert({
@@ -62,37 +63,33 @@ export async function createAnnouncement(
     .single()
 
   if (announcementError || !announcement) {
-    throw new Error(
-      `Failed to create announcement: ${announcementError?.message ?? 'Unknown error'}`
-    )
+    console.error('Failed to create announcement:', announcementError?.message)
+    return null
   }
 
-  // 2. Insert audience rows
-  const audienceRows = input.audiences.map((a) => ({
-    announcement_id: announcement.id,
-    grade: a.grade ?? null,
-    section: a.section ?? null,
-    team_id: a.team_id ?? null,
-    all_teams: a.all_teams ?? false,
-  }))
+  // 2. Insert audience rows separately
+  if (input.audiences.length > 0) {
+    const audienceRows = input.audiences.map((a) => ({
+      announcement_id: announcement.id,
+      grade: a.grade ?? null,
+      section: a.section ?? null,
+      team_id: a.team_id ?? null,
+      all_teams: a.all_teams ?? false,
+    }))
 
-  const { data: audiences, error: audienceError } = await supabase
-    .from('announcement_audiences')
-    .insert(audienceRows)
-    .select('*')
+    const { error: audienceError } = await supabase
+      .from('announcement_audiences')
+      .insert(audienceRows)
 
-  if (audienceError) {
-    // Roll back: delete the orphaned announcement
-    await supabase.from('announcements').delete().eq('id', announcement.id)
-    throw new Error(
-      `Failed to create announcement audiences: ${audienceError.message}`
-    )
+    if (audienceError) {
+      console.error('Failed to create announcement audiences:', audienceError.message)
+      // Roll back: delete the orphaned announcement
+      await supabase.from('announcements').delete().eq('id', announcement.id)
+      return null
+    }
   }
 
-  return {
-    ...announcement,
-    audiences: audiences ?? [],
-  } as AnnouncementWithDetails
+  return announcement as Announcement
 }
 
 /**

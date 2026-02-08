@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft,
@@ -11,6 +12,9 @@ import {
   Calendar,
   Clock,
   Star,
+  X,
+  Edit3,
+  Check,
 } from 'lucide-react'
 import TaskCard from './TaskCard'
 import NewTaskForm from './NewTaskForm'
@@ -19,6 +23,7 @@ import {
   fetchTodayTasks,
   TaskWithDetails,
   TaskStatus,
+  TaskTag,
   STATUS_DOT_COLORS,
   STATUS_LABELS,
   STATUS_COLORS,
@@ -28,6 +33,7 @@ import {
   fetchSubtasksForCalendar,
   SubtaskWithProject,
   updateSubtaskStatus,
+  updateSubtask,
 } from '@/lib/projects'
 import { UserProfile } from '@/lib/supabase'
 
@@ -88,9 +94,12 @@ export default function WeeklyCalendar({
 
   const targetUserId = viewingUserId || userId
   const todayStr = formatDate(new Date())
+  const canEdit = ['coordinator', 'principal', 'admin'].includes(profile.role)
+
+  const initialLoadDone = useRef(false)
 
   const loadTasks = useCallback(async () => {
-    setLoading(true)
+    if (!initialLoadDone.current) setLoading(true)
     const [weekData, todayData, subtaskData] = await Promise.all([
       fetchWeekTasks(targetUserId, weekStart),
       fetchTodayTasks(targetUserId),
@@ -100,9 +109,13 @@ export default function WeeklyCalendar({
     setOverdueUndated(todayData.overdueOrUndated)
     setSubtasks(subtaskData)
     setLoading(false)
+    initialLoadDone.current = true
   }, [targetUserId, weekStart])
 
-  useEffect(() => { loadTasks() }, [loadTasks])
+  useEffect(() => {
+    initialLoadDone.current = false
+    loadTasks()
+  }, [loadTasks])
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart)
@@ -306,7 +319,9 @@ export default function WeeklyCalendar({
                     key={subtask.id}
                     subtask={subtask}
                     canCheck={canCheck}
+                    canEdit={canEdit}
                     onStatusTap={handleSubtaskStatusTap}
+                    onSubtaskUpdated={loadTasks}
                   />
                 ))}
               </div>
@@ -452,48 +467,313 @@ export default function WeeklyCalendar({
 function SubtaskCalendarCard({
   subtask,
   canCheck,
+  canEdit,
   onStatusTap,
+  onSubtaskUpdated,
 }: {
   subtask: SubtaskWithProject
   canCheck: boolean
+  canEdit: boolean
   onStatusTap: (s: SubtaskWithProject) => void
+  onSubtaskUpdated: () => void
 }) {
-  return (
-    <div className="glass rounded-xl p-3 flex items-center gap-3">
-      {/* Status button */}
-      <button
-        onClick={() => onStatusTap(subtask)}
-        className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border-2 font-semibold text-[11px] transition-all active:scale-95 hover:shadow-md ${STATUS_COLORS[subtask.status]}`}
-        title={`${STATUS_LABELS[subtask.status]} - tap to change`}
-      >
-        <div className={`w-2 h-2 rounded-full ${STATUS_DOT_COLORS[subtask.status]}`} />
-        {STATUS_LABELS[subtask.status]}
-      </button>
+  const [isOpen, setIsOpen] = useState(false)
 
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className={`font-medium text-sm truncate ${
-          subtask.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-800'
-        }`}>
-          {subtask.title}
-        </p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded font-medium flex items-center gap-0.5">
-            <FolderKanban size={8} />
-            {subtask.project_title}
-          </span>
-          {subtask.timing && (
-            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
-              <Clock size={8} /> {subtask.timing}
+  return (
+    <>
+      <div
+        className="glass rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow"
+        onClick={() => setIsOpen(true)}
+      >
+        {/* Status button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onStatusTap(subtask) }}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border-2 font-semibold text-[11px] transition-all active:scale-95 hover:shadow-md ${STATUS_COLORS[subtask.status]}`}
+          title={`${STATUS_LABELS[subtask.status]} - tap to change`}
+        >
+          <div className={`w-2 h-2 rounded-full ${STATUS_DOT_COLORS[subtask.status]}`} />
+          {STATUS_LABELS[subtask.status]}
+        </button>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className={`font-medium text-sm truncate ${
+            subtask.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-800'
+          }`}>
+            {subtask.title}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded font-medium flex items-center gap-0.5">
+              <FolderKanban size={8} />
+              {subtask.project_title}
             </span>
+            {subtask.timing && (
+              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                <Clock size={8} /> {subtask.timing}
+              </span>
+            )}
+            {subtask.tag === 'bonus' && (
+              <span className="text-[10px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium flex items-center gap-0.5">
+                <Star size={7} /> Bonus
+              </span>
+            )}
+          </div>
+        </div>
+
+        <ChevronRight size={14} className="text-slate-400 flex-shrink-0" />
+      </div>
+
+      {/* Detail Modal */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isOpen && (
+            <SubtaskDetailModal
+              subtask={subtask}
+              canCheck={canCheck}
+              canEdit={canEdit}
+              onClose={() => setIsOpen(false)}
+              onStatusTap={onStatusTap}
+              onSubtaskUpdated={onSubtaskUpdated}
+            />
           )}
-          {subtask.tag === 'bonus' && (
-            <span className="text-[10px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium flex items-center gap-0.5">
-              <Star size={7} /> Bonus
-            </span>
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
+  )
+}
+
+// ============================================
+// Subtask Detail Modal with Edit Support
+// ============================================
+function SubtaskDetailModal({
+  subtask,
+  canCheck,
+  canEdit,
+  onClose,
+  onStatusTap,
+  onSubtaskUpdated,
+}: {
+  subtask: SubtaskWithProject
+  canCheck: boolean
+  canEdit: boolean
+  onClose: () => void
+  onStatusTap: (s: SubtaskWithProject) => void
+  onSubtaskUpdated: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(subtask.title)
+  const [editDesc, setEditDesc] = useState(subtask.description || '')
+  const [editDueDate, setEditDueDate] = useState(subtask.due_date || '')
+  const [editTiming, setEditTiming] = useState(subtask.timing || '')
+  const [editTag, setEditTag] = useState<TaskTag>(subtask.tag || null)
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!editTitle.trim()) return
+    setSaving(true)
+    const ok = await updateSubtask(subtask.id, {
+      title: editTitle.trim(),
+      description: editDesc.trim() || null,
+      due_date: editDueDate || null,
+      timing: editTiming || null,
+      tag: editTag,
+    })
+    setSaving(false)
+    if (ok) {
+      setEditing(false)
+      onSubtaskUpdated()
+    }
+  }
+
+  const handleStartEdit = () => {
+    setEditTitle(subtask.title)
+    setEditDesc(subtask.description || '')
+    setEditDueDate(subtask.due_date || '')
+    setEditTiming(subtask.timing || '')
+    setEditTag(subtask.tag || null)
+    setEditing(true)
+  }
+
+  const handleStatusClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onStatusTap(subtask)
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={(e) => { e.stopPropagation(); onClose() }}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white rounded-t-3xl border-b border-slate-100 p-5 flex items-center justify-between z-10">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleStatusClick}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 font-bold text-sm transition-all active:scale-95 hover:shadow-lg ${STATUS_COLORS[subtask.status]}`}
+              title="Tap to change status"
+            >
+              <div className={`w-3.5 h-3.5 rounded-full ${STATUS_DOT_COLORS[subtask.status]} animate-pulse`} />
+              {STATUS_LABELS[subtask.status]}
+              <ChevronRight size={14} className="opacity-50" />
+            </button>
+            {subtask.tag === 'bonus' && !editing && (
+              <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
+                <Star size={10} /> Bonus
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {canEdit && !editing && (
+              <button
+                onClick={handleStartEdit}
+                className="p-2 text-mps-blue-500 hover:text-mps-blue-700 hover:bg-mps-blue-50 rounded-lg transition-colors"
+                title="Edit subtask"
+              >
+                <Edit3 size={16} />
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-5">
+          {editing ? (
+            <div className="space-y-3 border border-mps-blue-200 rounded-2xl p-4 bg-mps-blue-50/30">
+              <h4 className="text-sm font-semibold text-mps-blue-700 flex items-center gap-1.5">
+                <Edit3 size={14} /> Edit Subtask
+              </h4>
+
+              <input
+                type="text"
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                placeholder="Title *"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+              />
+
+              <textarea
+                value={editDesc}
+                onChange={e => setEditDesc(e.target.value)}
+                placeholder="Description (optional)"
+                rows={2}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 resize-none bg-white"
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Due Date</label>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={e => setEditDueDate(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Timing</label>
+                  <input
+                    type="time"
+                    value={editTiming}
+                    onChange={e => setEditTiming(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Tag</label>
+                <select
+                  value={editTag || ''}
+                  onChange={e => setEditTag(e.target.value === 'bonus' ? 'bonus' : null)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                >
+                  <option value="">No tag</option>
+                  <option value="bonus">Bonus</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !editTitle.trim()}
+                  className="btn-primary text-sm flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Check size={14} />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="btn-secondary text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">{subtask.title}</h2>
+                {subtask.description && (
+                  <p className="text-slate-600 mt-2 text-sm leading-relaxed">{subtask.description}</p>
+                )}
+              </div>
+
+              {/* Project badge */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg font-medium flex items-center gap-1">
+                  <FolderKanban size={12} />
+                  {subtask.project_title}
+                </span>
+                {subtask.project_sequential && (
+                  <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded-lg font-medium">
+                    Sequential
+                  </span>
+                )}
+              </div>
+
+              {/* Meta info */}
+              <div className="flex flex-wrap gap-3">
+                {subtask.due_date && (
+                  <div className="flex items-center gap-1.5 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg">
+                    <Calendar size={14} />
+                    <span>{subtask.due_date}</span>
+                  </div>
+                )}
+                {subtask.timing && (
+                  <div className="flex items-center gap-1.5 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg">
+                    <Clock size={14} />
+                    <span>{subtask.timing}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Assignee */}
+              {subtask.assignee && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Assignee</h4>
+                  <span className="text-xs bg-mps-blue-50 text-mps-blue-700 px-2.5 py-1 rounded-full font-medium">
+                    {subtask.assignee.full_name}
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
 import { Megaphone } from 'lucide-react'
@@ -38,6 +38,30 @@ export default function AnnouncementsPage() {
 
   useEffect(() => { loadTeams() }, [loadTeams])
 
+  // Compute team-to-grade mapping based on team IDs
+  const teamGradeRanges = useMemo(() => {
+    const teams = [...userTeams, ...allTeams]
+    const uniqueTeams = Array.from(new Map(teams.map(t => [t.id, t])).values())
+
+    // Map team name to grade range: Team A (1-5), Team B (6-8), Team C (9-12)
+    const nameGradeMap: Record<string, number[]> = {
+      'a': [1, 2, 3, 4, 5],
+      'b': [6, 7, 8],
+      'c': [9, 10, 11, 12],
+    }
+
+    return uniqueTeams
+      .map(team => {
+        let grades: number[] = []
+        const nameLower = team.name.toLowerCase()
+        if (nameLower.includes('team a') || nameLower === 'a') grades = nameGradeMap['a']
+        else if (nameLower.includes('team b') || nameLower === 'b') grades = nameGradeMap['b']
+        else if (nameLower.includes('team c') || nameLower === 'c') grades = nameGradeMap['c']
+        return { teamId: team.id, grades: grades || [] }
+      })
+      .filter(r => r.grades.length > 0)
+  }, [userTeams, allTeams])
+
   if (!user || !profile) return null
 
   return (
@@ -69,6 +93,7 @@ export default function AnnouncementsPage() {
             userSection={profile.section}
             userTeams={userTeams}
             allTeams={allTeams}
+            teamGradeRanges={teamGradeRanges}
           />
         )}
       </div>

@@ -419,8 +419,21 @@ export async function fetchAnalyticsData(userId: string, period: 'week' | 'month
     return false
   })
 
+  // Also fetch project subtasks assigned to this user
+  const { data: subtasks } = await supabase
+    .from('subtasks')
+    .select('status, due_date, created_at')
+    .eq('assignee_id', userId)
+
+  const filteredSubtasks = (subtasks || []).filter((s: any) => {
+    if (s.due_date && s.due_date >= cutoffStr) return true
+    if (!s.due_date && s.created_at >= cutoff.toISOString()) return true
+    return false
+  })
+
   const counts: Record<TaskStatus, number> = { not_done: 0, partial: 0, done: 0, checked: 0 }
   filtered.forEach(t => { counts[t.status]++ })
+  filteredSubtasks.forEach((s: any) => { counts[s.status as TaskStatus]++ })
   return counts
 }
 
@@ -537,6 +550,7 @@ export async function fetchTeamMembers(userId: string, userRole: UserRole): Prom
 
 export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Promise<{
   members: { user: UserProfile; stats: { completed: number; bonus: number; overdue: number; total: number; completionRate: number } }[]
+  teamCompletionRate: number
 }> {
   const teamMembers = await fetchTeamMembers(userId, userRole)
 
@@ -551,20 +565,45 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
 
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  const monthStartISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const todayStr = now.toISOString().split('T')[0]
 
   const memberStats = await Promise.all(
     allMembers.map(async (member) => {
+      // Fetch regular tasks
       const tasks = await fetchTasksForUser(member.id)
       const monthTasks = tasks.filter(t => {
         if (t.due_date && t.due_date >= monthStart) return true
-        if (!t.due_date && t.created_at >= new Date(now.getFullYear(), now.getMonth(), 1).toISOString()) return true
+        if (!t.due_date && t.created_at >= monthStartISO) return true
         return false
       })
 
-      const completed = monthTasks.filter(t => t.status === 'checked').length
-      const bonus = monthTasks.filter(t => t.tag === 'bonus').length
-      const overdue = monthTasks.filter(t => t.is_overdue).length
-      const total = monthTasks.length
+      // Fetch project subtasks for this member
+      const { data: subtasks } = await supabase
+        .from('subtasks')
+        .select('status, due_date, created_at, tag')
+        .eq('assignee_id', member.id)
+
+      const monthSubtasks = (subtasks || []).filter((s: any) => {
+        if (s.due_date && s.due_date >= monthStart) return true
+        if (!s.due_date && s.created_at >= monthStartISO) return true
+        return false
+      })
+
+      // Combined stats
+      const allItems = [
+        ...monthTasks.map(t => ({ status: t.status, tag: t.tag, is_overdue: t.is_overdue })),
+        ...monthSubtasks.map((s: any) => ({
+          status: s.status as TaskStatus,
+          tag: s.tag,
+          is_overdue: !!(s.due_date && s.due_date < todayStr && s.status !== 'checked'),
+        })),
+      ]
+
+      const completed = allItems.filter(t => t.status === 'checked').length
+      const bonus = allItems.filter(t => t.tag === 'bonus').length
+      const overdue = allItems.filter(t => t.is_overdue).length
+      const total = allItems.length
 
       return {
         user: member,
@@ -579,5 +618,10 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
     })
   )
 
-  return { members: memberStats }
+  // Team-wide completion rate: all members checked / all members total
+  const teamTotal = memberStats.reduce((s, m) => s + m.stats.total, 0)
+  const teamChecked = memberStats.reduce((s, m) => s + m.stats.completed, 0)
+  const teamCompletionRate = teamTotal > 0 ? Math.round((teamChecked / teamTotal) * 100) : 0
+
+  return { members: memberStats, teamCompletionRate }
 }
