@@ -590,6 +590,208 @@ ON CONFLICT (id) DO UPDATE SET
 -- ============================================
 
 -- ============================================
+-- PART 14: FIX RLS POLICIES TO USE PROFILES TABLE
+-- This fixes the issue where updating profiles doesn't update JWT metadata
+-- Run this to replace the announcement RLS policies with ones that check profiles
+-- ============================================
+
+-- Helper function to get user role from profiles (more reliable than JWT)
+CREATE OR REPLACE FUNCTION public.get_user_role()
+RETURNS TEXT AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid()
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- Drop old announcement policies
+DROP POLICY IF EXISTS "Staff can view all announcements" ON public.announcements;
+DROP POLICY IF EXISTS "Students can view targeted student announcements" ON public.announcements;
+DROP POLICY IF EXISTS "Staff can create announcements" ON public.announcements;
+DROP POLICY IF EXISTS "Staff can delete own announcements" ON public.announcements;
+DROP POLICY IF EXISTS "Staff can view announcement audiences" ON public.announcement_audiences;
+DROP POLICY IF EXISTS "Students can view own announcement audiences" ON public.announcement_audiences;
+DROP POLICY IF EXISTS "Staff can insert announcement audiences" ON public.announcement_audiences;
+DROP POLICY IF EXISTS "Staff can delete announcement audiences" ON public.announcement_audiences;
+
+-- Recreate with profiles-based role check
+CREATE POLICY "Staff can view all announcements"
+  ON public.announcements FOR SELECT
+  USING (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
+
+CREATE POLICY "Students can view targeted student announcements"
+  ON public.announcements FOR SELECT
+  USING (
+    public.get_user_role() = 'student'
+    AND type = 'student'
+    AND EXISTS (
+      SELECT 1 FROM public.announcement_audiences aa
+      JOIN public.profiles p ON p.id = auth.uid()
+      WHERE aa.announcement_id = announcements.id
+      AND aa.grade = p.grade
+      AND (aa.section IS NULL OR aa.section = p.section)
+    )
+  );
+
+CREATE POLICY "Staff can create announcements"
+  ON public.announcements FOR INSERT
+  WITH CHECK (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
+
+CREATE POLICY "Staff can delete own announcements"
+  ON public.announcements FOR DELETE
+  USING (
+    created_by = auth.uid()
+    OR public.get_user_role() IN ('principal', 'admin')
+  );
+
+CREATE POLICY "Staff can view announcement audiences"
+  ON public.announcement_audiences FOR SELECT
+  USING (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
+
+CREATE POLICY "Students can view own announcement audiences"
+  ON public.announcement_audiences FOR SELECT
+  USING (
+    public.get_user_role() = 'student'
+    AND EXISTS (
+      SELECT 1 FROM public.announcements a
+      WHERE a.id = announcement_audiences.announcement_id
+      AND a.type = 'student'
+      AND EXISTS (
+        SELECT 1 FROM public.profiles p
+        WHERE p.id = auth.uid()
+        AND announcement_audiences.grade = p.grade
+        AND (announcement_audiences.section IS NULL OR announcement_audiences.section = p.section)
+      )
+    )
+  );
+
+CREATE POLICY "Staff can insert announcement audiences"
+  ON public.announcement_audiences FOR INSERT
+  WITH CHECK (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
+
+CREATE POLICY "Staff can delete announcement audiences"
+  ON public.announcement_audiences FOR DELETE
+  USING (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
+
+-- ============================================
+-- PART 15: STAFF LEAVE MANAGEMENT SYSTEM
+-- ============================================
+
+-- Leave types
+CREATE TYPE public.leave_type AS ENUM ('casual', 'medical');
+CREATE TYPE public.leave_status AS ENUM ('pending', 'approved', 'rejected');
+
+-- Leave applications table
+CREATE TABLE public.leave_applications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  applicant_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  leave_type public.leave_type NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  reason TEXT NOT NULL,
+  status public.leave_status DEFAULT 'pending',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Leave approvals table (tracks each level of approval)
+CREATE TABLE public.leave_approvals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  leave_application_id UUID REFERENCES public.leave_applications(id) ON DELETE CASCADE NOT NULL,
+  approver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  approver_role TEXT NOT NULL, -- 'coordinator', 'principal', 'admin'
+  team_id UUID REFERENCES public.teams(id) ON DELETE SET NULL, -- for coordinator approvals
+  status public.leave_status DEFAULT 'pending',
+  comments TEXT,
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE public.leave_applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leave_approvals ENABLE ROW LEVEL SECURITY;
+
+-- Leave applications policies
+-- Users can view their own applications
+CREATE POLICY "Users can view own leave applications"
+  ON public.leave_applications FOR SELECT
+  USING (applicant_id = auth.uid());
+
+-- Approvers can view applications they need to approve
+CREATE POLICY "Approvers can view pending applications"
+  ON public.leave_applications FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.leave_approvals la
+      WHERE la.leave_application_id = leave_applications.id
+      AND la.approver_id = auth.uid()
+    )
+    OR public.get_user_role() IN ('principal', 'admin')
+  );
+
+-- Staff can create leave applications
+CREATE POLICY "Staff can create leave applications"
+  ON public.leave_applications FOR INSERT
+  WITH CHECK (
+    applicant_id = auth.uid()
+    AND public.get_user_role() IN ('teacher', 'coordinator', 'principal')
+  );
+
+-- Only system can update applications (via function)
+CREATE POLICY "System can update leave applications"
+  ON public.leave_applications FOR UPDATE
+  USING (public.get_user_role() IN ('coordinator', 'principal', 'admin'));
+
+-- Leave approvals policies
+-- Users can view approvals for their applications
+CREATE POLICY "Users can view own application approvals"
+  ON public.leave_approvals FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.leave_applications la
+      WHERE la.id = leave_approvals.leave_application_id
+      AND la.applicant_id = auth.uid()
+    )
+  );
+
+-- Approvers can view and update their assigned approvals
+CREATE POLICY "Approvers can view assigned approvals"
+  ON public.leave_approvals FOR SELECT
+  USING (
+    approver_id = auth.uid()
+    OR public.get_user_role() IN ('principal', 'admin')
+  );
+
+CREATE POLICY "Approvers can update their approvals"
+  ON public.leave_approvals FOR UPDATE
+  USING (
+    (approver_id = auth.uid() OR approver_id IS NULL)
+    AND (
+      (approver_role = 'coordinator' AND public.get_user_role() = 'coordinator')
+      OR (approver_role = 'principal' AND public.get_user_role() = 'principal')
+      OR (approver_role = 'admin' AND public.get_user_role() = 'admin')
+    )
+  );
+
+-- System can insert approvals
+CREATE POLICY "System can insert leave approvals"
+  ON public.leave_applications FOR INSERT
+  WITH CHECK (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
+
+CREATE POLICY "Staff can insert leave approvals"
+  ON public.leave_approvals FOR INSERT
+  WITH CHECK (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_leave_applications_applicant ON public.leave_applications(applicant_id);
+CREATE INDEX IF NOT EXISTS idx_leave_applications_status ON public.leave_applications(status);
+CREATE INDEX IF NOT EXISTS idx_leave_applications_dates ON public.leave_applications(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_leave_approvals_application ON public.leave_approvals(leave_application_id);
+CREATE INDEX IF NOT EXISTS idx_leave_approvals_approver ON public.leave_approvals(approver_id);
+
+-- Trigger for updated_at
+CREATE TRIGGER leave_applications_updated_at
+  BEFORE UPDATE ON public.leave_applications
+  FOR EACH ROW EXECUTE FUNCTION update_task_updated_at();
+
+-- ============================================
 -- DONE! Now create users manually.
 -- See MANUAL-USER-CREATION.md for instructions.
 -- ============================================

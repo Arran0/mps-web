@@ -12,7 +12,9 @@ import {
   Bus,
   Calendar,
   CalendarDays,
-  ArrowRight
+  ArrowRight,
+  Users,
+  Settings,
 } from 'lucide-react'
 
 const containerVariants = {
@@ -38,11 +40,13 @@ interface MoreSection {
   color: string
   bgColor: string
   staffOnly?: boolean
+  adminOnly?: boolean
 }
 
 export default function MorePage() {
   const { profile } = useAuth()
   const isStaff = profile ? isStaffRole(profile.role) : false
+  const isAdmin = profile?.role === 'admin'
 
   // Base sections available to all users
   const baseSections: MoreSection[] = [
@@ -85,8 +89,23 @@ export default function MorePage() {
     },
   ]
 
+  // Admin-only sections
+  const adminSections: MoreSection[] = [
+    {
+      title: 'User Management',
+      description: 'Manage user profiles, roles, and team assignments',
+      href: '/admin/users',
+      icon: <Users size={28} />,
+      color: 'from-red-400 to-orange-500',
+      bgColor: 'bg-red-50',
+      adminOnly: true,
+    },
+  ]
+
   // Combine sections based on role
-  const moreSections = isStaff ? [...baseSections, ...staffSections] : baseSections
+  let moreSections = baseSections
+  if (isStaff) moreSections = [...moreSections, ...staffSections]
+  if (isAdmin) moreSections = [...moreSections, ...adminSections]
 
   return (
     <ProtectedLayout>
@@ -115,7 +134,12 @@ export default function MorePage() {
               <motion.div key={section.href} variants={itemVariants}>
                 <Link href={section.href}>
                   <div className="glass rounded-2xl p-6 h-full card-hover group relative overflow-hidden">
-                    {section.staffOnly && (
+                    {section.adminOnly && (
+                      <span className="absolute top-4 right-4 text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
+                        Admin
+                      </span>
+                    )}
+                    {section.staffOnly && !section.adminOnly && (
                       <span className="absolute top-4 right-4 text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
                         Staff
                       </span>
