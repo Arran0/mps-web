@@ -27,9 +27,10 @@ import {
   fetchStudentAnnouncementsForStaff,
 } from '@/lib/announcements'
 
+import { BookOpen } from 'lucide-react'
+
 const quickLinks = [
-  { label: 'Homework', href: '/academics/homework', icon: <FileText size={24} />, color: 'from-blue-400 to-blue-600' },
-  { label: 'Coursework', href: '/academics/coursework', icon: <GraduationCap size={24} />, color: 'from-purple-400 to-purple-600' },
+  { label: 'Classrooms', href: '/classrooms', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
   { label: 'Grades', href: '/academics/grades', icon: <Award size={24} />, color: 'from-amber-400 to-amber-600' },
   { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
   { label: 'School Bus', href: '/more/bus', icon: <Bus size={24} />, color: 'from-rose-400 to-rose-600' },
