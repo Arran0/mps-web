@@ -67,12 +67,16 @@ const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
   }
 
   items.push({
+    label: 'Classrooms',
+    href: '/classrooms',
+    icon: <BookOpen size={20} />,
+  })
+
+  items.push({
     label: 'Academics',
     href: '/academics',
-    icon: <BookOpen size={20} />,
+    icon: <GraduationCap size={20} />,
     children: [
-      { label: 'Homework', href: '/academics/homework', icon: <FileText size={18} /> },
-      { label: 'Coursework', href: '/academics/coursework', icon: <GraduationCap size={18} /> },
       { label: 'Grades', href: '/academics/grades', icon: <Award size={18} /> },
     ],
   })
