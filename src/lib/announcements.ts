@@ -50,27 +50,30 @@ export async function createAnnouncement(
   input: NewAnnouncementInput,
   createdBy: string
 ): Promise<Announcement | null> {
-  // 1. Insert the announcement (no join — audiences don't exist yet)
-  const { data: announcement, error: announcementError } = await supabase
+  // Generate ID client-side so we don't need to SELECT back after INSERT
+  // (avoids issues where INSERT succeeds but SELECT RLS blocks the read-back)
+  const announcementId = crypto.randomUUID()
+
+  // 1. Insert the announcement
+  const { error: announcementError } = await supabase
     .from('announcements')
     .insert({
+      id: announcementId,
       title: input.title,
       content: input.content,
       type: input.type,
       created_by: createdBy,
     })
-    .select('*')
-    .single()
 
-  if (announcementError || !announcement) {
-    console.error('Failed to create announcement:', announcementError?.message, announcementError?.details, announcementError?.hint, announcementError?.code)
+  if (announcementError) {
+    console.error('Failed to create announcement:', announcementError.message, announcementError.details, announcementError.hint, announcementError.code)
     return null
   }
 
   // 2. Insert audience rows separately
   if (input.audiences.length > 0) {
     const audienceRows = input.audiences.map((a) => ({
-      announcement_id: announcement.id,
+      announcement_id: announcementId,
       grade: a.grade ?? null,
       section: a.section ?? null,
       team_id: a.team_id ?? null,
@@ -84,12 +87,20 @@ export async function createAnnouncement(
     if (audienceError) {
       console.error('Failed to create announcement audiences:', audienceError.message, audienceError.details, audienceError.hint, audienceError.code)
       // Roll back: delete the orphaned announcement
-      await supabase.from('announcements').delete().eq('id', announcement.id)
+      await supabase.from('announcements').delete().eq('id', announcementId)
       return null
     }
   }
 
-  return announcement as Announcement
+  return {
+    id: announcementId,
+    title: input.title,
+    content: input.content,
+    type: input.type,
+    created_by: createdBy,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as Announcement
 }
 
 /**

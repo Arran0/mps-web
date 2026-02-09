@@ -210,49 +210,55 @@ export default function NewAnnouncementForm({
     setSubmitting(true)
     setError(null)
 
-    const studentAudiences = buildStudentAudiences()
-    const staffAudiences = buildStaffAudiences()
+    try {
+      const studentAudiences = buildStudentAudiences()
+      const staffAudiences = buildStaffAudiences()
 
-    let hasError = false
+      let hasError = false
 
-    // Create student announcement if there are student audiences
-    if (studentAudiences.length > 0) {
-      const result = await createAnnouncement(
-        {
-          title: title.trim(),
-          content: content.trim(),
-          type: 'student',
-          audiences: studentAudiences,
-        },
-        currentUserId
-      )
-      if (!result) hasError = true
-    }
+      // Create student announcement if there are student audiences
+      if (studentAudiences.length > 0) {
+        const result = await createAnnouncement(
+          {
+            title: title.trim(),
+            content: content.trim(),
+            type: 'student',
+            audiences: studentAudiences,
+          },
+          currentUserId
+        )
+        if (!result) hasError = true
+      }
 
-    // Create staff announcement if there are staff audiences
-    if (staffAudiences.length > 0) {
-      const result = await createAnnouncement(
-        {
-          title: title.trim(),
-          content: content.trim(),
-          type: 'staff',
-          audiences: staffAudiences,
-        },
-        currentUserId
-      )
-      if (!result) hasError = true
-    }
+      // Create staff announcement if there are staff audiences
+      if (staffAudiences.length > 0) {
+        const result = await createAnnouncement(
+          {
+            title: title.trim(),
+            content: content.trim(),
+            type: 'staff',
+            audiences: staffAudiences,
+          },
+          currentUserId
+        )
+        if (!result) hasError = true
+      }
 
-    if (hasError) {
+      if (hasError) {
+        setError('Failed to create announcement. Please try again.')
+        setSubmitting(false)
+        return
+      }
+
+      resetForm()
+      onCreated()
+      onClose()
+    } catch (err) {
+      console.error('Unexpected error creating announcement:', err)
       setError('Failed to create announcement. Please try again.')
+    } finally {
       setSubmitting(false)
-      return
     }
-
-    resetForm()
-    onCreated()
-    onClose()
-    setSubmitting(false)
   }
 
   return (
