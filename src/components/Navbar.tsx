@@ -17,13 +17,14 @@ import {
   Menu,
   X,
   GraduationCap,
-  FileText,
   Award,
   CreditCard,
-  Bus,
   Calendar,
   Megaphone,
-  CalendarDays
+  CalendarDays,
+  Users,
+  UserPlus,
+  MessageSquare,
 } from 'lucide-react'
 
 interface NavItem {
@@ -36,11 +37,6 @@ interface NavItem {
     href: string
     icon: React.ReactNode
   }[]
-}
-
-interface DynamicNavItem extends NavItem {
-  staffOnlyChild?: boolean
-  adminOnlyChild?: boolean
 }
 
 const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
@@ -57,7 +53,6 @@ const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
     },
   ]
 
-  // Task Manager for staff only (no tag shown)
   if (isStaff) {
     items.push({
       label: 'Task Manager',
@@ -67,30 +62,27 @@ const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
   }
 
   items.push({
-    label: 'Classrooms',
-    href: '/classrooms',
-    icon: <BookOpen size={20} />,
-  })
-
-  items.push({
     label: 'Academics',
     href: '/academics',
     icon: <GraduationCap size={20} />,
-    children: [
-      { label: 'Grades', href: '/academics/grades', icon: <Award size={18} /> },
-    ],
   })
 
-  // Build More children based on role
   const moreChildren: { label: string; href: string; icon: React.ReactNode }[] = [
+    { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={18} /> },
     { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={18} /> },
-    { label: 'School Bus', href: '/more/bus', icon: <Bus size={18} /> },
-    { label: 'Leave Manager', href: '/more/leave', icon: <Calendar size={18} /> },
+    { label: 'Feedback', href: '/more/feedback', icon: <MessageSquare size={18} /> },
   ]
 
-  // Add Staff Leave Manager for staff only
   if (isStaff) {
-    moreChildren.push({ label: 'Staff Leave Manager', href: '/more/staff-leave', icon: <CalendarDays size={18} /> })
+    moreChildren.push({ label: 'Staff Leave', href: '/more/staff-leave', icon: <CalendarDays size={18} /> })
+  }
+
+  if (isAdmin) {
+    moreChildren.push(
+      { label: 'Classrooms', href: '/more/classrooms', icon: <BookOpen size={18} /> },
+      { label: 'Teacher Teams', href: '/more/teacher-teams', icon: <Users size={18} /> },
+      { label: 'Profiles', href: '/more/profiles', icon: <UserPlus size={18} /> },
+    )
   }
 
   items.push({
@@ -115,7 +107,6 @@ export default function Navbar() {
   const isStaff = profile ? isStaffRole(profile.role) : false
   const isAdmin = profile ? isAdminRole(profile.role) : false
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -135,7 +126,6 @@ export default function Navbar() {
     return pathname.startsWith(href)
   }
 
-  // Get dynamic nav items based on role
   const filteredNavItems = getNavItems(isStaff, isAdmin)
 
   if (loading) {
@@ -164,7 +154,6 @@ export default function Navbar() {
       <nav className="glass-strong sticky top-0 z-50 border-b border-white/20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            {/* Logo Section */}
             <Link href="/home" className="flex items-center gap-4 group">
               <MPSLogo size="md" className="transition-transform duration-300 group-hover:scale-105" />
               <div>
@@ -173,7 +162,6 @@ export default function Navbar() {
               </div>
             </Link>
 
-            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1" ref={dropdownRef}>
               {filteredNavItems.map((item) => (
                 <div key={item.label} className="relative">
@@ -205,7 +193,6 @@ export default function Navbar() {
                     </Link>
                   )}
 
-                  {/* Dropdown Menu */}
                   {item.children && (
                     <div
                       className={`dropdown-menu ${activeDropdown === item.label ? 'open' : ''}`}
@@ -227,9 +214,7 @@ export default function Navbar() {
               ))}
             </div>
 
-            {/* Profile Section */}
             <div className="flex items-center gap-4">
-              {/* Profile Dropdown */}
               <div className="relative" ref={profileDropdownRef}>
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
@@ -282,7 +267,6 @@ export default function Navbar() {
                 </div>
               </div>
 
-              {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="md:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -294,7 +278,6 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden" onClick={() => setMobileMenuOpen(false)}>
           <div

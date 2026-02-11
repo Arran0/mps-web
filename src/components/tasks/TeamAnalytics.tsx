@@ -86,7 +86,7 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
                 </div>
               </div>
               <p className="text-2xl font-bold text-amber-700">{totalBonus}</p>
-              <p className="text-xs text-slate-500">Bonus Tasks</p>
+              <p className="text-xs text-slate-500">Bonus Points</p>
             </div>
             <div className="glass rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -187,7 +187,7 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
                 className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-mps-blue-500"
               >
                 <option value="completed">Completed Tasks</option>
-                <option value="bonus">Bonus Tasks</option>
+                <option value="bonus">Bonus Points</option>
               </select>
             </div>
 
@@ -231,7 +231,7 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
                       {leaderboardBasis === 'completed' ? m.stats.completed : m.stats.bonus}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {leaderboardBasis === 'completed' ? 'completed' : 'bonus'}
+                      {leaderboardBasis === 'completed' ? 'completed' : 'points'}
                     </p>
                   </div>
                 </motion.div>

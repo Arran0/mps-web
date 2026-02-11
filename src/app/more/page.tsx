@@ -15,6 +15,9 @@ import {
   ArrowRight,
   Users,
   Settings,
+  BookOpen,
+  UserPlus,
+  MessageSquare,
 } from 'lucide-react'
 
 const containerVariants = {
@@ -51,6 +54,14 @@ export default function MorePage() {
   // Base sections available to all users
   const baseSections: MoreSection[] = [
     {
+      title: 'Student Leave Manager',
+      description: 'Apply for leave, view leave balance, and track applications',
+      href: '/more/leave',
+      icon: <Calendar size={28} />,
+      color: 'from-cyan-400 to-cyan-600',
+      bgColor: 'bg-cyan-50',
+    },
+    {
       title: 'Fee Manager',
       description: 'View fee structure, payment history, and make payments',
       href: '/more/fees',
@@ -59,20 +70,12 @@ export default function MorePage() {
       bgColor: 'bg-emerald-50',
     },
     {
-      title: 'School Bus Manager',
-      description: 'Track bus routes, timings, and transportation details',
-      href: '/more/bus',
-      icon: <Bus size={28} />,
-      color: 'from-rose-400 to-rose-600',
-      bgColor: 'bg-rose-50',
-    },
-    {
-      title: 'Leave Manager',
-      description: 'Apply for leave, view leave balance, and track applications',
-      href: '/more/leave',
-      icon: <Calendar size={28} />,
-      color: 'from-cyan-400 to-cyan-600',
-      bgColor: 'bg-cyan-50',
+      title: 'Feedback',
+      description: 'Share your thoughts, suggestions, and feedback',
+      href: '/more/feedback',
+      icon: <MessageSquare size={28} />,
+      color: 'from-indigo-400 to-indigo-600',
+      bgColor: 'bg-indigo-50',
     },
   ]
 
@@ -92,10 +95,28 @@ export default function MorePage() {
   // Admin-only sections
   const adminSections: MoreSection[] = [
     {
-      title: 'User Management',
-      description: 'Manage user profiles, roles, and team assignments',
-      href: '/admin/users',
+      title: 'Classroom Creation',
+      description: 'Create and manage classrooms, add members by email',
+      href: '/more/classrooms',
+      icon: <BookOpen size={28} />,
+      color: 'from-blue-400 to-indigo-500',
+      bgColor: 'bg-blue-50',
+      adminOnly: true,
+    },
+    {
+      title: 'Teacher Teams',
+      description: 'Create teacher teams and assign coordinators',
+      href: '/more/teacher-teams',
       icon: <Users size={28} />,
+      color: 'from-pink-400 to-purple-500',
+      bgColor: 'bg-pink-50',
+      adminOnly: true,
+    },
+    {
+      title: 'Profile Management',
+      description: 'View and edit user profiles, roles, and assignments',
+      href: '/more/profiles',
+      icon: <UserPlus size={28} />,
       color: 'from-red-400 to-orange-500',
       bgColor: 'bg-red-50',
       adminOnly: true,

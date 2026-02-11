@@ -22,7 +22,7 @@ import {
   fetchLeaveBalance,
 } from '@/lib/leave'
 
-type TabId = 'my-leaves' | 'pending' | 'history'
+type TabId = 'my-leaves' | 'active' | 'pending' | 'history'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -39,7 +39,7 @@ const itemVariants = {
 
 export default function StaffLeavePage() {
   const { user, profile } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabId>('my-leaves')
+  const [activeTab, setActiveTab] = useState<TabId>(profile?.role === 'admin' ? 'pending' : 'active')
   const [showNewForm, setShowNewForm] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -52,6 +52,8 @@ export default function StaffLeavePage() {
   })
 
   const isApprover = profile?.role && ['coordinator', 'principal', 'admin'].includes(profile.role)
+  const canApply = profile?.role !== 'admin' // Admin cannot apply
+  const showPendingReview = profile?.role === 'principal' || profile?.role === 'admin'
 
   const loadData = useCallback(async () => {
     if (!user || !profile) return
@@ -87,8 +89,8 @@ export default function StaffLeavePage() {
   const pastApplications = myApplications.filter(a => a.status !== 'pending')
 
   const tabs = [
-    { id: 'my-leaves' as TabId, label: 'My Leaves', icon: CalendarDays, count: activeApplications.length },
-    ...(isApprover ? [{ id: 'pending' as TabId, label: 'Pending Approvals', icon: Clock, count: pendingApprovals.length }] : []),
+    ...(canApply ? [{ id: 'active' as TabId, label: 'Active Applications', icon: CalendarDays, count: activeApplications.length }] : []),
+    ...(showPendingReview ? [{ id: 'pending' as TabId, label: 'Pending Review', icon: Clock, count: pendingApprovals.length }] : []),
     { id: 'history' as TabId, label: 'History', icon: History, count: pastApplications.length },
   ]
 
@@ -107,13 +109,15 @@ export default function StaffLeavePage() {
                 <p className="text-slate-500 text-sm">Manage your leave applications</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowNewForm(true)}
-              className="btn-primary flex items-center gap-2"
-            >
-              <Plus size={18} />
-              Apply Leave
-            </button>
+            {canApply && (
+              <button
+                onClick={() => setShowNewForm(true)}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Plus size={18} />
+                Apply Leave
+              </button>
+            )}
           </div>
         </div>
 
@@ -165,8 +169,8 @@ export default function StaffLeavePage() {
               </div>
             ) : (
               <>
-                {/* My Leaves Tab */}
-                {activeTab === 'my-leaves' && (
+                {/* Active Applications Tab */}
+                {activeTab === 'active' && (
                   activeApplications.length === 0 ? (
                     <div className="glass rounded-2xl p-8 text-center">
                       <CalendarDays size={36} className="text-slate-300 mx-auto mb-3" />

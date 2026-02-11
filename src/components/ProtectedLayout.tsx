@@ -9,9 +9,10 @@ import Navbar from '@/components/Navbar'
 interface ProtectedLayoutProps {
   children: React.ReactNode
   staffOnly?: boolean
+  adminOnly?: boolean
 }
 
-export default function ProtectedLayout({ children, staffOnly = false }: ProtectedLayoutProps) {
+export default function ProtectedLayout({ children, staffOnly = false, adminOnly = false }: ProtectedLayoutProps) {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
 
@@ -22,13 +23,14 @@ export default function ProtectedLayout({ children, staffOnly = false }: Protect
   }, [user, loading, router])
 
   useEffect(() => {
-    if (!loading && user && staffOnly && profile) {
-      const isStaff = ['teacher', 'coordinator', 'principal', 'admin'].includes(profile.role)
-      if (!isStaff) {
+    if (!loading && user && profile) {
+      if (adminOnly && profile.role !== 'admin') {
+        router.push('/home')
+      } else if (staffOnly && !['teacher', 'coordinator', 'principal', 'admin'].includes(profile.role)) {
         router.push('/home')
       }
     }
-  }, [user, profile, loading, staffOnly, router])
+  }, [user, profile, loading, staffOnly, adminOnly, router])
 
   if (loading) {
     return (
@@ -52,6 +54,10 @@ export default function ProtectedLayout({ children, staffOnly = false }: Protect
   }
 
   if (!user) {
+    return null
+  }
+
+  if (adminOnly && profile && profile.role !== 'admin') {
     return null
   }
 

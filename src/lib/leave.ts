@@ -72,6 +72,34 @@ export const LEAVE_STATUS_COLORS: Record<LeaveStatus, string> = {
 // Helper Functions
 // ============================================
 
+export async function fetchPrincipals(): Promise<{ id: string; full_name: string; email: string }[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .eq('role', 'principal')
+    .order('full_name')
+
+  if (error) {
+    console.error('Failed to fetch principals:', error)
+    return []
+  }
+  return (data ?? []) as { id: string; full_name: string; email: string }[]
+}
+
+export async function fetchAdmins(): Promise<{ id: string; full_name: string; email: string }[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .eq('role', 'admin')
+    .order('full_name')
+
+  if (error) {
+    console.error('Failed to fetch admins:', error)
+    return []
+  }
+  return (data ?? []) as { id: string; full_name: string; email: string }[]
+}
+
 function calculateLeaveDays(startDate: string, endDate: string): number {
   const start = new Date(startDate)
   const end = new Date(endDate)
@@ -86,7 +114,8 @@ function calculateLeaveDays(startDate: string, endDate: string): number {
 export async function createLeaveApplication(
   input: NewLeaveInput,
   applicantId: string,
-  applicantRole: UserRole
+  applicantRole: UserRole,
+  selectedApproverIds: string[] = []
 ): Promise<LeaveApplication | null> {
   // 1. Create the leave application
   const { data: application, error } = await supabase
@@ -107,49 +136,35 @@ export async function createLeaveApplication(
     return null
   }
 
-  // 2. Create approval records based on role hierarchy
+  // 2. Create approval records for explicitly selected approvers
   const approvalRecords: {
     leave_application_id: string
+    approver_id?: string
     approver_role: string
     team_id?: string
   }[] = []
 
-  if (applicantRole === 'teacher') {
-    // Teachers need coordinator approval first
-    // Get the teacher's team(s)
-    const { data: teamMemberships } = await supabase
-      .from('team_members')
-      .select('team_id')
-      .eq('user_id', applicantId)
-
-    if (teamMemberships && teamMemberships.length > 0) {
-      // Create approval record for each team's coordinator
-      for (const membership of teamMemberships) {
-        approvalRecords.push({
-          leave_application_id: application.id,
-          approver_role: 'coordinator',
-          team_id: membership.team_id,
-        })
-      }
+  if (selectedApproverIds.length > 0) {
+    for (const approverId of selectedApproverIds) {
+      approvalRecords.push({
+        leave_application_id: application.id,
+        approver_id: approverId,
+        approver_role: applicantRole === 'principal' ? 'admin' : 'principal',
+      })
     }
-
-    // Then principal approval
-    approvalRecords.push({
-      leave_application_id: application.id,
-      approver_role: 'principal',
-    })
-  } else if (applicantRole === 'coordinator') {
-    // Coordinators need principal approval
-    approvalRecords.push({
-      leave_application_id: application.id,
-      approver_role: 'principal',
-    })
-  } else if (applicantRole === 'principal') {
-    // Principal needs admin approval
-    approvalRecords.push({
-      leave_application_id: application.id,
-      approver_role: 'admin',
-    })
+  } else {
+    // Fallback: auto-assign based on role hierarchy (legacy behavior)
+    if (applicantRole === 'teacher' || applicantRole === 'coordinator') {
+      approvalRecords.push({
+        leave_application_id: application.id,
+        approver_role: 'principal',
+      })
+    } else if (applicantRole === 'principal') {
+      approvalRecords.push({
+        leave_application_id: application.id,
+        approver_role: 'admin',
+      })
+    }
   }
 
   if (approvalRecords.length > 0) {
@@ -315,18 +330,23 @@ export async function processLeaveApproval(
 
 export async function fetchLeaveBalance(
   userId: string,
-  year: number = new Date().getFullYear()
+  year?: number
 ): Promise<{ casual: { used: number; total: number }; medical: { used: number; total: number } }> {
-  const startOfYear = `${year}-01-01`
-  const endOfYear = `${year}-12-31`
+  // Academic year: April 1 to March 31
+  const now = new Date()
+  const currentMonth = now.getMonth() // 0-indexed (0=Jan, 3=Apr)
+  const academicYearStart = currentMonth >= 3 ? now.getFullYear() : now.getFullYear() - 1
+
+  const startDate = `${academicYearStart}-04-01`
+  const endDate = `${academicYearStart + 1}-03-31`
 
   const { data: applications } = await supabase
     .from('leave_applications')
     .select('leave_type, start_date, end_date')
     .eq('applicant_id', userId)
     .eq('status', 'approved')
-    .gte('start_date', startOfYear)
-    .lte('end_date', endOfYear)
+    .gte('start_date', startDate)
+    .lte('end_date', endDate)
 
   let casualUsed = 0
   let medicalUsed = 0

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import {
   createLeaveApplication,
+  fetchPrincipals,
+  fetchAdmins,
   LeaveType,
   LEAVE_TYPE_LABELS,
   NewLeaveInput,
@@ -38,8 +40,24 @@ export default function LeaveApplicationForm({
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [availableApprovers, setAvailableApprovers] = useState<{ id: string; full_name: string; email: string }[]>([])
+  const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([])
 
   const today = new Date().toISOString().split('T')[0]
+
+  useEffect(() => {
+    if (!isOpen) return
+    const loadApprovers = async () => {
+      if (userRole === 'teacher' || userRole === 'coordinator') {
+        const principals = await fetchPrincipals()
+        setAvailableApprovers(principals)
+      } else if (userRole === 'principal') {
+        const admins = await fetchAdmins()
+        setAvailableApprovers(admins)
+      }
+    }
+    loadApprovers()
+  }, [isOpen, userRole])
 
   const resetForm = () => {
     setLeaveType('casual')
@@ -47,11 +65,13 @@ export default function LeaveApplicationForm({
     setEndDate('')
     setReason('')
     setError(null)
+    setSelectedApproverIds([])
   }
 
   const canSubmit = () => {
     if (!startDate || !endDate || !reason.trim()) return false
     if (new Date(endDate) < new Date(startDate)) return false
+    if (selectedApproverIds.length === 0 && availableApprovers.length > 0) return false
     return true
   }
 
@@ -69,7 +89,7 @@ export default function LeaveApplicationForm({
       reason: reason.trim(),
     }
 
-    const result = await createLeaveApplication(input, userId, userRole)
+    const result = await createLeaveApplication(input, userId, userRole, selectedApproverIds)
 
     if (!result) {
       setError('Failed to submit leave application. Please try again.')
@@ -190,16 +210,63 @@ export default function LeaveApplicationForm({
                 />
               </div>
 
+              {/* Approver Selection */}
+              {(userRole === 'teacher' || userRole === 'coordinator') && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">
+                    Select Approving Principal <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedApproverIds[0] || ''}
+                    onChange={e => setSelectedApproverIds(e.target.value ? [e.target.value] : [])}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500"
+                    required
+                  >
+                    <option value="">Choose a principal...</option>
+                    {availableApprovers.map(p => (
+                      <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {userRole === 'principal' && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">
+                    Select Approving Admin(s) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2 max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-3">
+                    {availableApprovers.map(a => (
+                      <label key={a.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedApproverIds.includes(a.id)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedApproverIds(prev => [...prev, a.id])
+                            } else {
+                              setSelectedApproverIds(prev => prev.filter(id => id !== a.id))
+                            }
+                          }}
+                          className="rounded border-slate-300"
+                        />
+                        <span className="text-sm">{a.full_name} ({a.email})</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Approval Info */}
               <div className="text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
                 {userRole === 'teacher' && (
-                  <span>Your application will be sent to your coordinator(s) and then to the principal for approval.</span>
+                  <span>Your application will be sent to the selected principal for approval.</span>
                 )}
                 {userRole === 'coordinator' && (
-                  <span>Your application will be sent to the principal for approval.</span>
+                  <span>Your application will be sent to the selected principal for approval.</span>
                 )}
                 {userRole === 'principal' && (
-                  <span>Your application will be sent to the admin for approval.</span>
+                  <span>Your application will be sent to the selected admin(s) for approval.</span>
                 )}
               </div>
 

@@ -67,7 +67,7 @@ export default function AnnouncementsList({
   const isPrincipalOrAdmin = userRole === 'principal' || userRole === 'admin'
 
   // Determine permissions
-  const canCreateStudent = isTeacher || isCoordinator || isPrincipalOrAdmin
+  const canCreateStudent = isCoordinator || isPrincipalOrAdmin
   const canCreateStaff = isCoordinator || isPrincipalOrAdmin
   const canDeleteOwn = !isStudent // staff can delete their own announcements
   const showTabs = !isStudent

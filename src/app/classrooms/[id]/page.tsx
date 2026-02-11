@@ -74,7 +74,7 @@ export default function ClassroomDetailPage() {
   const staffTabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'coursework', label: 'Course Work', icon: <GraduationCap size={18} /> },
     { id: 'homework', label: 'Homework', icon: <FileText size={18} /> },
-    { id: 'assessments', label: 'Assessments', icon: <ClipboardList size={18} /> },
+    { id: 'assessments', label: 'Scores', icon: <ClipboardList size={18} /> },
     { id: 'discussion', label: 'Discussion', icon: <MessageSquare size={18} /> },
   ]
 
@@ -82,7 +82,7 @@ export default function ClassroomDetailPage() {
     { id: 'dashboard', label: 'Dashboard', icon: <BookOpen size={18} /> },
     { id: 'coursework', label: 'Course Work', icon: <GraduationCap size={18} /> },
     { id: 'homework', label: 'Homework', icon: <FileText size={18} /> },
-    { id: 'assessments', label: 'Assessments', icon: <ClipboardList size={18} /> },
+    { id: 'assessments', label: 'Scores', icon: <ClipboardList size={18} /> },
     { id: 'discussion', label: 'Discussion', icon: <MessageSquare size={18} /> },
   ]
 

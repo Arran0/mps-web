@@ -13,6 +13,60 @@
   --mps-green-dark: #16a34a;
 }
 
+/* ============================== */
+/* Per-Page Color Palette System  */
+/* ============================== */
+
+[data-page-theme="home"] {
+  --page-primary: #0ea5e9;
+  --page-primary-light: #e0f2fe;
+  --page-primary-dark: #0284c7;
+  --page-accent: #22c55e;
+  --page-accent-light: #dcfce7;
+  --page-gradient-from: #0ea5e9;
+  --page-gradient-to: #22c55e;
+}
+
+[data-page-theme="announcements"] {
+  --page-primary: #8b5cf6;
+  --page-primary-light: #ede9fe;
+  --page-primary-dark: #7c3aed;
+  --page-accent: #6366f1;
+  --page-accent-light: #e0e7ff;
+  --page-gradient-from: #8b5cf6;
+  --page-gradient-to: #6366f1;
+}
+
+[data-page-theme="tasks"] {
+  --page-primary: #f59e0b;
+  --page-primary-light: #fef3c7;
+  --page-primary-dark: #d97706;
+  --page-accent: #f97316;
+  --page-accent-light: #fff7ed;
+  --page-gradient-from: #f59e0b;
+  --page-gradient-to: #f97316;
+}
+
+[data-page-theme="academics"] {
+  --page-primary: #06b6d4;
+  --page-primary-light: #cffafe;
+  --page-primary-dark: #0891b2;
+  --page-accent: #14b8a6;
+  --page-accent-light: #ccfbf1;
+  --page-gradient-from: #06b6d4;
+  --page-gradient-to: #14b8a6;
+}
+
+[data-page-theme="more"] {
+  --page-primary: #ec4899;
+  --page-primary-light: #fce7f3;
+  --page-primary-dark: #db2777;
+  --page-accent: #a855f7;
+  --page-accent-light: #f3e8ff;
+  --page-gradient-from: #ec4899;
+  --page-gradient-to: #a855f7;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -243,6 +297,44 @@ body {
 
 .toast-error {
   @apply bg-rose-500 text-white;
+}
+
+/* Page theme utility classes */
+.page-gradient-text {
+  background: linear-gradient(135deg, var(--page-gradient-from), var(--page-gradient-to));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.page-btn-primary {
+  background: linear-gradient(to right, var(--page-primary), var(--page-primary-dark));
+  color: white;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.3s;
+  box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--page-primary) 25%, transparent);
+}
+
+.page-btn-primary:hover {
+  box-shadow: 0 20px 25px -5px color-mix(in srgb, var(--page-primary) 30%, transparent);
+}
+
+.page-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.page-accent-bg {
+  background-color: var(--page-primary-light);
+}
+
+.page-accent-text {
+  color: var(--page-primary);
+}
+
+.page-icon-bg {
+  background: linear-gradient(135deg, var(--page-gradient-from), var(--page-gradient-to));
 }
 
 /* Responsive utilities */
