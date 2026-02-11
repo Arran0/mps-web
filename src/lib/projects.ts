@@ -33,6 +33,7 @@ export interface Subtask {
   due_date: string | null
   timing: string | null
   tag: TaskTag | null
+  bonus_points: number
   assignee_id: string | null
   assignee?: UserProfile
   sort_order: number

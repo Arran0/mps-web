@@ -9,17 +9,17 @@ import Link from 'next/link'
 import {
   ClipboardList,
   CreditCard,
-  Bus,
   Calendar,
   Award,
-  FileText,
   GraduationCap,
   ArrowRight,
   Bell,
   Megaphone,
   CalendarDays,
-  Users,
-  LayoutDashboard
+  LayoutDashboard,
+  BarChart3,
+  FolderKanban,
+  BookOpen,
 } from 'lucide-react'
 import {
   AnnouncementWithDetails,
@@ -27,23 +27,11 @@ import {
   fetchStudentAnnouncementsForStaff,
 } from '@/lib/announcements'
 
-import { BookOpen } from 'lucide-react'
-
-const quickLinks = [
-  { label: 'Classrooms', href: '/classrooms', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
-  { label: 'Grades', href: '/academics/grades', icon: <Award size={24} />, color: 'from-amber-400 to-amber-600' },
-  { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
-  { label: 'School Bus', href: '/more/bus', icon: <Bus size={24} />, color: 'from-rose-400 to-rose-600' },
-  { label: 'Leave Manager', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
-]
-
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
+    transition: { staggerChildren: 0.1 }
   }
 }
 
@@ -64,10 +52,19 @@ function formatRelativeDate(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+interface QuickButton {
+  label: string
+  href: string
+  icon: React.ReactNode
+  color: string
+  description?: string
+}
+
 export default function HomePage() {
   const { user, profile } = useAuth()
   const isStaff = profile ? isStaffRole(profile.role) : false
   const isAdmin = profile ? isAdminRole(profile.role) : false
+  const isStudent = profile?.role === 'student'
   const [announcements, setAnnouncements] = useState<AnnouncementWithDetails[]>([])
 
   const loadAnnouncements = useCallback(async () => {
@@ -76,11 +73,11 @@ export default function HomePage() {
       if (profile.role === 'student') {
         if (profile.grade != null) {
           const data = await fetchStudentAnnouncements(profile.grade, profile.section || '')
-          setAnnouncements(data.slice(0, 4))
+          setAnnouncements(data.slice(0, 5))
         }
       } else {
         const data = await fetchStudentAnnouncementsForStaff()
-        setAnnouncements(data.slice(0, 4))
+        setAnnouncements(data.slice(0, 5))
       }
     } catch (err) {
       console.error('Failed to load announcements for home:', err)
@@ -96,27 +93,44 @@ export default function HomePage() {
     return 'Good Evening'
   }
 
-  // Staff/Teacher navigation buttons (links into Task Manager)
-  // Note: Team Analytics removed for coordinator/principal as they already have 4 buttons
-  // They can still access Team Analytics via Task Manager tabs
-  const staffNavButtons = [
-    { label: 'Announcements', href: '/announcements', icon: <Megaphone size={24} />, color: 'from-mps-blue-400 to-mps-blue-600', description: 'View school announcements' },
-    { label: 'Task Manager', href: '/tasks', icon: <ClipboardList size={24} />, color: 'from-amber-400 to-orange-500', description: 'Manage and track your tasks' },
-    { label: 'Weekly Task Calendar', href: '/tasks?tab=weekly', icon: <CalendarDays size={24} />, color: 'from-purple-400 to-purple-600', description: 'View weekly task calendar' },
-    { label: 'Advanced Dashboard', href: '/tasks?tab=dashboard', icon: <LayoutDashboard size={24} />, color: 'from-cyan-400 to-cyan-600', description: 'Access advanced analytics' },
+  // Task Manager quick access (for all staff including admin)
+  const taskManagerButtons: QuickButton[] = [
+    { label: 'Weekly Calendar', href: '/tasks?tab=weekly', icon: <CalendarDays size={24} />, color: 'from-amber-400 to-orange-500', description: 'View weekly task calendar' },
+    { label: 'Analytics', href: '/tasks?tab=analytics', icon: <BarChart3 size={24} />, color: 'from-purple-400 to-purple-600', description: 'View task analytics' },
+    { label: 'Projects', href: '/tasks?tab=projects', icon: <FolderKanban size={24} />, color: 'from-cyan-400 to-cyan-600', description: 'Manage projects' },
+    { label: 'Dashboard', href: '/tasks?tab=dashboard', icon: <LayoutDashboard size={24} />, color: 'from-emerald-400 to-emerald-600', description: 'Advanced dashboard' },
   ]
 
-  // Admin navigation buttons
-  const adminNavButtons = [
-    { label: 'Announcements', href: '/announcements', icon: <Megaphone size={24} />, color: 'from-mps-blue-400 to-mps-blue-600', description: 'View and manage announcements' },
-    { label: 'Team Analytics', href: '/tasks?tab=team', icon: <Users size={24} />, color: 'from-purple-400 to-purple-600', description: 'View team performance' },
-    { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600', description: 'Manage student fees' },
-    { label: 'Bus Manager', href: '/more/bus', icon: <Bus size={24} />, color: 'from-rose-400 to-rose-600', description: 'Manage bus routes and schedules' },
+  // Student quick access
+  const studentQuickAccess: QuickButton[] = [
+    { label: 'Classrooms', href: '/classrooms', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
+    { label: 'Grades', href: '/academics/grades', icon: <Award size={24} />, color: 'from-amber-400 to-amber-600' },
+    { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
+    { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
   ]
+
+  // Teacher/Coordinator/Principal quick access
+  const staffQuickAccess: QuickButton[] = [
+    { label: 'Classrooms', href: '/classrooms', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
+    { label: 'Grades', href: '/academics/grades', icon: <Award size={24} />, color: 'from-amber-400 to-amber-600' },
+    { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
+    { label: 'Staff Leave', href: '/more/staff-leave', icon: <CalendarDays size={24} />, color: 'from-pink-400 to-pink-600' },
+  ]
+
+  // Admin quick access
+  const adminQuickAccess: QuickButton[] = [
+    { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
+    { label: 'Classrooms', href: '/classrooms', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
+    { label: 'Grades', href: '/academics/grades', icon: <Award size={24} />, color: 'from-amber-400 to-amber-600' },
+    { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
+    { label: 'Staff Leave', href: '/more/staff-leave', icon: <CalendarDays size={24} />, color: 'from-pink-400 to-pink-600' },
+  ]
+
+  const quickAccess = isAdmin ? adminQuickAccess : isStudent ? studentQuickAccess : staffQuickAccess
 
   return (
     <ProtectedLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-page-theme="home">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -125,9 +139,7 @@ export default function HomePage() {
           {/* Welcome Section */}
           <motion.div variants={itemVariants} className="mb-8">
             <div className="glass-strong rounded-3xl p-8 relative overflow-hidden">
-              {/* Background decoration */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-mps-blue-200/30 to-mps-green-200/30 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-
               <div className="relative z-10">
                 <p className="text-mps-blue-600 font-medium mb-2">{getGreeting()}</p>
                 <h1 className="font-display text-3xl sm:text-4xl font-bold text-slate-800 mb-2">
@@ -140,7 +152,7 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Latest Announcements - Top of Page */}
+          {/* Latest Announcements */}
           <motion.div variants={itemVariants} className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -148,7 +160,7 @@ export default function HomePage() {
                 <h2 className="font-display text-xl font-bold text-slate-800">Latest Announcements</h2>
               </div>
               <Link href="/announcements" className="text-mps-blue-600 hover:text-mps-blue-700 text-sm font-medium flex items-center gap-1">
-                View All <ArrowRight size={16} />
+                More Announcements <ArrowRight size={16} />
               </Link>
             </div>
 
@@ -176,51 +188,15 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Admin Navigation Buttons */}
-          {isAdmin && (
-            <motion.div variants={itemVariants} className="mb-8">
-              <div className="flex items-center gap-2 mb-6">
-                <LayoutDashboard className="text-mps-blue-600" size={20} />
-                <h2 className="font-display text-xl font-bold text-slate-800">Admin Dashboard</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {adminNavButtons.map((button, index) => (
-                  <motion.div
-                    key={button.label}
-                    variants={itemVariants}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Link href={button.href}>
-                      <div className="glass rounded-2xl p-5 card-hover group h-full">
-                        <div className={`w-14 h-14 mb-4 rounded-2xl bg-gradient-to-br ${button.color} flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow`}>
-                          {button.icon}
-                        </div>
-                        <h3 className="font-semibold text-slate-800 mb-1 group-hover:text-mps-blue-600 transition-colors">
-                          {button.label}
-                        </h3>
-                        <p className="text-sm text-slate-500">{button.description}</p>
-                        <div className="mt-3 flex items-center text-mps-blue-600 text-sm font-medium">
-                          <span>Open</span>
-                          <ArrowRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Staff/Teacher Navigation Buttons (Not Admin) */}
-          {isStaff && !isAdmin && (
+          {/* Task Manager Quick Access (Staff only) */}
+          {isStaff && (
             <motion.div variants={itemVariants} className="mb-8">
               <div className="flex items-center gap-2 mb-6">
                 <ClipboardList className="text-amber-600" size={20} />
-                <h2 className="font-display text-xl font-bold text-slate-800">Task Manager Quick Access</h2>
+                <h2 className="font-display text-xl font-bold text-slate-800">Task Manager</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {staffNavButtons.map((button, index) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {taskManagerButtons.map((button) => (
                   <motion.div
                     key={button.label}
                     variants={itemVariants}
@@ -229,17 +205,15 @@ export default function HomePage() {
                   >
                     <Link href={button.href}>
                       <div className="glass rounded-2xl p-5 card-hover group h-full">
-                        <div className={`w-14 h-14 mb-4 rounded-2xl bg-gradient-to-br ${button.color} flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow`}>
+                        <div className={`w-12 h-12 mb-3 rounded-xl bg-gradient-to-br ${button.color} flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow`}>
                           {button.icon}
                         </div>
-                        <h3 className="font-semibold text-slate-800 mb-1 group-hover:text-mps-blue-600 transition-colors">
+                        <h3 className="font-semibold text-slate-800 text-sm mb-1 group-hover:text-mps-blue-600 transition-colors">
                           {button.label}
                         </h3>
-                        <p className="text-sm text-slate-500">{button.description}</p>
-                        <div className="mt-3 flex items-center text-mps-blue-600 text-sm font-medium">
-                          <span>Open</span>
-                          <ArrowRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-                        </div>
+                        {button.description && (
+                          <p className="text-xs text-slate-500">{button.description}</p>
+                        )}
                       </div>
                     </Link>
                   </motion.div>
@@ -248,7 +222,7 @@ export default function HomePage() {
             </motion.div>
           )}
 
-          {/* Quick Links Section (For all users) */}
+          {/* Quick Access Section */}
           <motion.div variants={itemVariants}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display text-xl font-bold text-slate-800">Quick Access</h2>
@@ -257,8 +231,8 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              {quickLinks.map((link, index) => (
+            <div className={`grid grid-cols-2 sm:grid-cols-3 ${quickAccess.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>
+              {quickAccess.map((link) => (
                 <motion.div
                   key={link.label}
                   variants={itemVariants}

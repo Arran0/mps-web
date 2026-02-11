@@ -512,9 +512,9 @@ function SubtaskCalendarCard({
                 <Clock size={8} /> {subtask.timing}
               </span>
             )}
-            {subtask.tag === 'bonus' && (
-              <span className="text-[10px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium flex items-center gap-0.5">
-                <Star size={7} /> Bonus
+            {((subtask as any).bonus_points > 0) && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                {(subtask as any).bonus_points} BP
               </span>
             )}
           </div>
@@ -627,9 +627,9 @@ function SubtaskDetailModal({
               {STATUS_LABELS[subtask.status]}
               <ChevronRight size={14} className="opacity-50" />
             </button>
-            {subtask.tag === 'bonus' && !editing && (
-              <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
-                <Star size={10} /> Bonus
+            {((subtask as any).bonus_points > 0) && !editing && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                {(subtask as any).bonus_points} BP
               </span>
             )}
           </div>

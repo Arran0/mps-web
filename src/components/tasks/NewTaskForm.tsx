@@ -42,6 +42,7 @@ export default function NewTaskForm({
   const [dueDate, setDueDate] = useState(defaultDate || '')
   const [timing, setTiming] = useState('')
   const [tag, setTag] = useState<TaskTag>(null)
+  const [bonusPoints, setBonusPoints] = useState<number>(0)
   const [recurrence, setRecurrence] = useState<TaskRecurrence>('none')
   const [checklistItems, setChecklistItems] = useState<string[]>([])
   const [newCheckItem, setNewCheckItem] = useState('')
@@ -87,6 +88,7 @@ export default function NewTaskForm({
       due_date: dueDate || undefined,
       timing: timing || undefined,
       tag,
+      bonus_points: bonusPoints,
       recurrence,
       assignee_ids: selectedAssignees.length > 0 ? selectedAssignees : [defaultAssigneeId || currentUserId],
       checklist_items: checklistItems.length > 0 ? checklistItems : undefined,
@@ -101,6 +103,7 @@ export default function NewTaskForm({
       setDueDate(defaultDate || '')
       setTiming('')
       setTag(null)
+      setBonusPoints(0)
       setRecurrence('none')
       setChecklistItems([])
       setSelectedAssignees([defaultAssigneeId || currentUserId])
@@ -261,15 +264,19 @@ export default function NewTaskForm({
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                    <Tag size={14} /> Tag
+                    <Tag size={14} /> Bonus Points
                   </label>
                   <select
-                    value={tag || ''}
-                    onChange={e => setTag(e.target.value === 'bonus' ? 'bonus' : null)}
+                    value={bonusPoints}
+                    onChange={e => setBonusPoints(Number(e.target.value))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500 bg-white"
                   >
-                    <option value="">No tag</option>
-                    <option value="bonus">Bonus</option>
+                    <option value="0">None</option>
+                    <option value="1">1 Point</option>
+                    <option value="2">2 Points</option>
+                    <option value="3">3 Points</option>
+                    <option value="4">4 Points</option>
+                    <option value="5">5 Points</option>
                   </select>
                 </div>
               </div>

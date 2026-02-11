@@ -17,6 +17,7 @@ export interface Task {
   due_date: string | null
   timing: string | null
   tag: TaskTag
+  bonus_points: number
   recurrence: TaskRecurrence
   created_by: string
   created_at: string
@@ -73,6 +74,7 @@ export interface NewTaskInput {
   due_date?: string
   timing?: string
   tag?: TaskTag
+  bonus_points?: number
   recurrence?: TaskRecurrence
   assignee_ids: string[]
   checklist_items?: string[]
@@ -144,6 +146,7 @@ export async function createTask(input: NewTaskInput, createdBy: string): Promis
         due_date: input.due_date || null,
         timing: input.timing || null,
         tag: input.tag || null,
+        bonus_points: input.bonus_points || 0,
         recurrence: input.recurrence || 'none',
         created_by: createdBy,
       })
@@ -241,6 +244,7 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
       due_date: nextDate,
       timing: task.timing,
       tag: task.tag,
+      bonus_points: task.bonus_points || 0,
       recurrence: task.recurrence,
       created_by: task.created_by,
     })
@@ -278,7 +282,7 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
   }
 }
 
-export async function updateTask(taskId: string, updates: Partial<Pick<Task, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'is_overdue' | 'recurrence'>>): Promise<boolean> {
+export async function updateTask(taskId: string, updates: Partial<Pick<Task, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'bonus_points' | 'is_overdue' | 'recurrence'>>): Promise<boolean> {
   const { error } = await supabase
     .from('tasks')
     .update(updates)
@@ -592,16 +596,17 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
 
       // Combined stats
       const allItems = [
-        ...monthTasks.map(t => ({ status: t.status, tag: t.tag, is_overdue: t.is_overdue })),
+        ...monthTasks.map(t => ({ status: t.status, tag: t.tag, bonus_points: t.bonus_points || 0, is_overdue: t.is_overdue })),
         ...monthSubtasks.map((s: any) => ({
           status: s.status as TaskStatus,
           tag: s.tag,
+          bonus_points: s.bonus_points || 0,
           is_overdue: !!(s.due_date && s.due_date < todayStr && s.status !== 'checked'),
         })),
       ]
 
       const completed = allItems.filter(t => t.status === 'checked').length
-      const bonus = allItems.filter(t => t.tag === 'bonus').length
+      const bonus = allItems.reduce((sum, t) => sum + ((t as any).bonus_points || (t.tag === 'bonus' ? 1 : 0)), 0)
       const overdue = allItems.filter(t => t.is_overdue).length
       const total = allItems.length
 

@@ -129,9 +129,9 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
                   <Clock size={10} /> {task.timing}
                 </span>
               )}
-              {task.tag === 'bonus' && (
-                <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium flex items-center gap-0.5">
-                  <Star size={8} /> Bonus
+              {(task.bonus_points > 0) && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                  {task.bonus_points} BP
                 </span>
               )}
               {task.recurrence && task.recurrence !== 'none' && (
@@ -233,9 +233,9 @@ export default function TaskCard({ task, canCheck, onStatusChange, onTaskDeleted
                   <AlertTriangle size={12} /> Overdue
                 </span>
               )}
-              {task.tag === 'bonus' && (
-                <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
-                  <Star size={10} /> Bonus
+              {(task.bonus_points > 0) && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                  {task.bonus_points} BP
                 </span>
               )}
               {task.recurrence && task.recurrence !== 'none' && (
@@ -385,9 +385,9 @@ function TaskModal({
               {STATUS_LABELS[task.status]}
               <ChevronRight size={14} className="opacity-50" />
             </button>
-            {task.tag === 'bonus' && !editing && (
-              <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
-                <Star size={10} /> Bonus
+            {(task.bonus_points > 0) && !editing && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                {task.bonus_points} BP
               </span>
             )}
           </div>
