@@ -340,3 +340,63 @@ export async function fetchAllTeams(): Promise<{ id: string; name: string }[]> {
 
   return (teams ?? []) as { id: string; name: string }[]
 }
+
+/**
+ * Fetch all announcements visible to a user based on their role.
+ *
+ * - Students: Only student-type announcements targeting their grade/section
+ * - Teachers: All announcements targeting their teams OR their grade/section
+ * - Coordinators/Principals/Admins: ALL announcements
+ */
+export async function fetchAnnouncementsForUser(
+  userId: string,
+  userRole: UserRole,
+  userGrade?: number,
+  userSection?: string
+): Promise<AnnouncementWithDetails[]> {
+  // Coordinators, principals, and admins see ALL announcements
+  if (['coordinator', 'principal', 'admin'].includes(userRole)) {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select(
+        `*,
+        audiences:announcement_audiences(*, team:teams(id, name)),
+        creator:profiles!announcements_created_by_fkey(*)`
+      )
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      throw new Error(`Failed to fetch announcements: ${error.message}`)
+    }
+
+    return (data ?? []) as AnnouncementWithDetails[]
+  }
+
+  // Students see only student-type announcements for their grade/section
+  if (userRole === 'student' && userGrade != null) {
+    return fetchStudentAnnouncements(userGrade, userSection || '')
+  }
+
+  // Teachers see announcements relevant to them:
+  // 1. Student announcements (they can see all via RLS)
+  // 2. Staff announcements for their teams or all_teams=true
+  if (userRole === 'teacher') {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select(
+        `*,
+        audiences:announcement_audiences(*, team:teams(id, name)),
+        creator:profiles!announcements_created_by_fkey(*)`
+      )
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      throw new Error(`Failed to fetch announcements: ${error.message}`)
+    }
+
+    // RLS already filters what teachers can see
+    return (data ?? []) as AnnouncementWithDetails[]
+  }
+
+  return []
+}
