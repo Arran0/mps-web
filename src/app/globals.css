@@ -210,6 +210,22 @@ body {
   @apply transition-all duration-300 placeholder:text-slate-400;
 }
 
+/* Input with left icon - ensures icon doesn't overlap placeholder */
+.input-with-icon-left {
+  padding-left: 3rem; /* 48px - enough space for icon + gap */
+}
+
+/* Input with right icon */
+.input-with-icon-right {
+  padding-right: 3rem;
+}
+
+/* Input with icons on both sides */
+.input-with-icons-both {
+  padding-left: 3rem;
+  padding-right: 3rem;
+}
+
 /* Page transition */
 .page-enter {
   opacity: 0;
