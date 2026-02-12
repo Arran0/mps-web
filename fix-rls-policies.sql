@@ -118,5 +118,66 @@ CREATE POLICY "Staff can manage team members"
     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
+-- ISSUE 4: Fix classrooms RLS (ensure proper policies exist)
+ALTER TABLE public.classrooms ENABLE ROW LEVEL SECURITY;
+
+-- Drop and recreate classroom policies to ensure they work
+DROP POLICY IF EXISTS "Members can view classrooms" ON public.classrooms;
+DROP POLICY IF EXISTS "Staff can create classrooms" ON public.classrooms;
+DROP POLICY IF EXISTS "Staff can update classrooms" ON public.classrooms;
+DROP POLICY IF EXISTS "Admin can delete classrooms" ON public.classrooms;
+
+CREATE POLICY "Members can view classrooms"
+  ON public.classrooms FOR SELECT
+  TO authenticated USING (
+    -- User is a member of the classroom
+    EXISTS (
+      SELECT 1 FROM public.classroom_members cm
+      WHERE cm.classroom_id = classrooms.id
+      AND cm.user_id = auth.uid()
+    )
+    -- Or user is principal/admin (can view all)
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
+    -- Or user created the classroom
+    OR created_by = auth.uid()
+    -- Or user is the coordinator
+    OR coordinator_id = auth.uid()
+  );
+
+CREATE POLICY "Staff can create classrooms"
+  ON public.classrooms FOR INSERT
+  TO authenticated WITH CHECK (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+CREATE POLICY "Staff can update classrooms"
+  ON public.classrooms FOR UPDATE
+  TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('coordinator', 'principal', 'admin')
+    OR created_by = auth.uid()
+  );
+
+CREATE POLICY "Admin can delete classrooms"
+  ON public.classrooms FOR DELETE
+  TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
+  );
+
+-- Fix classroom_members INSERT policy
+DROP POLICY IF EXISTS "Staff can manage classroom members" ON public.classroom_members;
+DROP POLICY IF EXISTS "Staff can remove classroom members" ON public.classroom_members;
+
+CREATE POLICY "Staff can add classroom members"
+  ON public.classroom_members FOR INSERT
+  TO authenticated WITH CHECK (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  );
+
+CREATE POLICY "Staff can remove classroom members"
+  ON public.classroom_members FOR DELETE
+  TO authenticated USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('coordinator', 'principal', 'admin')
+  );
+
 -- Refresh schema
 NOTIFY pgrst, 'reload schema';
