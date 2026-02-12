@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import {
   createLeaveApplication,
+  fetchCoordinators,
   fetchPrincipals,
   fetchAdmins,
   LeaveType,
@@ -48,7 +49,10 @@ export default function LeaveApplicationForm({
   useEffect(() => {
     if (!isOpen) return
     const loadApprovers = async () => {
-      if (userRole === 'teacher' || userRole === 'coordinator') {
+      if (userRole === 'teacher') {
+        const coordinators = await fetchCoordinators()
+        setAvailableApprovers(coordinators)
+      } else if (userRole === 'coordinator') {
         const principals = await fetchPrincipals()
         setAvailableApprovers(principals)
       } else if (userRole === 'principal') {
@@ -210,23 +214,67 @@ export default function LeaveApplicationForm({
                 />
               </div>
 
-              {/* Approver Selection */}
-              {(userRole === 'teacher' || userRole === 'coordinator') && (
+              {/* Approver Selection - Teachers */}
+              {userRole === 'teacher' && (
                 <div>
                   <label className="text-sm font-medium text-slate-700 mb-1 block">
-                    Select Approving Principal <span className="text-red-500">*</span>
+                    Select Coordinator(s) to Approve <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={selectedApproverIds[0] || ''}
-                    onChange={e => setSelectedApproverIds(e.target.value ? [e.target.value] : [])}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500"
-                    required
-                  >
-                    <option value="">Choose a principal...</option>
-                    {availableApprovers.map(p => (
-                      <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
-                    ))}
-                  </select>
+                  <div className="space-y-2 max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-3">
+                    {availableApprovers.length === 0 ? (
+                      <p className="text-sm text-slate-500">No coordinators available</p>
+                    ) : (
+                      availableApprovers.map(c => (
+                        <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedApproverIds.includes(c.id)}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setSelectedApproverIds(prev => [...prev, c.id])
+                              } else {
+                                setSelectedApproverIds(prev => prev.filter(id => id !== c.id))
+                              }
+                            }}
+                            className="rounded border-slate-300"
+                          />
+                          <span className="text-sm">{c.full_name} ({c.email})</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Approver Selection - Coordinators */}
+              {userRole === 'coordinator' && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">
+                    Select Principal(s) to Approve <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2 max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-3">
+                    {availableApprovers.length === 0 ? (
+                      <p className="text-sm text-slate-500">No principals available</p>
+                    ) : (
+                      availableApprovers.map(p => (
+                        <label key={p.id} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedApproverIds.includes(p.id)}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setSelectedApproverIds(prev => [...prev, p.id])
+                              } else {
+                                setSelectedApproverIds(prev => prev.filter(id => id !== p.id))
+                              }
+                            }}
+                            className="rounded border-slate-300"
+                          />
+                          <span className="text-sm">{p.full_name} ({p.email})</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -260,13 +308,13 @@ export default function LeaveApplicationForm({
               {/* Approval Info */}
               <div className="text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
                 {userRole === 'teacher' && (
-                  <span>Your application will be sent to the selected principal for approval.</span>
+                  <span>Your application will be sent to the selected coordinator(s) for review and approval.</span>
                 )}
                 {userRole === 'coordinator' && (
-                  <span>Your application will be sent to the selected principal for approval.</span>
+                  <span>Your application will be sent to the selected principal(s) for review and approval.</span>
                 )}
                 {userRole === 'principal' && (
-                  <span>Your application will be sent to the selected admin(s) for approval.</span>
+                  <span>Your application will be sent to the selected admin(s) for review and approval.</span>
                 )}
               </div>
 

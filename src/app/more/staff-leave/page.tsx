@@ -53,7 +53,7 @@ export default function StaffLeavePage() {
 
   const isApprover = profile?.role && ['coordinator', 'principal', 'admin'].includes(profile.role)
   const canApply = profile?.role !== 'admin' // Admin cannot apply
-  const showPendingReview = profile?.role === 'principal' || profile?.role === 'admin'
+  const showPendingReview = profile?.role === 'coordinator' || profile?.role === 'principal' || profile?.role === 'admin'
 
   const loadData = useCallback(async () => {
     if (!user || !profile) return
