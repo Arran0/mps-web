@@ -196,19 +196,22 @@ export default function LeaveApplicationCard({
         )}
 
         {/* Action Buttons for Approvers */}
-        {isApprover && myPendingApprovals.length > 0 && (
+        {isApprover && (
           <div className="pt-2 border-t border-slate-100 space-y-2">
-            <div className="flex items-center gap-2">
+            {/* View Calendar Button - Always show for approvers */}
+            {application.applicant_id && (
               <Link
                 href={`/tasks?date=${application.start_date}&user=${application.applicant_id}`}
                 target="_blank"
-                className="flex-1 btn-secondary text-xs flex items-center justify-center gap-1"
+                className="w-full btn-secondary text-xs flex items-center justify-center gap-1.5"
               >
-                <ExternalLink size={12} />
-                View Calendar
+                <ExternalLink size={14} />
+                View Applicant's Weekly Calendar
               </Link>
-            </div>
-            {myPendingApprovals.map(approval => (
+            )}
+
+            {/* Review Buttons - Only for pending approvals */}
+            {myPendingApprovals.length > 0 && myPendingApprovals.map(approval => (
               <button
                 key={approval.id}
                 onClick={() => handleApprovalClick(approval)}

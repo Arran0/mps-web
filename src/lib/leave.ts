@@ -72,6 +72,20 @@ export const LEAVE_STATUS_COLORS: Record<LeaveStatus, string> = {
 // Helper Functions
 // ============================================
 
+export async function fetchCoordinators(): Promise<{ id: string; full_name: string; email: string }[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .eq('role', 'coordinator')
+    .order('full_name')
+
+  if (error) {
+    console.error('Failed to fetch coordinators:', error)
+    return []
+  }
+  return (data ?? []) as { id: string; full_name: string; email: string }[]
+}
+
 export async function fetchPrincipals(): Promise<{ id: string; full_name: string; email: string }[]> {
   const { data, error } = await supabase
     .from('profiles')
@@ -146,15 +160,32 @@ export async function createLeaveApplication(
 
   if (selectedApproverIds.length > 0) {
     for (const approverId of selectedApproverIds) {
+      // Determine approver role based on applicant role
+      let approverRole: string
+      if (applicantRole === 'teacher') {
+        approverRole = 'coordinator'
+      } else if (applicantRole === 'coordinator') {
+        approverRole = 'principal'
+      } else if (applicantRole === 'principal') {
+        approverRole = 'admin'
+      } else {
+        approverRole = 'principal' // fallback
+      }
+
       approvalRecords.push({
         leave_application_id: application.id,
         approver_id: approverId,
-        approver_role: applicantRole === 'principal' ? 'admin' : 'principal',
+        approver_role: approverRole,
       })
     }
   } else {
     // Fallback: auto-assign based on role hierarchy (legacy behavior)
-    if (applicantRole === 'teacher' || applicantRole === 'coordinator') {
+    if (applicantRole === 'teacher') {
+      approvalRecords.push({
+        leave_application_id: application.id,
+        approver_role: 'coordinator',
+      })
+    } else if (applicantRole === 'coordinator') {
       approvalRecords.push({
         leave_application_id: application.id,
         approver_role: 'principal',
