@@ -354,8 +354,11 @@ export async function fetchAnnouncementsForUser(
   userGrade?: number,
   userSection?: string
 ): Promise<AnnouncementWithDetails[]> {
+  console.log('[fetchAnnouncementsForUser] Called with:', { userId, userRole, userGrade, userSection })
+
   // Coordinators, principals, and admins see ALL announcements
   if (['coordinator', 'principal', 'admin'].includes(userRole)) {
+    console.log('[fetchAnnouncementsForUser] Fetching ALL announcements for coordinator/principal/admin')
     const { data, error } = await supabase
       .from('announcements')
       .select(
@@ -366,14 +369,17 @@ export async function fetchAnnouncementsForUser(
       .order('created_at', { ascending: false })
 
     if (error) {
+      console.error('[fetchAnnouncementsForUser] Error:', error)
       throw new Error(`Failed to fetch announcements: ${error.message}`)
     }
 
+    console.log('[fetchAnnouncementsForUser] Fetched announcements:', data?.length || 0, 'items')
     return (data ?? []) as AnnouncementWithDetails[]
   }
 
   // Students see only student-type announcements for their grade/section
   if (userRole === 'student' && userGrade != null) {
+    console.log('[fetchAnnouncementsForUser] Fetching student announcements for grade:', userGrade, 'section:', userSection)
     return fetchStudentAnnouncements(userGrade, userSection || '')
   }
 
@@ -381,6 +387,7 @@ export async function fetchAnnouncementsForUser(
   // 1. Student announcements (they can see all via RLS)
   // 2. Staff announcements for their teams or all_teams=true
   if (userRole === 'teacher') {
+    console.log('[fetchAnnouncementsForUser] Fetching ALL announcements for teacher')
     const { data, error } = await supabase
       .from('announcements')
       .select(
@@ -391,12 +398,15 @@ export async function fetchAnnouncementsForUser(
       .order('created_at', { ascending: false })
 
     if (error) {
+      console.error('[fetchAnnouncementsForUser] Error:', error)
       throw new Error(`Failed to fetch announcements: ${error.message}`)
     }
 
+    console.log('[fetchAnnouncementsForUser] Fetched announcements:', data?.length || 0, 'items')
     // RLS already filters what teachers can see
     return (data ?? []) as AnnouncementWithDetails[]
   }
 
+  console.log('[fetchAnnouncementsForUser] No role matched, returning empty array')
   return []
 }

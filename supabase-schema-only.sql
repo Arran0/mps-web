@@ -650,15 +650,10 @@ CREATE POLICY "Students can view own announcement audiences"
   USING (
     public.get_user_role() = 'student'
     AND EXISTS (
-      SELECT 1 FROM public.announcements a
-      WHERE a.id = announcement_audiences.announcement_id
-      AND a.type = 'student'
-      AND EXISTS (
-        SELECT 1 FROM public.profiles p
-        WHERE p.id = auth.uid()
-        AND announcement_audiences.grade = p.grade
-        AND (announcement_audiences.section IS NULL OR announcement_audiences.section = p.section)
-      )
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+      AND announcement_audiences.grade = p.grade
+      AND (announcement_audiences.section IS NULL OR announcement_audiences.section = p.section)
     )
   );
 

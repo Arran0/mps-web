@@ -65,11 +65,13 @@ export default function AnnouncementsList({
 
   const loadAnnouncements = useCallback(async () => {
     setLoading(true)
+    console.log('[AnnouncementsList] Loading announcements for user:', { userId, userRole, userGrade, userSection })
     try {
       const data = await fetchAnnouncementsForUser(userId, userRole, userGrade, userSection)
+      console.log('[AnnouncementsList] Received announcements:', data?.length || 0, 'items', data)
       setAnnouncements(data)
     } catch (err) {
-      console.error('Failed to load announcements:', err)
+      console.error('[AnnouncementsList] Failed to load announcements:', err)
     } finally {
       setLoading(false)
     }
