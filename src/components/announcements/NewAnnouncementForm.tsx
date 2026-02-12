@@ -331,6 +331,13 @@ export default function NewAnnouncementForm({
                     <GraduationCap size={14} /> Student Audience
                   </label>
 
+                  {isTeacher && availableGrades.length < 12 && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      <span>You can only announce to grades assigned to your teams</span>
+                    </div>
+                  )}
+
                   <div className="border border-slate-200 rounded-xl p-3 space-y-3">
                     {/* All Students option - principal/admin only */}
                     {isPrincipalOrAdmin && (
@@ -435,6 +442,18 @@ export default function NewAnnouncementForm({
                   <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
                     <Users size={14} /> Staff Audience
                   </label>
+
+                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
+                    <AlertCircle size={14} className="flex-shrink-0" />
+                    <span>Principals and Admins will automatically see all staff announcements</span>
+                  </div>
+
+                  {isCoordinator && availableTeams.length > 0 && availableTeams.length < allTeams.length && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      <span>You can only announce to teachers in your teams</span>
+                    </div>
+                  )}
 
                   <div className="border border-slate-200 rounded-xl p-3 space-y-1.5">
                     {/* All Staff option - principal/admin only */}
