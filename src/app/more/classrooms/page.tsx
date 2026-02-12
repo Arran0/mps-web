@@ -427,12 +427,12 @@ export default function ClassroomCreationPage() {
                         {isAdmin && (
                           <div className="flex items-center gap-2">
                             <div className="flex-1 relative">
-                              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                               <input
                                 type="email"
                                 value={addMemberEmailInput}
                                 onChange={e => { setAddMemberEmailInput(e.target.value); setMemberError('') }}
-                                className="input-field pl-9 py-2 text-sm"
+                                className="input-field pl-10 py-2 text-sm"
                                 placeholder="Add member by email..."
                                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddMember(classroom.id) } }}
                               />
