@@ -15,11 +15,14 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
+  Check,
 } from 'lucide-react'
 import {
   ProfileWithTeams,
   fetchAllProfiles,
   updateProfile,
+  createNewUser,
+  NewUserInput,
   ROLE_COLORS,
 } from '@/lib/admin'
 import { UserRole, getRoleDisplayName } from '@/lib/supabase'
@@ -44,6 +47,21 @@ export default function ProfilesPage() {
   const [editingProfile, setEditingProfile] = useState<string | null>(null)
   const [expandedProfile, setExpandedProfile] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // Create modal state
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createSuccess, setCreateSuccess] = useState(false)
+
+  // Create form state
+  const [createForm, setCreateForm] = useState({
+    email: '',
+    full_name: '',
+    role: 'student' as UserRole,
+    grade: '',
+    section: '',
+  })
 
   // Edit state
   const [editForm, setEditForm] = useState({
@@ -96,6 +114,56 @@ export default function ProfilesPage() {
     setSaving(false)
   }
 
+  const handleCreateProfile = async () => {
+    setCreateError(null)
+    setCreateSuccess(false)
+
+    // Validation
+    if (!createForm.email || !createForm.full_name) {
+      setCreateError('Email and full name are required')
+      return
+    }
+
+    if (!createForm.email.includes('@')) {
+      setCreateError('Please enter a valid email address')
+      return
+    }
+
+    setCreating(true)
+
+    const input: NewUserInput = {
+      email: createForm.email.trim(),
+      full_name: createForm.full_name.trim(),
+      role: createForm.role,
+      grade: createForm.grade ? parseInt(createForm.grade) : undefined,
+      section: createForm.section || undefined,
+    }
+
+    const result = await createNewUser(input)
+
+    if (result.success) {
+      setCreateSuccess(true)
+      setCreateForm({
+        email: '',
+        full_name: '',
+        role: 'student',
+        grade: '',
+        section: '',
+      })
+      await loadProfiles()
+
+      // Close modal after 2 seconds
+      setTimeout(() => {
+        setShowCreateModal(false)
+        setCreateSuccess(false)
+      }, 2000)
+    } else {
+      setCreateError(result.error || 'Failed to create user')
+    }
+
+    setCreating(false)
+  }
+
   // Group profiles by role
   const roleGroups = ['admin', 'principal', 'coordinator', 'teacher', 'student'] as UserRole[]
 
@@ -115,7 +183,16 @@ export default function ProfilesPage() {
               <p className="text-slate-500 text-sm">Manage user profiles and roles</p>
             </div>
           </div>
-          <span className="text-sm text-slate-500">{profiles.length} users</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-500">{profiles.length} users</span>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <UserPlus size={18} />
+              Create Profile
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -287,6 +364,182 @@ export default function ProfilesPage() {
             ))}
           </motion.div>
         )}
+
+        {/* Create Profile Modal */}
+        <AnimatePresence>
+          {showCreateModal && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowCreateModal(false)}
+                className="fixed inset-0 bg-black/50 z-40"
+              />
+
+              {/* Modal */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              >
+                <div className="glass rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="font-display text-2xl font-bold text-slate-800">Create New Profile</h2>
+                    <button
+                      onClick={() => setShowCreateModal(false)}
+                      className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                      <X size={20} className="text-slate-400" />
+                    </button>
+                  </div>
+
+                  {createSuccess ? (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Check size={32} className="text-green-600" />
+                      </div>
+                      <h3 className="font-bold text-lg text-slate-800 mb-2">Profile Created!</h3>
+                      <p className="text-sm text-slate-600">
+                        Password reset email sent to {createForm.email}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {createError && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                          {createError}
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Email Address *
+                        </label>
+                        <input
+                          type="email"
+                          value={createForm.email}
+                          onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
+                          className="input-field"
+                          placeholder="user@example.com"
+                          disabled={creating}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={createForm.full_name}
+                          onChange={e => setCreateForm({ ...createForm, full_name: e.target.value })}
+                          className="input-field"
+                          placeholder="John Doe"
+                          disabled={creating}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Role *
+                        </label>
+                        <select
+                          value={createForm.role}
+                          onChange={e => setCreateForm({ ...createForm, role: e.target.value as UserRole })}
+                          className="input-field"
+                          disabled={creating}
+                        >
+                          <option value="student">Student</option>
+                          <option value="teacher">Teacher</option>
+                          <option value="coordinator">Coordinator</option>
+                          <option value="principal">Principal</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
+
+                      {createForm.role === 'student' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              Grade
+                            </label>
+                            <select
+                              value={createForm.grade}
+                              onChange={e => setCreateForm({ ...createForm, grade: e.target.value })}
+                              className="input-field"
+                              disabled={creating}
+                            >
+                              <option value="">Select grade...</option>
+                              {Array.from({ length: 12 }, (_, i) => i + 1).map(grade => (
+                                <option key={grade} value={grade}>
+                                  Grade {grade}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              Section
+                            </label>
+                            <select
+                              value={createForm.section}
+                              onChange={e => setCreateForm({ ...createForm, section: e.target.value })}
+                              className="input-field"
+                              disabled={creating}
+                            >
+                              <option value="">Select section...</option>
+                              {['A', 'B', 'C', 'D', 'E', 'F'].map(section => (
+                                <option key={section} value={section}>
+                                  Section {section}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </>
+                      )}
+
+                      <div className="bg-blue-50 border border-blue-200 px-4 py-3 rounded-lg text-sm text-blue-700">
+                        <p className="font-medium mb-1">Password Reset</p>
+                        <p>A password reset email will be sent to the user's email address.</p>
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          onClick={() => setShowCreateModal(false)}
+                          className="btn-secondary flex-1"
+                          disabled={creating}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleCreateProfile}
+                          className="btn-primary flex-1 flex items-center justify-center gap-2"
+                          disabled={creating}
+                        >
+                          {creating ? (
+                            <>
+                              <Loader2 size={18} className="animate-spin" />
+                              Creating...
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus size={18} />
+                              Create Profile
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </ProtectedLayout>
   )
