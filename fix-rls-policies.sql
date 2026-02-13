@@ -76,24 +76,29 @@ CREATE POLICY "Team members can view teams"
       WHERE tm.team_id = teams.id
       AND tm.user_id = auth.uid()
     )
-    -- Or user is admin/principal
-    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
-    -- Or user created the team
-    OR created_by = auth.uid()
+    -- Or user is admin/principal/coordinator/teacher (staff can view all teams)
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
-CREATE POLICY "Team owners can update teams"
+CREATE POLICY "Staff can update teams"
   ON public.teams FOR UPDATE
   TO authenticated USING (
-    created_by = auth.uid()
-    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
+    -- Staff can update teams they're members of, or admins can update any
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+    AND (
+      EXISTS (
+        SELECT 1 FROM public.team_members tm
+        WHERE tm.team_id = teams.id
+        AND tm.user_id = auth.uid()
+      )
+      OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
+    )
   );
 
-CREATE POLICY "Team owners can delete teams"
+CREATE POLICY "Admin can delete teams"
   ON public.teams FOR DELETE
   TO authenticated USING (
-    created_by = auth.uid()
-    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
   );
 
 -- Ensure team_members has proper policies too
@@ -114,7 +119,11 @@ CREATE POLICY "Users can view team members"
 
 CREATE POLICY "Staff can manage team members"
   ON public.team_members FOR ALL
-  TO authenticated USING (
+  TO authenticated
+  USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+  )
+  WITH CHECK (
     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
