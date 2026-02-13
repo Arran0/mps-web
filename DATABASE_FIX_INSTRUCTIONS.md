@@ -1,12 +1,15 @@
 # Database Fix Instructions
 
-## 🚨 Critical: Run This SQL to Fix All Issues
+## 🚨 CRITICAL: Run This SQL to Fix All Issues
 
 Your application is experiencing RLS (Row Level Security) policy issues that prevent:
 - ❌ Creating classrooms
-- ❌ Creating teams
+- ❌ Creating teams (403 forbidden errors)
+- ❌ Creating announcements (teams not loading)
+- ❌ Viewing teams (500 infinite recursion errors)
 - ❌ Viewing team member names (showing "Unknown")
 - ❌ Fetching profile data (406 errors)
+- ❌ Teams dropdown empty in announcement creation
 
 ## How to Apply the Fix
 
@@ -41,10 +44,11 @@ This means all policies have been updated successfully!
 
 ## What Does This Fix?
 
-### 1. Infinite Recursion Error
+### 1. Infinite Recursion Errors (CRITICAL!)
+**Error:** `infinite recursion detected in policy for relation "team_members"`
 **Error:** `infinite recursion detected in policy for relation "classroom_members"`
 
-**Fix:** Changed the policy to avoid self-referencing queries
+**Fix:** Removed self-referencing queries from policies - simplified to use role checks instead
 
 ### 2. Profile Fetch Errors (406)
 **Error:** `Failed to load resource: the server responded with a status of 406`
@@ -65,6 +69,21 @@ This means all policies have been updated successfully!
 **Issue:** Member names not loading due to profile fetch restrictions
 
 **Fix:** Enabled authenticated users to view all profiles needed for displaying member information
+
+### 6. Teams Not Loading (500 Errors)
+**Error:** `Failed to fetch teams: infinite recursion detected in policy for relation "team_members"`
+
+**Fix:** Simplified team_members SELECT policy to avoid recursion - staff can now view all team members
+
+### 7. Teams Dropdown Empty in Announcements
+**Issue:** Can't select teams when creating announcements
+
+**Fix:** Staff can now view all teams without recursive policy checks
+
+### 8. Can't Create Teams (403 Forbidden)
+**Error:** `new row violates row-level security policy for table "teams"`
+
+**Fix:** Proper INSERT policy allows all staff (teacher/coordinator/principal/admin) to create teams
 
 ## Troubleshooting
 
