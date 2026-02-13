@@ -67,32 +67,18 @@ CREATE POLICY "Staff can create teams"
     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
-CREATE POLICY "Team members can view teams"
+CREATE POLICY "Staff can view all teams"
   ON public.teams FOR SELECT
   TO authenticated USING (
-    -- User is a member of the team
-    EXISTS (
-      SELECT 1 FROM public.team_members tm
-      WHERE tm.team_id = teams.id
-      AND tm.user_id = auth.uid()
-    )
-    -- Or user is admin/principal/coordinator/teacher (staff can view all teams)
-    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
+    -- Staff can view all teams (needed for announcements, team management, etc.)
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Staff can update teams"
   ON public.teams FOR UPDATE
   TO authenticated USING (
-    -- Staff can update teams they're members of, or admins can update any
+    -- All staff can update teams (they can manage teams they're part of)
     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
-    AND (
-      EXISTS (
-        SELECT 1 FROM public.team_members tm
-        WHERE tm.team_id = teams.id
-        AND tm.user_id = auth.uid()
-      )
-      OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
-    )
   );
 
 CREATE POLICY "Admin can delete teams"
@@ -110,11 +96,10 @@ DROP POLICY IF EXISTS "Staff can manage team members" ON public.team_members;
 CREATE POLICY "Users can view team members"
   ON public.team_members FOR SELECT
   TO authenticated USING (
+    -- Users can view their own membership
     user_id = auth.uid()
-    OR team_id IN (
-      SELECT tm.team_id FROM public.team_members tm WHERE tm.user_id = auth.uid()
-    )
-    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
+    -- Staff can view all team members (needed to display teams properly)
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('teacher', 'coordinator', 'principal', 'admin')
   );
 
 CREATE POLICY "Staff can manage team members"
