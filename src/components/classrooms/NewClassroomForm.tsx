@@ -25,7 +25,6 @@ export default function NewClassroomForm({
   const [description, setDescription] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [classroomCode, setClassroomCode] = useState('')
   const [coordinatorId, setCoordinatorId] = useState('')
   const [coordinators, setCoordinators] = useState<UserProfile[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -45,13 +44,12 @@ export default function NewClassroomForm({
     setDescription('')
     setStartDate('')
     setEndDate('')
-    setClassroomCode('')
     setCoordinatorId('')
     setError(null)
   }
 
   const canSubmit = () => {
-    return title.trim() && classroomCode.trim()
+    return title.trim()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,7 +69,6 @@ export default function NewClassroomForm({
           description: description.trim() || undefined,
           start_date: startDate || undefined,
           end_date: endDate || undefined,
-          classroom_code: classroomCode.trim().toUpperCase(),
           coordinator_id: resolvedCoordinatorId,
         },
         currentUserId
@@ -153,22 +150,6 @@ export default function NewClassroomForm({
                   rows={3}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 resize-none"
                 />
-              </div>
-
-              {/* Classroom Code */}
-              <div>
-                <label className="text-sm font-medium text-slate-700 mb-1 block">
-                  Classroom Code <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={classroomCode}
-                  onChange={(e) => setClassroomCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. MATH5A"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
-                  required
-                />
-                <p className="text-xs text-slate-400 mt-1">Unique code for students to join this classroom</p>
               </div>
 
               {/* Dates */}

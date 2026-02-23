@@ -14,7 +14,6 @@ export interface Classroom {
   description: string | null
   start_date: string | null
   end_date: string | null
-  classroom_code: string
   coordinator_id: string | null
   created_by: string
   created_at: string
@@ -135,7 +134,6 @@ export async function createClassroom(input: {
   description?: string
   start_date?: string
   end_date?: string
-  classroom_code: string
   coordinator_id?: string
 }, createdBy: string): Promise<Classroom | null> {
   const id = crypto.randomUUID()
@@ -147,7 +145,6 @@ export async function createClassroom(input: {
       description: input.description || null,
       start_date: input.start_date || null,
       end_date: input.end_date || null,
-      classroom_code: input.classroom_code,
       coordinator_id: input.coordinator_id || null,
       created_by: createdBy,
     })
@@ -171,7 +168,6 @@ export async function createClassroom(input: {
     description: input.description || null,
     start_date: input.start_date || null,
     end_date: input.end_date || null,
-    classroom_code: input.classroom_code,
     coordinator_id: input.coordinator_id || null,
     created_by: createdBy,
     created_at: new Date().toISOString(),
