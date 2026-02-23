@@ -14,20 +14,22 @@ import {
   ChevronUp,
   Calendar,
   Edit3,
-  Trash2,
   Save,
   Loader2,
   Users,
+  Lock,
 } from 'lucide-react'
 import {
   ClassroomWithDetails,
   fetchClassroomsForUser,
   createClassroom,
+  updateClassroom,
   fetchClassroomById,
   addMemberByEmail,
   removeClassroomMember,
+  isClassroomClosed,
 } from '@/lib/classrooms'
-import { supabase, UserProfile } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -39,7 +41,7 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 }
 
-export default function ClassroomCreationPage() {
+export default function ClassroomManagerPage() {
   const { user, profile } = useAuth()
   const isAdmin = profile?.role === 'admin'
 
@@ -62,15 +64,26 @@ export default function ClassroomCreationPage() {
   })
   const [creating, setCreating] = useState(false)
 
+  // Edit state
+  const [editingClassroom, setEditingClassroom] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+  })
+  const [saving, setSaving] = useState(false)
+
   // Add member
   const [addMemberEmailInput, setAddMemberEmailInput] = useState('')
   const [addingMember, setAddingMember] = useState<string | null>(null)
   const [memberError, setMemberError] = useState('')
 
+  // Load all classrooms (active + closed) for manager
   const loadClassrooms = useCallback(async () => {
     if (!user || !profile) return
     setLoading(true)
-    const data = await fetchClassroomsForUser(user.id, profile.role)
+    const data = await fetchClassroomsForUser(user.id, profile.role, true)
     setClassrooms(data)
     setLoading(false)
   }, [user, profile])
@@ -90,15 +103,45 @@ export default function ClassroomCreationPage() {
     if (expandedClassroom === classroomId) {
       setExpandedClassroom(null)
       setExpandedDetails(null)
+      setEditingClassroom(null)
     } else {
       setExpandedClassroom(classroomId)
       await loadClassroomDetails(classroomId)
     }
   }
 
+  const handleStartEdit = (classroom: ClassroomWithDetails) => {
+    setEditingClassroom(classroom.id)
+    setEditForm({
+      title: classroom.title,
+      description: classroom.description || '',
+      start_date: classroom.start_date || '',
+      end_date: classroom.end_date || '',
+    })
+  }
+
+  const handleSaveEdit = async (classroomId: string) => {
+    if (!editForm.title.trim()) return
+    setSaving(true)
+    const ok = await updateClassroom(classroomId, {
+      title: editForm.title.trim(),
+      description: editForm.description.trim() || null,
+      start_date: editForm.start_date || null,
+      end_date: editForm.end_date || null,
+    })
+    if (ok) {
+      setEditingClassroom(null)
+      await loadClassrooms()
+      if (expandedClassroom === classroomId) {
+        await loadClassroomDetails(classroomId)
+      }
+    }
+    setSaving(false)
+  }
+
   const handleCreateClassroom = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newClassroom.title.trim() || !user) return
+    if (!newClassroom.title.trim() || !user || !profile) return
     setCreating(true)
 
     // Resolve coordinator
@@ -118,6 +161,7 @@ export default function ClassroomCreationPage() {
       start_date: newClassroom.start_date || undefined,
       end_date: newClassroom.end_date || undefined,
       coordinator_id: coordinatorId,
+      creatorRole: profile.role,
     }, user.id)
 
     if (result) {
@@ -126,22 +170,20 @@ export default function ClassroomCreationPage() {
         await addMemberByEmail(result.id, newClassroom.teacher_email.trim(), 'teacher')
       }
 
-      // Add all principals and admins as default members
+      // Auto-add all principals and admins as members
       const { data: defaultMembers } = await supabase
         .from('profiles')
         .select('id')
         .in('role', ['principal', 'admin'])
 
       for (const member of defaultMembers ?? []) {
-        if (member.id !== user.id && member.id !== coordinatorId) {
-          await addMemberByEmail(result.id, '', 'admin').catch(() => {})
-          // Use direct add instead
-          const { error } = await supabase
-            .from('classroom_members')
-            .insert({ classroom_id: result.id, user_id: member.id, role: 'admin' })
-          if (error && error.code !== '23505') {
-            console.error('Failed to add default member:', error.message)
-          }
+        if (member.id === user.id) continue // creator already added
+        if (member.id === coordinatorId) continue // coordinator already added
+        const { error } = await supabase
+          .from('classroom_members')
+          .insert({ classroom_id: result.id, user_id: member.id, role: profile.role === 'principal' ? 'principal' : 'admin' })
+        if (error && error.code !== '23505') {
+          console.error('Failed to add default member:', error.message)
         }
       }
 
@@ -174,6 +216,10 @@ export default function ClassroomCreationPage() {
   }
 
   if (!user || !profile) return null
+
+  // Split classrooms into active and closed
+  const activeClassrooms = classrooms.filter(c => !isClassroomClosed(c))
+  const closedClassrooms = classrooms.filter(c => isClassroomClosed(c))
 
   return (
     <ProtectedLayout adminOnly>
@@ -334,127 +380,339 @@ export default function ClassroomCreationPage() {
             <BookOpen size={48} className="text-slate-300 mx-auto mb-4" />
             <h3 className="font-display text-xl font-bold text-slate-700 mb-2">No Classrooms Yet</h3>
             <p className="text-slate-500 mb-6">Create your first classroom to get started.</p>
-            <button onClick={() => setShowCreateForm(true)} className="btn-primary">
-              <Plus size={16} className="inline mr-1" /> Create Classroom
-            </button>
+            {isAdmin && (
+              <button onClick={() => setShowCreateForm(true)} className="btn-primary">
+                <Plus size={16} className="inline mr-1" /> Create Classroom
+              </button>
+            )}
           </div>
         ) : (
-          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
-            {classrooms.map(classroom => (
-              <motion.div key={classroom.id} variants={itemVariants} className="glass rounded-2xl overflow-hidden">
-                {/* Classroom Header */}
-                <div
-                  className="p-5 cursor-pointer hover:bg-slate-50/50 transition-colors"
-                  onClick={() => handleExpand(classroom.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold shadow-lg">
-                        {classroom.title.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="font-display text-lg font-bold text-slate-800">{classroom.title}</h3>
-                        {classroom.description && (
-                          <p className="text-sm text-slate-500">{classroom.description}</p>
-                        )}
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-slate-500 flex items-center gap-1">
-                            <Users size={12} /> {classroom.member_count || 0} members
-                          </span>
-                          {classroom.start_date && (
-                            <span className="text-xs text-slate-400 flex items-center gap-1">
-                              <Calendar size={12} />
-                              {new Date(classroom.start_date).toLocaleDateString()}
-                              {classroom.end_date && ` - ${new Date(classroom.end_date).toLocaleDateString()}`}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {expandedClassroom === classroom.id
-                      ? <ChevronUp size={20} className="text-slate-400" />
-                      : <ChevronDown size={20} className="text-slate-400" />
-                    }
-                  </div>
-                </div>
+          <div className="space-y-8">
+            {/* Active Classrooms */}
+            {activeClassrooms.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                  Active ({activeClassrooms.length})
+                </h2>
+                <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
+                  {activeClassrooms.map(classroom => (
+                    <ClassroomCard
+                      key={classroom.id}
+                      classroom={classroom}
+                      closed={false}
+                      isAdmin={isAdmin}
+                      expanded={expandedClassroom === classroom.id}
+                      expandedDetails={expandedClassroom === classroom.id ? expandedDetails : null}
+                      editing={editingClassroom === classroom.id}
+                      editForm={editForm}
+                      saving={saving}
+                      addMemberEmailInput={addMemberEmailInput}
+                      addingMember={addingMember}
+                      memberError={memberError}
+                      onExpand={() => handleExpand(classroom.id)}
+                      onStartEdit={() => handleStartEdit(classroom)}
+                      onCancelEdit={() => setEditingClassroom(null)}
+                      onSaveEdit={() => handleSaveEdit(classroom.id)}
+                      onEditFormChange={setEditForm}
+                      onAddMemberEmailChange={(v) => { setAddMemberEmailInput(v); setMemberError('') }}
+                      onAddMember={() => handleAddMember(classroom.id)}
+                      onRemoveMember={(uid, role) => handleRemoveMember(classroom.id, uid, role)}
+                    />
+                  ))}
+                </motion.div>
+              </div>
+            )}
 
-                {/* Expanded Content */}
-                <AnimatePresence>
-                  {expandedClassroom === classroom.id && expandedDetails && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="border-t border-slate-100 p-5">
-                        {/* Members */}
-                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Members</h4>
-                        <div className="space-y-2 mb-4">
-                          {expandedDetails.members.length === 0 ? (
-                            <p className="text-sm text-slate-500">No members yet</p>
-                          ) : (
-                            expandedDetails.members.map(member => (
-                              <div key={member.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50/80">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-xs font-bold">
-                                    {member.user?.full_name?.charAt(0) || '?'}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-slate-700">{member.user?.full_name || 'Unknown'}</p>
-                                    <p className="text-xs text-slate-500">{member.user?.email}</p>
-                                  </div>
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 capitalize">{member.role}</span>
-                                </div>
-                                {isAdmin && !['principal', 'admin'].includes(member.role) && (
-                                  <button
-                                    onClick={() => handleRemoveMember(classroom.id, member.user_id, member.role)}
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                    title="Remove member"
-                                  >
-                                    <UserMinus size={14} />
-                                  </button>
-                                )}
-                              </div>
-                            ))
-                          )}
-                        </div>
-
-                        {/* Add Member */}
-                        {isAdmin && (
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 relative">
-                              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                              <input
-                                type="email"
-                                value={addMemberEmailInput}
-                                onChange={e => { setAddMemberEmailInput(e.target.value); setMemberError('') }}
-                                className="input-field pl-10 py-2 text-sm"
-                                placeholder="Add member by email..."
-                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddMember(classroom.id) } }}
-                              />
-                            </div>
-                            <button
-                              onClick={() => handleAddMember(classroom.id)}
-                              disabled={addingMember === classroom.id}
-                              className="btn-primary py-2 text-sm"
-                            >
-                              {addingMember === classroom.id ? <Loader2 size={16} className="animate-spin" /> : 'Add'}
-                            </button>
-                          </div>
-                        )}
-                        {memberError && (
-                          <p className="text-xs text-rose-500 mt-2">{memberError}</p>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            ))}
-          </motion.div>
+            {/* Closed Classrooms */}
+            {closedClassrooms.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Lock size={14} />
+                  Closed ({closedClassrooms.length})
+                </h2>
+                <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
+                  {closedClassrooms.map(classroom => (
+                    <ClassroomCard
+                      key={classroom.id}
+                      classroom={classroom}
+                      closed={true}
+                      isAdmin={isAdmin}
+                      expanded={expandedClassroom === classroom.id}
+                      expandedDetails={expandedClassroom === classroom.id ? expandedDetails : null}
+                      editing={editingClassroom === classroom.id}
+                      editForm={editForm}
+                      saving={saving}
+                      addMemberEmailInput={addMemberEmailInput}
+                      addingMember={addingMember}
+                      memberError={memberError}
+                      onExpand={() => handleExpand(classroom.id)}
+                      onStartEdit={() => handleStartEdit(classroom)}
+                      onCancelEdit={() => setEditingClassroom(null)}
+                      onSaveEdit={() => handleSaveEdit(classroom.id)}
+                      onEditFormChange={setEditForm}
+                      onAddMemberEmailChange={(v) => { setAddMemberEmailInput(v); setMemberError('') }}
+                      onAddMember={() => handleAddMember(classroom.id)}
+                      onRemoveMember={(uid, role) => handleRemoveMember(classroom.id, uid, role)}
+                    />
+                  ))}
+                </motion.div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </ProtectedLayout>
+  )
+}
+
+// --- ClassroomCard sub-component ---
+
+interface EditFormState {
+  title: string
+  description: string
+  start_date: string
+  end_date: string
+}
+
+interface ClassroomCardProps {
+  classroom: ClassroomWithDetails
+  closed: boolean
+  isAdmin: boolean
+  expanded: boolean
+  expandedDetails: ClassroomWithDetails | null
+  editing: boolean
+  editForm: EditFormState
+  saving: boolean
+  addMemberEmailInput: string
+  addingMember: string | null
+  memberError: string
+  onExpand: () => void
+  onStartEdit: () => void
+  onCancelEdit: () => void
+  onSaveEdit: () => void
+  onEditFormChange: (form: EditFormState) => void
+  onAddMemberEmailChange: (v: string) => void
+  onAddMember: () => void
+  onRemoveMember: (userId: string, role: string) => void
+}
+
+function ClassroomCard({
+  classroom,
+  closed,
+  isAdmin,
+  expanded,
+  expandedDetails,
+  editing,
+  editForm,
+  saving,
+  addMemberEmailInput,
+  addingMember,
+  memberError,
+  onExpand,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onEditFormChange,
+  onAddMemberEmailChange,
+  onAddMember,
+  onRemoveMember,
+}: ClassroomCardProps) {
+  return (
+    <motion.div variants={itemVariants} className={`glass rounded-2xl overflow-hidden ${closed ? 'opacity-75' : ''}`}>
+      {/* Header */}
+      <div
+        className="p-5 cursor-pointer hover:bg-slate-50/50 transition-colors"
+        onClick={onExpand}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-lg ${closed ? 'bg-slate-400' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+              {closed ? <Lock size={20} /> : classroom.title.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-display text-lg font-bold text-slate-800">{classroom.title}</h3>
+                {closed && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 font-medium">Closed</span>
+                )}
+              </div>
+              {classroom.description && (
+                <p className="text-sm text-slate-500">{classroom.description}</p>
+              )}
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-xs text-slate-500 flex items-center gap-1">
+                  <Users size={12} /> {classroom.member_count || 0} members
+                </span>
+                {classroom.start_date && (
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    <Calendar size={12} />
+                    {new Date(classroom.start_date).toLocaleDateString()}
+                    {classroom.end_date && ` - ${new Date(classroom.end_date).toLocaleDateString()}`}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={e => { e.stopPropagation(); onStartEdit() }}
+                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Edit classroom"
+              >
+                <Edit3 size={15} />
+              </button>
+            )}
+            {expanded
+              ? <ChevronUp size={20} className="text-slate-400" />
+              : <ChevronDown size={20} className="text-slate-400" />
+            }
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded Content */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-slate-100 p-5">
+              {/* Edit Form */}
+              {editing && isAdmin && (
+                <div className="mb-5 p-4 bg-blue-50/60 rounded-xl border border-blue-100">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <Edit3 size={14} /> Edit Classroom
+                    {closed && <span className="text-xs font-normal text-amber-600">(Closed — admin only)</span>}
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Title</label>
+                      <input
+                        type="text"
+                        value={editForm.title}
+                        onChange={e => onEditFormChange({ ...editForm, title: e.target.value })}
+                        className="input-field text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+                      <textarea
+                        value={editForm.description}
+                        onChange={e => onEditFormChange({ ...editForm, description: e.target.value })}
+                        className="input-field text-sm resize-none"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">From Date</label>
+                        <input
+                          type="date"
+                          value={editForm.start_date}
+                          onChange={e => onEditFormChange({ ...editForm, start_date: e.target.value })}
+                          className="input-field text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">To Date</label>
+                        <input
+                          type="date"
+                          value={editForm.end_date}
+                          onChange={e => onEditFormChange({ ...editForm, end_date: e.target.value })}
+                          className="input-field text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end pt-1">
+                      <button onClick={onCancelEdit} className="btn-ghost text-sm py-1.5">Cancel</button>
+                      <button
+                        onClick={onSaveEdit}
+                        disabled={saving}
+                        className="btn-primary text-sm py-1.5 flex items-center gap-1.5"
+                      >
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Members */}
+              <h4 className="text-sm font-semibold text-slate-700 mb-3">Members</h4>
+              <div className="space-y-2 mb-4">
+                {!expandedDetails ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <Loader2 size={14} className="animate-spin" /> Loading members...
+                  </div>
+                ) : expandedDetails.members.length === 0 ? (
+                  <p className="text-sm text-slate-500">No members yet</p>
+                ) : (
+                  expandedDetails.members.map(member => (
+                    <div key={member.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50/80">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-xs font-bold">
+                          {member.user?.full_name?.charAt(0) || '?'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">{member.user?.full_name || 'Unknown'}</p>
+                          <p className="text-xs text-slate-500">{member.user?.email}</p>
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 capitalize">{member.role}</span>
+                      </div>
+                      {isAdmin && !['principal', 'admin'].includes(member.role) && !closed && (
+                        <button
+                          onClick={() => onRemoveMember(member.user_id, member.role)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Remove member"
+                        >
+                          <UserMinus size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Add Member — only for active classrooms or admin on closed */}
+              {isAdmin && (!closed) && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={addMemberEmailInput}
+                      onChange={e => onAddMemberEmailChange(e.target.value)}
+                      className="input-field pl-10 py-2 text-sm"
+                      placeholder="Add member by email..."
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAddMember() } }}
+                    />
+                  </div>
+                  <button
+                    onClick={onAddMember}
+                    disabled={addingMember === classroom.id}
+                    className="btn-primary py-2 text-sm"
+                  >
+                    {addingMember === classroom.id ? <Loader2 size={16} className="animate-spin" /> : 'Add'}
+                  </button>
+                </div>
+              )}
+              {memberError && (
+                <p className="text-xs text-rose-500 mt-2">{memberError}</p>
+              )}
+              {closed && !isAdmin && (
+                <p className="text-xs text-slate-400 flex items-center gap-1 mt-2">
+                  <Lock size={12} /> This classroom is closed. Contact an admin to make changes.
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }

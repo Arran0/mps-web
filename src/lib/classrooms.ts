@@ -127,6 +127,15 @@ export interface FileWithProgress extends ClassroomFile {
   submissions: FileSubmission[]
 }
 
+// --- Helpers ---
+
+/** Returns true if the classroom's end_date is in the past (classroom is closed). */
+export function isClassroomClosed(classroom: Pick<Classroom, 'end_date'>): boolean {
+  if (!classroom.end_date) return false
+  const today = new Date().toISOString().split('T')[0]
+  return classroom.end_date < today
+}
+
 // --- Classroom CRUD ---
 
 export async function createClassroom(input: {
@@ -135,8 +144,11 @@ export async function createClassroom(input: {
   start_date?: string
   end_date?: string
   coordinator_id?: string
+  creatorRole?: string
 }, createdBy: string): Promise<Classroom | null> {
   const id = crypto.randomUUID()
+  const classroomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+
   const { error } = await supabase
     .from('classrooms')
     .insert({
@@ -147,6 +159,7 @@ export async function createClassroom(input: {
       end_date: input.end_date || null,
       coordinator_id: input.coordinator_id || null,
       created_by: createdBy,
+      classroom_code: classroomCode,
     })
 
   if (error) {
@@ -154,8 +167,11 @@ export async function createClassroom(input: {
     return null
   }
 
-  // Add creator as member
-  await addClassroomMember(id, createdBy, 'teacher')
+  // Add creator as member with their actual role (admin/principal/teacher)
+  const creatorRole = (['admin', 'principal', 'teacher', 'coordinator'].includes(input.creatorRole || '')
+    ? input.creatorRole
+    : 'teacher') as ClassroomMemberRole
+  await addClassroomMember(id, createdBy, creatorRole)
 
   // Add coordinator if specified and different from creator
   if (input.coordinator_id && input.coordinator_id !== createdBy) {
@@ -175,13 +191,49 @@ export async function createClassroom(input: {
   }
 }
 
-export async function fetchClassroomsForUser(userId: string, userRole: UserRole): Promise<ClassroomWithDetails[]> {
+export async function updateClassroom(classroomId: string, input: {
+  title?: string
+  description?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  coordinator_id?: string | null
+}): Promise<boolean> {
+  const { error } = await supabase
+    .from('classrooms')
+    .update({
+      ...input,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', classroomId)
+
+  if (error) {
+    console.error('Failed to update classroom:', error.message)
+    return false
+  }
+  return true
+}
+
+/**
+ * Fetch classrooms for a user.
+ * - includeAll: if true, returns all classrooms including closed ones (for admin manager).
+ *   If false (default), only returns active classrooms (end_date is null or in the future).
+ */
+export async function fetchClassroomsForUser(userId: string, userRole: UserRole, includeAll = false): Promise<ClassroomWithDetails[]> {
+  const today = new Date().toISOString().split('T')[0]
+
   // Principals and admins see all classrooms
   if (['principal', 'admin'].includes(userRole)) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('classrooms')
       .select('*')
       .order('created_at', { ascending: false })
+
+    if (!includeAll) {
+      // Only active classrooms: no end_date OR end_date >= today
+      query = query.or(`end_date.is.null,end_date.gte.${today}`)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('Failed to fetch classrooms:', error.message)
@@ -207,7 +259,7 @@ export async function fetchClassroomsForUser(userId: string, userRole: UserRole)
     }))
   }
 
-  // Others see classrooms they're members of
+  // Others see only classrooms they're members of
   const { data: memberships, error: memErr } = await supabase
     .from('classroom_members')
     .select('classroom_id')
@@ -219,11 +271,17 @@ export async function fetchClassroomsForUser(userId: string, userRole: UserRole)
 
   const classroomIds = memberships.map((m: { classroom_id: string }) => m.classroom_id)
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('classrooms')
     .select('*')
     .in('id', classroomIds)
     .order('created_at', { ascending: false })
+
+  if (!includeAll) {
+    query = query.or(`end_date.is.null,end_date.gte.${today}`)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Failed to fetch classrooms:', error.message)
