@@ -1,98 +1,161 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { ArrowLeft, BookOpen, ClipboardList, FileText, GraduationCap, MessageSquare } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { fetchClassroomById, ClassroomWithDetails } from '@/lib/classrooms'
+import { isStaffRole } from '@/lib/supabase'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import {
+  GraduationCap,
+  BookOpen,
+  BarChart2,
+  ChevronRight,
+  Construction,
+  Users,
+} from 'lucide-react'
+import { fetchClassroomsForUser, ClassroomWithDetails } from '@/lib/classrooms'
 
-type ClassroomSection = {
-  id: 'coursework' | 'homework' | 'assessments' | 'discussion'
-  title: string
-  icon: React.ReactNode
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
 }
 
-const classroomSections: ClassroomSection[] = [
-  { id: 'coursework', title: 'Course Work', icon: <GraduationCap size={18} /> },
-  { id: 'homework', title: 'Home Work', icon: <FileText size={18} /> },
-  { id: 'assessments', title: 'Assessments', icon: <ClipboardList size={18} /> },
-  { id: 'discussion', title: 'Discussion', icon: <MessageSquare size={18} /> },
-]
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0 },
+}
 
-export default function ClassroomDetailPage() {
-  const params = useParams()
-  const classroomId = params.id as string
+export default function AcademicsPage() {
   const { user, profile } = useAuth()
-  const [classroom, setClassroom] = useState<ClassroomWithDetails | null>(null)
+  const [classrooms, setClassrooms] = useState<ClassroomWithDetails[]>([])
   const [loading, setLoading] = useState(true)
 
-  const viewType = useMemo(() => {
-    if (!profile) return null
-    const staffRoles = ['teacher', 'coordinator', 'principal', 'admin']
-    return staffRoles.includes(profile.role) ? 'Staff' : 'Student'
-  }, [profile])
+  const isStaff = profile ? isStaffRole(profile.role) : false
 
-  const loadClassroom = useCallback(async () => {
+  const loadData = useCallback(async () => {
+    if (!user || !profile) return
     setLoading(true)
     try {
-      const data = await fetchClassroomById(classroomId)
-      setClassroom(data)
-    } catch (error) {
-      console.error('Failed to load classroom:', error)
-      setClassroom(null)
-    } finally {
-      setLoading(false)
+      const rooms = await fetchClassroomsForUser(user.id, profile.role)
+      setClassrooms(rooms)
+    } catch (err) {
+      console.error('Failed to load academics data:', err)
     }
-  }, [classroomId])
+    setLoading(false)
+  }, [user, profile])
 
   useEffect(() => {
-    loadClassroom()
-  }, [loadClassroom])
+    loadData()
+  }, [loadData])
 
   if (!user || !profile) return null
 
   return (
     <ProtectedLayout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="spinner mx-auto mb-3" />
-            <p className="text-sm text-slate-500">Loading classroom...</p>
-          </div>
-        ) : !classroom ? (
-          <div className="text-center py-12">
-            <BookOpen size={36} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">Classroom not found.</p>
-            <Link href="/academics" className="text-cyan-600 text-sm mt-2 inline-block">
-              Back to Academics
-            </Link>
-          </div>
-        ) : (
-          <>
-            <Link href="/academics" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4">
-              <ArrowLeft size={16} /> Back to Academics
-            </Link>
+        <motion.div variants={containerVariants} initial="hidden" animate="visible">
 
-            <div className="mb-6">
-              <h1 className="font-display text-2xl font-bold text-slate-800">{classroom.title}</h1>
-              <p className="text-sm text-slate-500 mt-1">{viewType} view</p>
+          {/* Page Header */}
+          <motion.div variants={itemVariants} className="mb-10">
+            <div className="flex items-center gap-3 mb-2">
+              <div
+                className="p-2.5 rounded-xl shadow-md"
+                style={{ background: 'linear-gradient(135deg, #06b6d4, #14b8a6)' }}
+              >
+                <GraduationCap className="text-white" size={24} />
+              </div>
+              <h1 className="font-display text-3xl font-bold text-slate-800">Academics</h1>
             </div>
+            <p className="text-slate-500 ml-14">
+              {isStaff
+                ? 'Manage classrooms and academic activities.'
+                : 'View your classrooms and academic progress.'}
+            </p>
+          </motion.div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {classroomSections.map((section) => (
-                <div key={section.id} className="glass rounded-2xl p-5 border border-slate-200/80">
-                  <div className="flex items-center gap-2 text-slate-800 mb-2">
-                    {section.icon}
-                    <h2 className="font-semibold">{section.title}</h2>
-                  </div>
-                  <p className="text-sm text-slate-500">Under construction.</p>
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="spinner mx-auto mb-3" />
+              <p className="text-sm text-slate-500">Loading...</p>
+            </div>
+          ) : (
+            <div className="space-y-10">
+
+              {/* ── Classrooms Section ── */}
+              <motion.section variants={itemVariants}>
+                <div className="flex items-center gap-2 mb-4">
+                  <BookOpen size={20} className="text-cyan-600" />
+                  <h2 className="font-display text-xl font-bold text-slate-800">Classrooms</h2>
                 </div>
-              ))}
+
+                {classrooms.length === 0 ? (
+                  <div className="glass rounded-2xl p-10 text-center">
+                    <BookOpen size={40} className="text-slate-200 mx-auto mb-3" />
+                    <p className="text-slate-500 font-medium">No classrooms yet</p>
+                    <p className="text-sm text-slate-400 mt-1">
+                      You are not enrolled in any classrooms.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {classrooms.map((room) => (
+                      <motion.div key={room.id} variants={itemVariants}>
+                        <Link href={`/academics/classrooms/${room.id}`}>
+                          <div className="glass rounded-2xl px-5 py-4 flex items-center justify-between card-hover group transition-all duration-200">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center text-white shadow-sm shrink-0">
+                                <BookOpen size={18} />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-slate-800 group-hover:text-cyan-700 transition-colors">
+                                  {room.title}
+                                </p>
+                                {room.description && (
+                                  <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
+                                    {room.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="hidden sm:flex items-center gap-1 text-xs text-slate-400">
+                                <Users size={13} /> {room.member_count ?? 0}
+                              </span>
+                              <ChevronRight
+                                size={18}
+                                className="text-slate-300 group-hover:text-cyan-500 group-hover:translate-x-0.5 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.section>
+
+              {/* ── Scores Section ── */}
+              <motion.section variants={itemVariants}>
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart2 size={20} className="text-amber-500" />
+                  <h2 className="font-display text-xl font-bold text-slate-800">Scores</h2>
+                </div>
+
+                <div className="glass rounded-2xl p-10 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
+                    <Construction size={28} className="text-amber-400" />
+                  </div>
+                  <p className="font-semibold text-slate-700 text-lg">Under Construction</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Score reports and grade summaries are coming soon.
+                  </p>
+                </div>
+              </motion.section>
+
             </div>
-          </>
-        )}
+          )}
+        </motion.div>
       </div>
     </ProtectedLayout>
   )
