@@ -1,12 +1,17 @@
 import { supabase, UserProfile, UserRole } from './supabase'
 
-// --- Types ---
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** 'student' | 'staff' | 'both' — derived from audience rows, stored for RLS */
+export type AnnouncementType = 'student' | 'staff' | 'both'
 
 export interface Announcement {
   id: string
   title: string
   content: string
-  type: 'student' | 'staff'
+  type: AnnouncementType
   created_by: string
   created_at: string
   updated_at: string
@@ -15,9 +20,15 @@ export interface Announcement {
 export interface AnnouncementAudience {
   id: string
   announcement_id: string
+  /** Set for student targeting */
   grade: number | null
+  /** null = all sections of that grade */
   section: string | null
+  /** true = targets all students school-wide */
+  all_students: boolean
+  /** Set for staff targeting (specific team) */
   team_id: string | null
+  /** true = targets all staff school-wide */
   all_teams: boolean
   team?: { id: string; name: string } | null
 }
@@ -27,57 +38,68 @@ export interface AnnouncementWithDetails extends Announcement {
   creator?: UserProfile
 }
 
+/**
+ * Input for creating a new announcement.
+ * Each entry in `audiences` can describe either a student or staff audience row.
+ * Multiple rows can be included to target multiple grades/sections/teams.
+ */
 export interface NewAnnouncementInput {
   title: string
   content: string
-  type: 'student' | 'staff'
   audiences: {
     grade?: number
-    section?: string
+    section?: string       // undefined = all sections for that grade
+    all_students?: boolean
     team_id?: string
     all_teams?: boolean
   }[]
 }
 
-// --- CRUD Functions ---
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
 
 /**
- * Create an announcement with its audience targets.
- * Inserts the announcement row first, then bulk-inserts all audience rows.
- * Returns the created announcement, or null if an error occurred.
+ * Create an announcement with its audience rows.
+ * The `type` ('student' | 'staff' | 'both') is derived automatically from the
+ * audience entries so callers don't need to specify it.
  */
 export async function createAnnouncement(
   input: NewAnnouncementInput,
   createdBy: string
 ): Promise<Announcement | null> {
-  // Generate ID client-side so we don't need to SELECT back after INSERT
-  // (avoids issues where INSERT succeeds but SELECT RLS blocks the read-back)
   const announcementId = crypto.randomUUID()
 
-  // 1. Insert the announcement
+  // Derive type from audiences
+  const hasStudentAudience = input.audiences.some(a => a.grade != null || a.all_students)
+  const hasStaffAudience   = input.audiences.some(a => a.team_id   || a.all_teams)
+  const type: AnnouncementType =
+    hasStudentAudience && hasStaffAudience ? 'both' :
+    hasStaffAudience ? 'staff' : 'student'
+
   const { error: announcementError } = await supabase
     .from('announcements')
     .insert({
       id: announcementId,
       title: input.title,
       content: input.content,
-      type: input.type,
+      type,
       created_by: createdBy,
     })
 
   if (announcementError) {
-    console.error('Failed to create announcement:', announcementError.message, announcementError.details, announcementError.hint, announcementError.code)
+    console.error('Failed to create announcement:', announcementError)
     return null
   }
 
-  // 2. Insert audience rows separately
   if (input.audiences.length > 0) {
-    const audienceRows = input.audiences.map((a) => ({
+    const audienceRows = input.audiences.map(a => ({
       announcement_id: announcementId,
-      grade: a.grade ?? null,
-      section: a.section ?? null,
-      team_id: a.team_id ?? null,
-      all_teams: a.all_teams ?? false,
+      grade:        a.grade        ?? null,
+      section:      a.section      ?? null,
+      all_students: a.all_students ?? false,
+      team_id:      a.team_id      ?? null,
+      all_teams:    a.all_teams    ?? false,
     }))
 
     const { error: audienceError } = await supabase
@@ -85,8 +107,8 @@ export async function createAnnouncement(
       .insert(audienceRows)
 
     if (audienceError) {
-      console.error('Failed to create announcement audiences:', audienceError.message, audienceError.details, audienceError.hint, audienceError.code)
-      // Roll back: delete the orphaned announcement
+      console.error('Failed to create announcement audiences:', audienceError)
+      // Rollback orphaned announcement
       await supabase.from('announcements').delete().eq('id', announcementId)
       return null
     }
@@ -96,17 +118,14 @@ export async function createAnnouncement(
     id: announcementId,
     title: input.title,
     content: input.content,
-    type: input.type,
+    type,
     created_by: createdBy,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-  } as Announcement
+  }
 }
 
-/**
- * Delete an announcement by ID.
- * The audience rows are removed automatically via ON DELETE CASCADE.
- */
+/** Delete an announcement (cascade removes audience rows). */
 export async function deleteAnnouncement(announcementId: string): Promise<void> {
   const { error } = await supabase
     .from('announcements')
@@ -118,217 +137,149 @@ export async function deleteAnnouncement(announcementId: string): Promise<void> 
   }
 }
 
-/**
- * Fetch student-type announcements visible to a particular student.
- *
- * An announcement matches when ANY of its audience rows satisfies:
- *   - grade matches AND (section matches OR audience section is null meaning "all sections")
- */
-export async function fetchStudentAnnouncements(
-  grade: number,
-  section: string
-): Promise<AnnouncementWithDetails[]> {
-  // Step 1: Find audience rows that target this student's grade/section
-  const { data: matchingAudiences, error: audienceError } = await supabase
-    .from('announcement_audiences')
-    .select('announcement_id')
-    .eq('grade', grade)
-    .or(`section.eq.${section},section.is.null`)
+// ---------------------------------------------------------------------------
+// Fetch helpers (shared select fragment)
+// ---------------------------------------------------------------------------
 
-  if (audienceError) {
-    throw new Error(
-      `Failed to fetch student announcement audiences: ${audienceError.message}`
-    )
-  }
-
-  if (!matchingAudiences || matchingAudiences.length === 0) {
-    return []
-  }
-
-  const announcementIds = [
-    ...new Set(matchingAudiences.map((a) => a.announcement_id)),
-  ]
-
-  // Step 2: Fetch the full announcements with audiences and creator
-  const { data: announcements, error: announcementsError } = await supabase
-    .from('announcements')
-    .select(
-      `*,
-      audiences:announcement_audiences(*, team:teams(id, name)),
-      creator:profiles!announcements_created_by_fkey(*)`
-    )
-    .in('id', announcementIds)
-    .eq('type', 'student')
-    .order('created_at', { ascending: false })
-
-  if (announcementsError) {
-    throw new Error(
-      `Failed to fetch student announcements: ${announcementsError.message}`
-    )
-  }
-
-  return (announcements ?? []) as AnnouncementWithDetails[]
-}
+const ANNOUNCEMENT_SELECT = `
+  *,
+  audiences:announcement_audiences(*, team:teams(id, name)),
+  creator:profiles!announcements_created_by_fkey(*)
+` as const
 
 /**
- * Fetch staff-type announcements visible to a given staff member.
+ * Fetch all announcements visible to the current user.
  *
- * - Teachers see staff announcements whose audience targets one of their teams
- *   OR has all_teams = true.
- * - Coordinators, principals, and admins see ALL staff announcements.
+ * Visibility rules (enforced both by RLS and client-side logic):
+ *   - coordinator / principal / admin → see ALL announcements
+ *   - teacher → sees 'staff' and 'both' announcements that target their team
+ *               or have all_teams = true
+ *   - student  → sees 'student' and 'both' announcements that target their
+ *               grade/section (or have all_students = true)
  */
-export async function fetchStaffAnnouncements(
+export async function fetchAnnouncementsForUser(
   userId: string,
-  userRole: UserRole
+  userRole: UserRole,
+  userGrade?: number,
+  userSection?: string
 ): Promise<AnnouncementWithDetails[]> {
-  // Coordinators, principals, and admins see everything
+
+  // ── Coordinator / Principal / Admin: see everything ─────────────────────
   if (['coordinator', 'principal', 'admin'].includes(userRole)) {
     const { data, error } = await supabase
       .from('announcements')
-      .select(
-        `*,
-        audiences:announcement_audiences(*, team:teams(id, name)),
-        creator:profiles!announcements_created_by_fkey(*)`
-      )
-      .eq('type', 'staff')
+      .select(ANNOUNCEMENT_SELECT)
       .order('created_at', { ascending: false })
 
-    if (error) {
-      throw new Error(
-        `Failed to fetch staff announcements: ${error.message}`
-      )
-    }
-
+    if (error) throw new Error(`Failed to fetch announcements: ${error.message}`)
     return (data ?? []) as AnnouncementWithDetails[]
   }
 
-  // Teachers: find their team IDs first
-  const { data: userTeams, error: teamsError } = await supabase
-    .from('team_members')
-    .select('team_id')
-    .eq('user_id', userId)
+  // ── Teacher: staff (or 'both') announcements for their teams ─────────────
+  if (userRole === 'teacher') {
+    const { data: memberships } = await supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('user_id', userId)
 
-  if (teamsError) {
-    throw new Error(
-      `Failed to fetch user teams: ${teamsError.message}`
-    )
+    const teamIds = (memberships ?? []).map(m => m.team_id)
+
+    // Build OR filter: all_teams = true OR team_id in user's teams
+    const orFilter = teamIds.length > 0
+      ? `all_teams.eq.true,team_id.in.(${teamIds.join(',')})`
+      : `all_teams.eq.true`
+
+    const { data: matchingAudiences, error: audienceError } = await supabase
+      .from('announcement_audiences')
+      .select('announcement_id')
+      .or(orFilter)
+
+    if (audienceError) throw new Error(`Failed to fetch audiences: ${audienceError.message}`)
+
+    const ids = [...new Set((matchingAudiences ?? []).map(a => a.announcement_id))]
+    if (ids.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('announcements')
+      .select(ANNOUNCEMENT_SELECT)
+      .in('id', ids)
+      .in('type', ['staff', 'both'])
+      .order('created_at', { ascending: false })
+
+    if (error) throw new Error(`Failed to fetch announcements: ${error.message}`)
+    return (data ?? []) as AnnouncementWithDetails[]
   }
 
-  const teamIds = (userTeams ?? []).map((t) => t.team_id)
+  // ── Student: student (or 'both') announcements for their grade/section ───
+  if (userRole === 'student' && userGrade != null) {
+    // Collect matching announcement IDs from two types of audience rows:
+    const matchedIds = new Set<string>()
 
-  // Find audiences that target the user's teams OR all staff
-  const orFilter = teamIds.length > 0
-    ? `all_teams.eq.true,team_id.in.(${teamIds.join(',')})`
-    : `all_teams.eq.true`
+    // 1. Rows with all_students = true
+    const { data: allStudentRows } = await supabase
+      .from('announcement_audiences')
+      .select('announcement_id')
+      .eq('all_students', true)
+    ;(allStudentRows ?? []).forEach(r => matchedIds.add(r.announcement_id))
 
-  const { data: matchingAudiences, error: audienceError } = await supabase
-    .from('announcement_audiences')
-    .select('announcement_id')
-    .or(orFilter)
+    // 2. Rows targeting this grade + matching section (null section = all sections)
+    const sectionFilter = userSection
+      ? `section.is.null,section.eq.${userSection}`
+      : `section.is.null`
 
-  if (audienceError) {
-    throw new Error(
-      `Failed to fetch staff announcement audiences: ${audienceError.message}`
-    )
+    const { data: gradeRows } = await supabase
+      .from('announcement_audiences')
+      .select('announcement_id')
+      .eq('grade', userGrade)
+      .or(sectionFilter)
+    ;(gradeRows ?? []).forEach(r => matchedIds.add(r.announcement_id))
+
+    const ids = Array.from(matchedIds)
+    if (ids.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('announcements')
+      .select(ANNOUNCEMENT_SELECT)
+      .in('id', ids)
+      .in('type', ['student', 'both'])
+      .order('created_at', { ascending: false })
+
+    if (error) throw new Error(`Failed to fetch announcements: ${error.message}`)
+    return (data ?? []) as AnnouncementWithDetails[]
   }
 
-  if (!matchingAudiences || matchingAudiences.length === 0) {
-    return []
-  }
-
-  const announcementIds = [
-    ...new Set(matchingAudiences.map((a) => a.announcement_id)),
-  ]
-
-  const { data: announcements, error: announcementsError } = await supabase
-    .from('announcements')
-    .select(
-      `*,
-      audiences:announcement_audiences(*, team:teams(id, name)),
-      creator:profiles!announcements_created_by_fkey(*)`
-    )
-    .in('id', announcementIds)
-    .eq('type', 'staff')
-    .order('created_at', { ascending: false })
-
-  if (announcementsError) {
-    throw new Error(
-      `Failed to fetch staff announcements: ${announcementsError.message}`
-    )
-  }
-
-  return (announcements ?? []) as AnnouncementWithDetails[]
+  return []
 }
 
-/**
- * Fetch ALL student-type announcements (no audience filtering).
- * Used by staff (teachers, coordinators, principals, admins) to see
- * every student announcement that has been posted.
- */
-export async function fetchStudentAnnouncementsForStaff(): Promise<
-  AnnouncementWithDetails[]
-> {
-  const { data, error } = await supabase
-    .from('announcements')
-    .select(
-      `*,
-      audiences:announcement_audiences(*, team:teams(id, name)),
-      creator:profiles!announcements_created_by_fkey(*)`
-    )
-    .eq('type', 'student')
-    .order('created_at', { ascending: false })
+// ---------------------------------------------------------------------------
+// Team helpers (used by the create form)
+// ---------------------------------------------------------------------------
 
-  if (error) {
-    throw new Error(
-      `Failed to fetch student announcements for staff: ${error.message}`
-    )
-  }
-
-  return (data ?? []) as AnnouncementWithDetails[]
-}
-
-/**
- * Fetch the teams a user belongs to (id and name).
- * Useful for building the audience picker in the announcement creation form.
- */
+/** Fetch the teams a specific user belongs to. */
 export async function fetchTeamsForUser(
   userId: string
 ): Promise<{ id: string; name: string }[]> {
-  const { data: memberships, error: membershipsError } = await supabase
+  const { data: memberships, error } = await supabase
     .from('team_members')
     .select('team_id')
     .eq('user_id', userId)
 
-  if (membershipsError) {
-    throw new Error(
-      `Failed to fetch team memberships: ${membershipsError.message}`
-    )
-  }
-
-  if (!memberships || memberships.length === 0) {
-    return []
-  }
-
-  const teamIds = memberships.map((m) => m.team_id)
+  if (error) throw new Error(`Failed to fetch team memberships: ${error.message}`)
+  if (!memberships || memberships.length === 0) return []
 
   const { data: teams, error: teamsError } = await supabase
     .from('teams')
     .select('id, name')
-    .in('id', teamIds)
+    .in('id', memberships.map(m => m.team_id))
     .order('name', { ascending: true })
 
-  if (teamsError) {
-    throw new Error(`Failed to fetch teams: ${teamsError.message}`)
-  }
-
+  if (teamsError) throw new Error(`Failed to fetch teams: ${teamsError.message}`)
   return (teams ?? []) as { id: string; name: string }[]
 }
 
-/**
- * Fetch all teams (for principals and admins).
- */
+/** Fetch all teams — for principal / admin audience pickers. */
 export async function fetchAllTeams(): Promise<{ id: string; name: string }[]> {
-  const { data: teams, error } = await supabase
+  const { data, error } = await supabase
     .from('teams')
     .select('id, name')
     .order('name', { ascending: true })
@@ -337,76 +288,5 @@ export async function fetchAllTeams(): Promise<{ id: string; name: string }[]> {
     console.error('Failed to fetch all teams:', error)
     return []
   }
-
-  return (teams ?? []) as { id: string; name: string }[]
-}
-
-/**
- * Fetch all announcements visible to a user based on their role.
- *
- * - Students: Only student-type announcements targeting their grade/section
- * - Teachers: All announcements targeting their teams OR their grade/section
- * - Coordinators/Principals/Admins: ALL announcements
- */
-export async function fetchAnnouncementsForUser(
-  userId: string,
-  userRole: UserRole,
-  userGrade?: number,
-  userSection?: string
-): Promise<AnnouncementWithDetails[]> {
-  console.log('[fetchAnnouncementsForUser] Called with:', { userId, userRole, userGrade, userSection })
-
-  // Coordinators, principals, and admins see ALL announcements
-  if (['coordinator', 'principal', 'admin'].includes(userRole)) {
-    console.log('[fetchAnnouncementsForUser] Fetching ALL announcements for coordinator/principal/admin')
-    const { data, error } = await supabase
-      .from('announcements')
-      .select(
-        `*,
-        audiences:announcement_audiences(*, team:teams(id, name)),
-        creator:profiles!announcements_created_by_fkey(*)`
-      )
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('[fetchAnnouncementsForUser] Error:', error)
-      throw new Error(`Failed to fetch announcements: ${error.message}`)
-    }
-
-    console.log('[fetchAnnouncementsForUser] Fetched announcements:', data?.length || 0, 'items')
-    return (data ?? []) as AnnouncementWithDetails[]
-  }
-
-  // Students see only student-type announcements for their grade/section
-  if (userRole === 'student' && userGrade != null) {
-    console.log('[fetchAnnouncementsForUser] Fetching student announcements for grade:', userGrade, 'section:', userSection)
-    return fetchStudentAnnouncements(userGrade, userSection || '')
-  }
-
-  // Teachers see announcements relevant to them:
-  // 1. Student announcements (they can see all via RLS)
-  // 2. Staff announcements for their teams or all_teams=true
-  if (userRole === 'teacher') {
-    console.log('[fetchAnnouncementsForUser] Fetching ALL announcements for teacher')
-    const { data, error } = await supabase
-      .from('announcements')
-      .select(
-        `*,
-        audiences:announcement_audiences(*, team:teams(id, name)),
-        creator:profiles!announcements_created_by_fkey(*)`
-      )
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('[fetchAnnouncementsForUser] Error:', error)
-      throw new Error(`Failed to fetch announcements: ${error.message}`)
-    }
-
-    console.log('[fetchAnnouncementsForUser] Fetched announcements:', data?.length || 0, 'items')
-    // RLS already filters what teachers can see
-    return (data ?? []) as AnnouncementWithDetails[]
-  }
-
-  console.log('[fetchAnnouncementsForUser] No role matched, returning empty array')
-  return []
+  return (data ?? []) as { id: string; name: string }[]
 }

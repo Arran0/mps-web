@@ -20,13 +20,63 @@ interface NewAnnouncementFormProps {
   onCreated: () => void
   currentUserId: string
   currentUserRole: UserRole
+  /** Teams the current coordinator belongs to (for coordinator audience) */
   userTeams?: { id: string; name: string }[]
+  /** All teams in the school (for principal / admin audience) */
   allTeams?: { id: string; name: string }[]
+  /** Maps team IDs to their grade range (used to limit coordinator's grade picker) */
   teamGradeRanges?: { teamId: string; grades: number[] }[]
 }
 
 const ALL_GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
-const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F']
+const SECTIONS   = ['A', 'B', 'C', 'D', 'E', 'F']
+
+// ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
+
+function Checkbox({ checked, className = '' }: { checked: boolean; className?: string }) {
+  return (
+    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+      checked ? 'bg-mps-blue-500 border-mps-blue-500' : 'border-slate-300'
+    } ${className}`}>
+      {checked && <Check size={12} className="text-white" />}
+    </div>
+  )
+}
+
+function SectionBtn({
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+        active
+          ? 'bg-mps-blue-500 text-white shadow-sm'
+          : disabled
+          ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function NewAnnouncementForm({
   isOpen,
@@ -35,34 +85,40 @@ export default function NewAnnouncementForm({
   currentUserId,
   currentUserRole,
   userTeams = [],
-  allTeams = [],
+  allTeams  = [],
   teamGradeRanges = [],
 }: NewAnnouncementFormProps) {
-  const [title, setTitle] = useState('')
+  // ── Permissions ──────────────────────────────────────────────────────────
+  const isCoordinator     = currentUserRole === 'coordinator'
+  const isPrincipalOrAdmin = currentUserRole === 'principal' || currentUserRole === 'admin'
+  // Only coordinator / principal / admin reach this form
+
+  // ── Form state ───────────────────────────────────────────────────────────
+  const [title,   setTitle]   = useState('')
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]     = useState<string | null>(null)
 
-  // Audience type toggle: 'student' | 'staff' — only one at a time
-  const [audienceType, setAudienceType] = useState<'student' | 'staff'>('student')
+  // ── Audience type (coordinator: exclusive toggle; principal/admin: multi-select) ──
+  // 'student' | 'staff' | 'both'  — for coordinator only 'student' or 'staff'
+  const [audienceMode, setAudienceMode] = useState<'student' | 'staff'>('student')
 
   // Student audience state
-  const [allStudents, setAllStudents] = useState(false)
-  const [selectedGrades, setSelectedGrades] = useState<number[]>([])
+  const [allStudents, setAllStudents]   = useState(false)
+  const [selectedGrades, setSelectedGrades]     = useState<number[]>([])
   const [selectedSections, setSelectedSections] = useState<Record<number, string[]>>({})
 
   // Staff audience state
-  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
-  const [allStaff, setAllStaff] = useState(false)
+  const [allStaff, setAllStaff]                 = useState(false)
+  const [selectedTeamIds, setSelectedTeamIds]   = useState<string[]>([])
 
-  const isTeacher = currentUserRole === 'teacher'
-  const isCoordinator = currentUserRole === 'coordinator'
-  const isPrincipalOrAdmin = currentUserRole === 'principal' || currentUserRole === 'admin'
+  // For principal/admin: can include BOTH student and staff in one announcement
+  const [includeStudents, setIncludeStudents] = useState(true)
+  const [includeStaff, setIncludeStaff]       = useState(false)
 
-  const canCreateStudent = isTeacher || isCoordinator || isPrincipalOrAdmin
-  const canCreateStaff = isCoordinator || isPrincipalOrAdmin
+  // ── Derived values ───────────────────────────────────────────────────────
 
-  // Compute available grades based on role and team grade ranges
+  /** Grades available in the grade picker (coordinator is limited to their teams) */
   const availableGrades = useMemo(() => {
     if (isPrincipalOrAdmin) return ALL_GRADES
     if (teamGradeRanges.length === 0) return ALL_GRADES
@@ -71,50 +127,37 @@ export default function NewAnnouncementForm({
     const grades = new Set<number>()
     for (const range of teamGradeRanges) {
       if (userTeamIds.has(range.teamId)) {
-        for (const g of range.grades) grades.add(g)
+        range.grades.forEach(g => grades.add(g))
       }
     }
-
     const result = Array.from(grades).sort((a, b) => a - b)
     return result.length > 0 ? result : ALL_GRADES
   }, [isPrincipalOrAdmin, teamGradeRanges, userTeams])
 
+  /** Teams shown in the team picker */
   const availableTeams = isPrincipalOrAdmin ? allTeams : userTeams
 
-  const switchAudienceType = (type: 'student' | 'staff') => {
-    setAudienceType(type)
-    // Reset the other side
-    if (type === 'student') {
-      setSelectedTeamIds([])
-      setAllStaff(false)
-    } else {
-      setAllStudents(false)
-      setSelectedGrades([])
-      setSelectedSections({})
-    }
-  }
-
+  // ── Form reset ───────────────────────────────────────────────────────────
   const resetForm = () => {
     setTitle('')
     setContent('')
     setError(null)
-    setAudienceType('student')
+    setAudienceMode('student')
     setAllStudents(false)
     setSelectedGrades([])
     setSelectedSections({})
-    setSelectedTeamIds([])
     setAllStaff(false)
+    setSelectedTeamIds([])
+    setIncludeStudents(true)
+    setIncludeStaff(false)
   }
 
+  // ── Grade / section toggles ──────────────────────────────────────────────
   const toggleGrade = (grade: number) => {
     setSelectedGrades(prev => {
       if (prev.includes(grade)) {
         const next = prev.filter(g => g !== grade)
-        setSelectedSections(s => {
-          const copy = { ...s }
-          delete copy[grade]
-          return copy
-        })
+        setSelectedSections(s => { const c = { ...s }; delete c[grade]; return c })
         return next
       }
       return [...prev, grade].sort((a, b) => a - b)
@@ -124,41 +167,13 @@ export default function NewAnnouncementForm({
   const toggleSection = (grade: number, section: string) => {
     setSelectedSections(prev => {
       const current = prev[grade] || []
-
       if (section === 'all') {
-        if (current.includes('all')) {
-          return { ...prev, [grade]: [] }
-        }
-        return { ...prev, [grade]: ['all'] }
+        return { ...prev, [grade]: current.includes('all') ? [] : ['all'] }
       }
-
       let next = current.filter(s => s !== 'all')
-
-      if (next.includes(section)) {
-        next = next.filter(s => s !== section)
-      } else {
-        next = [...next, section]
-      }
-
+      next = next.includes(section) ? next.filter(s => s !== section) : [...next, section]
       return { ...prev, [grade]: next }
     })
-  }
-
-  const toggleTeam = (teamId: string) => {
-    setSelectedTeamIds(prev =>
-      prev.includes(teamId)
-        ? prev.filter(id => id !== teamId)
-        : [...prev, teamId]
-    )
-  }
-
-  const toggleAllStaff = () => {
-    if (!allStaff) {
-      setAllStaff(true)
-      setSelectedTeamIds([])
-    } else {
-      setAllStaff(false)
-    }
   }
 
   const toggleAllStudents = () => {
@@ -171,57 +186,75 @@ export default function NewAnnouncementForm({
     }
   }
 
-  const buildStudentAudiences = () => {
-    if (!canCreateStudent) return []
+  // ── Team toggles ─────────────────────────────────────────────────────────
+  const toggleTeam = (teamId: string) => {
+    setSelectedTeamIds(prev =>
+      prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]
+    )
+  }
 
-    const audiences: { grade?: number; section?: string }[] = []
-
-    if (allStudents) {
-      for (const grade of ALL_GRADES) {
-        audiences.push({ grade })
-      }
-      return audiences
+  const toggleAllStaff = () => {
+    if (!allStaff) {
+      setAllStaff(true)
+      setSelectedTeamIds([])
+    } else {
+      setAllStaff(false)
     }
+  }
 
+  // ── Audience mode switch (coordinator only) ───────────────────────────────
+  const switchAudienceMode = (mode: 'student' | 'staff') => {
+    setAudienceMode(mode)
+    if (mode === 'student') { setAllStaff(false); setSelectedTeamIds([]) }
+    else { setAllStudents(false); setSelectedGrades([]); setSelectedSections({}) }
+  }
+
+  // ── Build audience rows ──────────────────────────────────────────────────
+  const buildStudentAudiences = () => {
+    if (allStudents) return [{ all_students: true }]
+    const rows: { grade: number; section?: string }[] = []
     for (const grade of selectedGrades) {
       const sections = selectedSections[grade] || []
-      if (sections.includes('all')) {
-        audiences.push({ grade })
+      if (sections.includes('all') || sections.length === 0) {
+        rows.push({ grade })
       } else {
-        for (const section of sections) {
-          audiences.push({ grade, section })
-        }
+        for (const sec of sections) rows.push({ grade, section: sec })
       }
     }
-
-    return audiences
+    return rows
   }
 
   const buildStaffAudiences = () => {
-    if (!canCreateStaff) return []
-
     if (allStaff) return [{ all_teams: true }]
-    return selectedTeamIds.map(teamId => ({ team_id: teamId }))
+    return selectedTeamIds.map(team_id => ({ team_id }))
   }
 
-  const canSubmit = () => {
+  // ── Validation ────────────────────────────────────────────────────────────
+  const studentAudienceValid = (): boolean => {
+    if (allStudents) return true
+    if (selectedGrades.length === 0) return false
+    // Every selected grade must have at least one section chosen (or 'all')
+    return selectedGrades.every(g => (selectedSections[g] || []).length > 0)
+  }
+
+  const staffAudienceValid = (): boolean => allStaff || selectedTeamIds.length > 0
+
+  const canSubmit = (): boolean => {
     if (!title.trim() || !content.trim()) return false
 
-    if (audienceType === 'student') {
-      if (!allStudents && selectedGrades.length === 0) return false
-      // Each selected grade must have sections chosen
-      if (!allStudents) {
-        for (const grade of selectedGrades) {
-          if ((selectedSections[grade] || []).length === 0) return false
-        }
-      }
+    if (isPrincipalOrAdmin) {
+      if (!includeStudents && !includeStaff) return false
+      if (includeStudents && !studentAudienceValid()) return false
+      if (includeStaff && !staffAudienceValid()) return false
       return true
     }
 
-    // staff
-    return allStaff || selectedTeamIds.length > 0
+    // Coordinator
+    if (audienceMode === 'student') return studentAudienceValid()
+    return staffAudienceValid()
   }
 
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit()) return
@@ -230,17 +263,16 @@ export default function NewAnnouncementForm({
     setError(null)
 
     try {
-      const audiences = audienceType === 'student'
-        ? buildStudentAudiences()
-        : buildStaffAudiences()
+      const audiences: Parameters<typeof createAnnouncement>[0]['audiences'] = []
+
+      const wantStudents = isPrincipalOrAdmin ? includeStudents : audienceMode === 'student'
+      const wantStaff    = isPrincipalOrAdmin ? includeStaff    : audienceMode === 'staff'
+
+      if (wantStudents) audiences.push(...buildStudentAudiences())
+      if (wantStaff)    audiences.push(...buildStaffAudiences())
 
       const result = await createAnnouncement(
-        {
-          title: title.trim(),
-          content: content.trim(),
-          type: audienceType,
-          audiences,
-        },
+        { title: title.trim(), content: content.trim(), audiences },
         currentUserId
       )
 
@@ -261,6 +293,133 @@ export default function NewAnnouncementForm({
     }
   }
 
+  // ── Render helpers ────────────────────────────────────────────────────────
+
+  const StudentPicker = () => (
+    <div className="border border-slate-200 rounded-xl p-3 space-y-3">
+      {/* All Students — principal / admin only */}
+      {isPrincipalOrAdmin && (
+        <button
+          type="button"
+          onClick={toggleAllStudents}
+          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
+            allStudents
+              ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
+              : 'hover:bg-slate-50 text-slate-700'
+          }`}
+        >
+          <Checkbox checked={allStudents} />
+          <GraduationCap size={14} />
+          <span className="font-medium">All Students</span>
+        </button>
+      )}
+
+      {/* Grade picker */}
+      {!allStudents && (
+        <>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 mb-1.5">Select Grades</p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableGrades.map(grade => (
+                <button
+                  key={grade}
+                  type="button"
+                  onClick={() => toggleGrade(grade)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    selectedGrades.includes(grade)
+                      ? 'bg-mps-blue-500 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Grade {grade}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Section picker per grade */}
+          {selectedGrades.length > 0 && (
+            <div className="space-y-3 border-t border-slate-100 pt-3">
+              {selectedGrades.map(grade => {
+                const sections = selectedSections[grade] || []
+                return (
+                  <div key={grade}>
+                    <p className="text-xs font-semibold text-slate-600 mb-1.5">
+                      Grade {grade} — Sections
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <SectionBtn
+                        label="All Sections"
+                        active={sections.includes('all')}
+                        onClick={() => toggleSection(grade, 'all')}
+                      />
+                      {SECTIONS.map(sec => (
+                        <SectionBtn
+                          key={sec}
+                          label={sec}
+                          active={sections.includes(sec)}
+                          disabled={sections.includes('all')}
+                          onClick={() => toggleSection(grade, sec)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+
+  const StaffPicker = () => (
+    <div className="border border-slate-200 rounded-xl p-3 space-y-1.5">
+      {/* All Staff — principal / admin only */}
+      {isPrincipalOrAdmin && (
+        <button
+          type="button"
+          onClick={toggleAllStaff}
+          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
+            allStaff
+              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+              : 'hover:bg-slate-50 text-slate-700'
+          }`}
+        >
+          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+            allStaff ? 'bg-purple-500 border-purple-500' : 'border-slate-300'
+          }`}>
+            {allStaff && <Check size={12} className="text-white" />}
+          </div>
+          <Users size={14} />
+          <span className="font-medium">All Staff</span>
+        </button>
+      )}
+
+      {/* Team list */}
+      {!allStaff && availableTeams.map(team => (
+        <button
+          key={team.id}
+          type="button"
+          onClick={() => toggleTeam(team.id)}
+          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
+            selectedTeamIds.includes(team.id)
+              ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
+              : 'hover:bg-slate-50 text-slate-700'
+          }`}
+        >
+          <Checkbox checked={selectedTeamIds.includes(team.id)} />
+          <span>{team.name}</span>
+        </button>
+      ))}
+
+      {availableTeams.length === 0 && !isPrincipalOrAdmin && (
+        <p className="text-sm text-slate-400 text-center py-3">No teams available</p>
+      )}
+    </div>
+  )
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <AnimatePresence>
       {isOpen && (
@@ -275,7 +434,7 @@ export default function NewAnnouncementForm({
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
@@ -324,221 +483,141 @@ export default function NewAnnouncementForm({
                 />
               </div>
 
-              {/* Audience Section */}
+              {/* ── Audience ── */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-slate-700 block">
-                  Audience
-                </label>
+                <label className="text-sm font-medium text-slate-700 block">Audience</label>
 
-                {/* Audience type toggle */}
-                {canCreateStudent && canCreateStaff && (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => switchAudienceType('student')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors border ${
-                        audienceType === 'student'
-                          ? 'bg-mps-blue-50 text-mps-blue-700 border-mps-blue-300'
-                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <GraduationCap size={14} /> Students
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => switchAudienceType('staff')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors border ${
-                        audienceType === 'staff'
-                          ? 'bg-purple-50 text-purple-700 border-purple-300'
-                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <Users size={14} /> Staff
-                    </button>
+                {/* ── COORDINATOR: exclusive toggle ── */}
+                {isCoordinator && (
+                  <>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => switchAudienceMode('student')}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors border ${
+                          audienceMode === 'student'
+                            ? 'bg-mps-blue-50 text-mps-blue-700 border-mps-blue-300'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <GraduationCap size={14} /> Students
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => switchAudienceMode('staff')}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors border ${
+                          audienceMode === 'staff'
+                            ? 'bg-purple-50 text-purple-700 border-purple-300'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Users size={14} /> Staff
+                      </button>
+                    </div>
+
+                    {audienceMode === 'student' && (
+                      <>
+                        {availableGrades.length < 12 && (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                            <AlertCircle size={14} className="flex-shrink-0" />
+                            <span>Limited to grades assigned to your team</span>
+                          </div>
+                        )}
+                        <StudentPicker />
+                      </>
+                    )}
+
+                    {audienceMode === 'staff' && (
+                      <>
+                        {availableTeams.length > 0 && (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                            <AlertCircle size={14} className="flex-shrink-0" />
+                            <span>Limited to staff in your team</span>
+                          </div>
+                        )}
+                        <StaffPicker />
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* ── PRINCIPAL / ADMIN: can target students AND staff together ── */}
+                {isPrincipalOrAdmin && (
+                  <div className="space-y-3">
+                    {/* Students section */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIncludeStudents(prev => !prev)
+                          if (includeStudents) {
+                            setAllStudents(false)
+                            setSelectedGrades([])
+                            setSelectedSections({})
+                          }
+                        }}
+                        className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
+                          includeStudents ? 'bg-mps-blue-50' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          includeStudents ? 'bg-mps-blue-500 border-mps-blue-500' : 'border-slate-300'
+                        }`}>
+                          {includeStudents && <Check size={12} className="text-white" />}
+                        </div>
+                        <GraduationCap size={16} className={includeStudents ? 'text-mps-blue-600' : 'text-slate-400'} />
+                        <span className={`text-sm font-semibold ${includeStudents ? 'text-mps-blue-700' : 'text-slate-600'}`}>
+                          Students
+                        </span>
+                      </button>
+
+                      {includeStudents && (
+                        <div className="p-3 pt-0 border-t border-slate-100">
+                          <StudentPicker />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Staff section */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIncludeStaff(prev => !prev)
+                          if (includeStaff) { setAllStaff(false); setSelectedTeamIds([]) }
+                        }}
+                        className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
+                          includeStaff ? 'bg-purple-50' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          includeStaff ? 'bg-purple-500 border-purple-500' : 'border-slate-300'
+                        }`}>
+                          {includeStaff && <Check size={12} className="text-white" />}
+                        </div>
+                        <Users size={16} className={includeStaff ? 'text-purple-600' : 'text-slate-400'} />
+                        <span className={`text-sm font-semibold ${includeStaff ? 'text-purple-700' : 'text-slate-600'}`}>
+                          Staff
+                        </span>
+                      </button>
+
+                      {includeStaff && (
+                        <div className="p-3 pt-0 border-t border-slate-100">
+                          <StaffPicker />
+                        </div>
+                      )}
+                    </div>
+
+                    {!includeStudents && !includeStaff && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1.5">
+                        <AlertCircle size={13} /> Select at least one audience group.
+                      </p>
+                    )}
                   </div>
-                )}
-
-                {/* Student audience picker */}
-                {audienceType === 'student' && canCreateStudent && (
-                  <>
-                    {isTeacher && availableGrades.length < 12 && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                        <AlertCircle size={14} className="flex-shrink-0" />
-                        <span>You can only announce to grades assigned to your teams</span>
-                      </div>
-                    )}
-
-                    <div className="border border-slate-200 rounded-xl p-3 space-y-3">
-                      {/* All Students option - principal/admin only */}
-                      {isPrincipalOrAdmin && (
-                        <button
-                          type="button"
-                          onClick={toggleAllStudents}
-                          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
-                            allStudents
-                              ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
-                              : 'hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            allStudents
-                              ? 'bg-mps-blue-500 border-mps-blue-500'
-                              : 'border-slate-300'
-                          }`}>
-                            {allStudents && <Check size={12} className="text-white" />}
-                          </div>
-                          <GraduationCap size={14} />
-                          <span className="font-medium">All Students</span>
-                        </button>
-                      )}
-
-                      {/* Grade selector */}
-                      {!allStudents && (
-                        <>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-500 mb-1.5">Select Grades</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {availableGrades.map(grade => (
-                                <button
-                                  key={grade}
-                                  type="button"
-                                  onClick={() => toggleGrade(grade)}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                    selectedGrades.includes(grade)
-                                      ? 'bg-mps-blue-500 text-white shadow-sm'
-                                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                  }`}
-                                >
-                                  Grade {grade}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Section selector per selected grade */}
-                          {selectedGrades.length > 0 && (
-                            <div className="space-y-3 border-t border-slate-100 pt-3">
-                              {selectedGrades.map(grade => {
-                                const sections = selectedSections[grade] || []
-                                return (
-                                  <div key={grade}>
-                                    <p className="text-xs font-semibold text-slate-600 mb-1.5">
-                                      Grade {grade} - Sections
-                                    </p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleSection(grade, 'all')}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                          sections.includes('all')
-                                            ? 'bg-mps-green-500 text-white shadow-sm'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                      >
-                                        All Sections
-                                      </button>
-                                      {SECTIONS.map(sec => (
-                                        <button
-                                          key={sec}
-                                          type="button"
-                                          onClick={() => toggleSection(grade, sec)}
-                                          disabled={sections.includes('all')}
-                                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                            sections.includes(sec)
-                                              ? 'bg-mps-blue-500 text-white shadow-sm'
-                                              : sections.includes('all')
-                                                ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                          }`}
-                                        >
-                                          {sec}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {/* Staff audience picker */}
-                {audienceType === 'staff' && canCreateStaff && (
-                  <>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      <span>Principals and Admins will automatically see all staff announcements</span>
-                    </div>
-
-                    {isCoordinator && availableTeams.length > 0 && availableTeams.length < allTeams.length && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                        <AlertCircle size={14} className="flex-shrink-0" />
-                        <span>You can only announce to teachers in your teams</span>
-                      </div>
-                    )}
-
-                    <div className="border border-slate-200 rounded-xl p-3 space-y-1.5">
-                      {/* All Staff option - principal/admin only */}
-                      {isPrincipalOrAdmin && (
-                        <button
-                          type="button"
-                          onClick={toggleAllStaff}
-                          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
-                            allStaff
-                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                              : 'hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            allStaff
-                              ? 'bg-purple-500 border-purple-500'
-                              : 'border-slate-300'
-                          }`}>
-                            {allStaff && <Check size={12} className="text-white" />}
-                          </div>
-                          <Users size={14} />
-                          <span className="font-medium">All Staff</span>
-                        </button>
-                      )}
-
-                      {/* Team checkboxes */}
-                      {!allStaff && availableTeams.map(team => (
-                        <button
-                          key={team.id}
-                          type="button"
-                          onClick={() => toggleTeam(team.id)}
-                          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
-                            selectedTeamIds.includes(team.id)
-                              ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
-                              : 'hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            selectedTeamIds.includes(team.id)
-                              ? 'bg-mps-blue-500 border-mps-blue-500'
-                              : 'border-slate-300'
-                          }`}>
-                            {selectedTeamIds.includes(team.id) && <Check size={12} className="text-white" />}
-                          </div>
-                          <span>{team.name}</span>
-                        </button>
-                      ))}
-
-                      {availableTeams.length === 0 && !isPrincipalOrAdmin && (
-                        <p className="text-sm text-slate-400 text-center py-3">
-                          No teams available
-                        </p>
-                      )}
-                    </div>
-                  </>
                 )}
               </div>
 
-              {/* Error Message */}
+              {/* Error */}
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
                   <AlertCircle size={16} className="flex-shrink-0" />

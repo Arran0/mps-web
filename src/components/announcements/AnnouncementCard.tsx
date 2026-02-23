@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Trash2,
-  X,
   GraduationCap,
   Users,
   AlertTriangle,
@@ -21,18 +20,18 @@ interface AnnouncementCardProps {
 }
 
 function formatRelativeDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  const now = new Date()
+  const date   = new Date(dateStr)
+  const now    = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffSec = Math.floor(diffMs / 1000)
   const diffMin = Math.floor(diffSec / 60)
   const diffHrs = Math.floor(diffMin / 60)
   const diffDays = Math.floor(diffHrs / 24)
 
-  if (diffSec < 60) return 'just now'
-  if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`
-  if (diffHrs < 24) return `${diffHrs} hour${diffHrs !== 1 ? 's' : ''} ago`
-  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`
+  if (diffSec < 60)  return 'just now'
+  if (diffMin < 60)  return `${diffMin}m ago`
+  if (diffHrs < 24)  return `${diffHrs}h ago`
+  if (diffDays < 7)  return `${diffDays}d ago`
 
   return date.toLocaleDateString('en-US', {
     month: 'short',
@@ -41,37 +40,49 @@ function formatRelativeDate(dateStr: string): string {
   })
 }
 
-function getAudienceBadges(announcement: AnnouncementWithDetails): { label: string; type: 'student' | 'staff' }[] {
-  const badges: { label: string; type: 'student' | 'staff' }[] = []
+interface AudienceBadge {
+  label: string
+  kind: 'student' | 'staff'
+}
 
-  for (const audience of announcement.audiences) {
-    if (announcement.type === 'student') {
-      if (audience.grade != null) {
-        if (audience.section) {
-          badges.push({ label: `Grade ${audience.grade} - ${audience.section}`, type: 'student' })
-        } else {
-          badges.push({ label: `Grade ${audience.grade} - All Sections`, type: 'student' })
-        }
-      }
-    } else {
-      // Staff announcement
-      if (audience.all_teams) {
-        badges.push({ label: 'All Staff', type: 'staff' })
-      } else if (audience.team_id) {
-        const teamName = audience.team?.name || audience.team_id
-        badges.push({ label: teamName, type: 'staff' })
-      }
+function getAudienceBadges(announcement: AnnouncementWithDetails): AudienceBadge[] {
+  const badges: AudienceBadge[] = []
+  const seen = new Set<string>()
+
+  for (const aud of announcement.audiences) {
+    // Student audience rows
+    if (aud.all_students) {
+      const key = 'all-students'
+      if (!seen.has(key)) { seen.add(key); badges.push({ label: 'All Students', kind: 'student' }) }
+    } else if (aud.grade != null) {
+      const label = aud.section
+        ? `Grade ${aud.grade} – ${aud.section}`
+        : `Grade ${aud.grade} – All Sections`
+      if (!seen.has(label)) { seen.add(label); badges.push({ label, kind: 'student' }) }
+    }
+
+    // Staff audience rows
+    if (aud.all_teams) {
+      const key = 'all-staff'
+      if (!seen.has(key)) { seen.add(key); badges.push({ label: 'All Staff', kind: 'staff' }) }
+    } else if (aud.team_id) {
+      const label = aud.team?.name || aud.team_id
+      if (!seen.has(label)) { seen.add(label); badges.push({ label, kind: 'staff' }) }
     }
   }
 
   return badges
 }
 
-export default function AnnouncementCard({ announcement, canDelete, onDelete }: AnnouncementCardProps) {
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(false)
+export default function AnnouncementCard({
+  announcement,
+  canDelete,
+  onDelete,
+}: AnnouncementCardProps) {
+  const [isExpanded,  setIsExpanded]  = useState(false)
   const [showAudience, setShowAudience] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [deleting,    setDeleting]    = useState(false)
 
   const badges = getAudienceBadges(announcement)
 
@@ -87,6 +98,18 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
     setDeleting(false)
   }
 
+  // Type pill colours
+  const typePillClasses: Record<string, string> = {
+    student: 'bg-mps-blue-50 text-mps-blue-600',
+    staff:   'bg-purple-50 text-purple-600',
+    both:    'bg-amber-50 text-amber-600',
+  }
+  const typePillLabel: Record<string, string> = {
+    student: 'Students',
+    staff:   'Staff',
+    both:    'Students & Staff',
+  }
+
   return (
     <>
       <motion.div
@@ -95,11 +118,11 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -12 }}
         className="glass rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => setIsExpanded(prev => !prev)}
       >
-        {/* Compact Header (Always Visible) */}
+        {/* Compact header */}
         <div className="p-4 flex items-center justify-between gap-3">
-          {/* Left: Announcer Avatar + Title */}
+          {/* Avatar + title */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0">
               <span className="text-white text-sm font-bold">
@@ -107,25 +130,27 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-slate-800 text-sm leading-snug truncate">
-                {announcement.title}
-              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-bold text-slate-800 text-sm leading-snug truncate">
+                  {announcement.title}
+                </h3>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${typePillClasses[announcement.type] || ''}`}>
+                  {typePillLabel[announcement.type] || announcement.type}
+                </span>
+              </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                 <span className="font-medium">{announcement.creator?.full_name || 'Unknown'}</span>
-                <span>•</span>
+                <span>·</span>
                 <span>{formatRelativeDate(announcement.created_at)}</span>
               </div>
             </div>
           </div>
 
-          {/* Right: Expand + Delete */}
+          {/* Delete + expand */}
           <div className="flex items-center gap-1 flex-shrink-0">
             {canDelete && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowConfirm(true)
-                }}
+                onClick={e => { e.stopPropagation(); setShowConfirm(true) }}
                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 title="Delete announcement"
               >
@@ -138,7 +163,7 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
           </div>
         </div>
 
-        {/* Expanded Content */}
+        {/* Expanded content */}
         <AnimatePresence>
           {isExpanded && (
             <motion.div
@@ -149,7 +174,6 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
               className="overflow-hidden"
             >
               <div className="px-4 pb-4 pt-2 border-t border-slate-100">
-                {/* Content */}
                 <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
                   {announcement.content}
                 </p>
@@ -159,15 +183,13 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
                   <div className="mt-4 pt-3 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setShowAudience(prev => !prev)
-                      }}
+                      onClick={e => { e.stopPropagation(); setShowAudience(prev => !prev) }}
                       className="text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1 mb-2 transition-colors"
                     >
                       {showAudience ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                       {showAudience ? 'Hide audience' : 'Show audience'}
                     </button>
+
                     <AnimatePresence>
                       {showAudience && (
                         <motion.div
@@ -182,16 +204,15 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
                               <span
                                 key={i}
                                 className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
-                                  badge.type === 'student'
+                                  badge.kind === 'student'
                                     ? 'bg-mps-blue-50 text-mps-blue-700'
                                     : 'bg-purple-50 text-purple-700'
                                 }`}
                               >
-                                {badge.type === 'student' ? (
-                                  <GraduationCap size={11} />
-                                ) : (
-                                  <Users size={11} />
-                                )}
+                                {badge.kind === 'student'
+                                  ? <GraduationCap size={11} />
+                                  : <Users size={11} />
+                                }
                                 {badge.label}
                               </span>
                             ))}
@@ -207,7 +228,7 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
         </AnimatePresence>
       </motion.div>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation portal */}
       {typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
           {showConfirm && (
@@ -253,15 +274,9 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
                     className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {deleting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Deleting...
-                      </>
+                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Deleting...</>
                     ) : (
-                      <>
-                        <Trash2 size={14} />
-                        Delete
-                      </>
+                      <><Trash2 size={14} /> Delete</>
                     )}
                   </button>
                 </div>
