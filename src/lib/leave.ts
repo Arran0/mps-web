@@ -243,30 +243,25 @@ export async function fetchPendingApprovalsForUser(
   userId: string,
   userRole: UserRole
 ): Promise<LeaveApplicationWithDetails[]> {
-  // Get approvals where current user is the approver based on role
+  // Get approvals where current user is the designated approver
   let query = supabase
     .from('leave_approvals')
     .select('leave_application_id')
     .eq('status', 'pending')
 
   if (userRole === 'coordinator') {
-    // Coordinators can only approve for their teams
-    const { data: userTeams } = await supabase
-      .from('team_members')
-      .select('team_id')
-      .eq('user_id', userId)
-
-    const teamIds = (userTeams || []).map(t => t.team_id)
-
-    if (teamIds.length === 0) return []
-
+    // Match by approver_id (explicit selection) or by role with matching team
     query = query
       .eq('approver_role', 'coordinator')
-      .in('team_id', teamIds)
+      .eq('approver_id', userId)
   } else if (userRole === 'principal') {
-    query = query.eq('approver_role', 'principal')
+    query = query
+      .eq('approver_role', 'principal')
+      .eq('approver_id', userId)
   } else if (userRole === 'admin') {
-    query = query.eq('approver_role', 'admin')
+    query = query
+      .eq('approver_role', 'admin')
+      .eq('approver_id', userId)
   } else {
     return []
   }

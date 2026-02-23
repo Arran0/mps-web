@@ -703,25 +703,27 @@ CREATE TABLE public.leave_approvals (
 ALTER TABLE public.leave_applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leave_approvals ENABLE ROW LEVEL SECURITY;
 
--- Leave applications policies
--- Users can view their own applications
+-- Helper: check if a leave_application belongs to the current user
+-- SECURITY DEFINER bypasses RLS to avoid circular policy references
+CREATE OR REPLACE FUNCTION public.is_own_leave_application(application_id UUID)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.leave_applications
+    WHERE id = application_id AND applicant_id = auth.uid()
+  )
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- Leave applications policies (NO reference to leave_approvals to avoid circular deps)
 CREATE POLICY "Users can view own leave applications"
   ON public.leave_applications FOR SELECT
   USING (applicant_id = auth.uid());
 
--- Approvers can view applications they need to approve
-CREATE POLICY "Approvers can view pending applications"
+-- Approver-level staff see all applications
+CREATE POLICY "Approvers can view all leave applications"
   ON public.leave_applications FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.leave_approvals la
-      WHERE la.leave_application_id = leave_applications.id
-      AND la.approver_id = auth.uid()
-    )
-    OR public.get_user_role() IN ('principal', 'admin')
-  );
+  USING (public.get_user_role() IN ('coordinator', 'principal', 'admin'));
 
--- Staff can create leave applications
+-- Staff can create leave applications (not admin)
 CREATE POLICY "Staff can create leave applications"
   ON public.leave_applications FOR INSERT
   WITH CHECK (
@@ -729,24 +731,18 @@ CREATE POLICY "Staff can create leave applications"
     AND public.get_user_role() IN ('teacher', 'coordinator', 'principal')
   );
 
--- Only system can update applications (via function)
+-- Approver-level staff can update application status
 CREATE POLICY "System can update leave applications"
   ON public.leave_applications FOR UPDATE
   USING (public.get_user_role() IN ('coordinator', 'principal', 'admin'));
 
--- Leave approvals policies
--- Users can view approvals for their applications
+-- Leave approvals policies (NO RLS-subject reference to leave_applications)
+-- Applicant sees approvals for their own applications via SECURITY DEFINER fn
 CREATE POLICY "Users can view own application approvals"
   ON public.leave_approvals FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.leave_applications la
-      WHERE la.id = leave_approvals.leave_application_id
-      AND la.applicant_id = auth.uid()
-    )
-  );
+  USING (public.is_own_leave_application(leave_application_id));
 
--- Approvers can view and update their assigned approvals
+-- Approver sees their assigned approvals; principal/admin see all
 CREATE POLICY "Approvers can view assigned approvals"
   ON public.leave_approvals FOR SELECT
   USING (
@@ -765,11 +761,7 @@ CREATE POLICY "Approvers can update their approvals"
     )
   );
 
--- System can insert approvals
-CREATE POLICY "System can insert leave approvals"
-  ON public.leave_applications FOR INSERT
-  WITH CHECK (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
-
+-- Staff can insert approval records when creating a leave application
 CREATE POLICY "Staff can insert leave approvals"
   ON public.leave_approvals FOR INSERT
   WITH CHECK (public.get_user_role() IN ('teacher', 'coordinator', 'principal', 'admin'));
