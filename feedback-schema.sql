@@ -2,6 +2,26 @@
 -- MPS Web - Feedback System Schema
 -- Run this in your Supabase SQL Editor
 -- ============================================
+-- This script is fully self-contained and idempotent.
+-- It creates:
+--   1. The `feedbacks` table with RLS policies
+--   2. The `feedback-files` private storage bucket
+--   3. Storage access policies for users and admins
+-- ============================================
+
+-- ============================================
+-- HELPER: update_task_updated_at()
+-- Create the shared trigger function if it doesn't exist
+-- (It is normally created by the main schema, but we guard
+--  here so this file can be run independently.)
+-- ============================================
+CREATE OR REPLACE FUNCTION update_task_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ============================================
 -- TABLE: feedbacks
@@ -26,6 +46,13 @@ CREATE TABLE IF NOT EXISTS public.feedbacks (
 );
 
 ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies first so re-runs are safe
+DROP POLICY IF EXISTS "Users can view own feedbacks" ON public.feedbacks;
+DROP POLICY IF EXISTS "Admin can view all feedbacks" ON public.feedbacks;
+DROP POLICY IF EXISTS "Authenticated users can submit feedback" ON public.feedbacks;
+DROP POLICY IF EXISTS "Admin can reply to feedbacks" ON public.feedbacks;
+DROP POLICY IF EXISTS "Admin can delete feedbacks" ON public.feedbacks;
 
 -- Users can view their own feedbacks
 CREATE POLICY "Users can view own feedbacks"
@@ -53,6 +80,7 @@ CREATE POLICY "Admin can delete feedbacks"
   USING (public.get_user_role() = 'admin');
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS feedbacks_updated_at ON public.feedbacks;
 CREATE TRIGGER feedbacks_updated_at
   BEFORE UPDATE ON public.feedbacks
   FOR EACH ROW EXECUTE FUNCTION update_task_updated_at();
@@ -65,30 +93,55 @@ CREATE INDEX IF NOT EXISTS idx_feedbacks_replied_at ON public.feedbacks(replied_
 -- Grant access
 GRANT ALL ON public.feedbacks TO anon, authenticated;
 
-NOTIFY pgrst, 'reload schema';
+-- ============================================
+-- STORAGE BUCKET: feedback-files
+-- ============================================
+-- Insert the private bucket (10 MB file size limit).
+-- ON CONFLICT ensures re-runs are safe.
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('feedback-files', 'feedback-files', false, 10485760)
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
--- STORAGE BUCKET SETUP
--- Do this in Supabase Dashboard > Storage:
---
--- 1. Create a new bucket named: feedback-files
---    - Public: OFF (private bucket)
---
--- 2. Add the following storage policies to the bucket:
---
---    Policy: "Users can upload their own files"
---      Operation: INSERT
---      Using: (auth.uid()::text = (storage.foldername(name))[1])
---
---    Policy: "Users can view their own files"
---      Operation: SELECT
---      Using: (auth.uid()::text = (storage.foldername(name))[1])
---
---    Policy: "Admin can view all files"
---      Operation: SELECT
---      Using: (public.get_user_role() = 'admin')
---
---    Policy: "Admin can delete files"
---      Operation: DELETE
---      Using: (public.get_user_role() = 'admin')
+-- STORAGE POLICIES for feedback-files bucket
 -- ============================================
+-- Drop any pre-existing policies so re-runs don't fail
+DROP POLICY IF EXISTS "Feedback: users can upload own files" ON storage.objects;
+DROP POLICY IF EXISTS "Feedback: users can view own files" ON storage.objects;
+DROP POLICY IF EXISTS "Feedback: admin can view all files" ON storage.objects;
+DROP POLICY IF EXISTS "Feedback: admin can delete files" ON storage.objects;
+
+-- Users can upload files into their own folder ({userId}/...)
+CREATE POLICY "Feedback: users can upload own files"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'feedback-files'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Users can read files from their own folder
+CREATE POLICY "Feedback: users can view own files"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'feedback-files'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Admins can read all files in the bucket
+CREATE POLICY "Feedback: admin can view all files"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'feedback-files'
+    AND public.get_user_role() = 'admin'
+  );
+
+-- Admins can delete any file in the bucket
+CREATE POLICY "Feedback: admin can delete files"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'feedback-files'
+    AND public.get_user_role() = 'admin'
+  );
+
+-- Notify PostgREST to reload schema
+NOTIFY pgrst, 'reload schema';
