@@ -71,6 +71,7 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
   const [showConfirm, setShowConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showAudience, setShowAudience] = useState(false)
 
   const badges = getAudienceBadges(announcement)
 
@@ -156,26 +157,48 @@ export default function AnnouncementCard({ announcement, canDelete, onDelete }: 
                 {/* Audience badges */}
                 {badges.length > 0 && (
                   <div className="mt-4 pt-3 border-t border-slate-100">
-                    <p className="text-xs font-medium text-slate-500 mb-2">Audience:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {badges.map((badge, i) => (
-                        <span
-                          key={i}
-                          className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
-                            badge.type === 'student'
-                              ? 'bg-mps-blue-50 text-mps-blue-700'
-                              : 'bg-purple-50 text-purple-700'
-                          }`}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowAudience(prev => !prev)
+                      }}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1 mb-2 transition-colors"
+                    >
+                      {showAudience ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      {showAudience ? 'Hide audience' : 'Show audience'}
+                    </button>
+                    <AnimatePresence>
+                      {showAudience && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="overflow-hidden"
                         >
-                          {badge.type === 'student' ? (
-                            <GraduationCap size={11} />
-                          ) : (
-                            <Users size={11} />
-                          )}
-                          {badge.label}
-                        </span>
-                      ))}
-                    </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {badges.map((badge, i) => (
+                              <span
+                                key={i}
+                                className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
+                                  badge.type === 'student'
+                                    ? 'bg-mps-blue-50 text-mps-blue-700'
+                                    : 'bg-purple-50 text-purple-700'
+                                }`}
+                              >
+                                {badge.type === 'student' ? (
+                                  <GraduationCap size={11} />
+                                ) : (
+                                  <Users size={11} />
+                                )}
+                                {badge.label}
+                              </span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>

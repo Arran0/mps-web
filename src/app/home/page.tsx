@@ -23,8 +23,7 @@ import {
 } from 'lucide-react'
 import {
   AnnouncementWithDetails,
-  fetchStudentAnnouncements,
-  fetchStudentAnnouncementsForStaff,
+  fetchAnnouncementsForUser,
 } from '@/lib/announcements'
 
 const containerVariants = {
@@ -70,15 +69,13 @@ export default function HomePage() {
   const loadAnnouncements = useCallback(async () => {
     if (!user || !profile) return
     try {
-      if (profile.role === 'student') {
-        if (profile.grade != null) {
-          const data = await fetchStudentAnnouncements(profile.grade, profile.section || '')
-          setAnnouncements(data.slice(0, 5))
-        }
-      } else {
-        const data = await fetchStudentAnnouncementsForStaff()
-        setAnnouncements(data.slice(0, 5))
-      }
+      const data = await fetchAnnouncementsForUser(
+        user.id,
+        profile.role,
+        profile.grade ?? undefined,
+        profile.section ?? undefined
+      )
+      setAnnouncements(data.slice(0, 5))
     } catch (err) {
       console.error('Failed to load announcements for home:', err)
     }
@@ -173,9 +170,6 @@ export default function HomePage() {
                         <h4 className="font-medium text-slate-800 mb-0.5">{announcement.title}</h4>
                         <p className="text-sm text-slate-500">{formatRelativeDate(announcement.created_at)}</p>
                       </div>
-                      <span className="text-xs px-2 py-1 bg-mps-blue-50 text-mps-blue-600 rounded-full font-medium flex-shrink-0 ml-3 capitalize">
-                        {announcement.type}
-                      </span>
                     </div>
                   </div>
                 </Link>

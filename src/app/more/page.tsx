@@ -95,7 +95,7 @@ export default function MorePage() {
   // Admin-only sections
   const adminSections: MoreSection[] = [
     {
-      title: 'Classroom Creation',
+      title: 'Classroom Management',
       description: 'Create and manage classrooms, add members by email',
       href: '/more/classrooms',
       icon: <BookOpen size={28} />,

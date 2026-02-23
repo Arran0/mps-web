@@ -3,20 +3,17 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { BookOpen, Plus, Users, Calendar, Hash } from 'lucide-react'
+import { BookOpen, Users, Calendar } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { fetchClassroomsForUser, ClassroomWithDetails } from '@/lib/classrooms'
-import NewClassroomForm from '@/components/classrooms/NewClassroomForm'
 
 export default function ClassroomsPage() {
   const { user, profile } = useAuth()
   const [classrooms, setClassrooms] = useState<ClassroomWithDetails[]>([])
   const [loading, setLoading] = useState(true)
-  const [showNewForm, setShowNewForm] = useState(false)
 
   const isStudent = profile?.role === 'student'
-  const canCreate = profile && ['coordinator', 'principal', 'admin'].includes(profile.role)
 
   const loadClassrooms = useCallback(async () => {
     if (!user || !profile) return
@@ -46,14 +43,6 @@ export default function ClassroomsPage() {
               <p className="text-slate-500 text-sm">Your learning spaces</p>
             </div>
           </div>
-          {canCreate && (
-            <button
-              onClick={() => setShowNewForm(true)}
-              className="btn-primary flex items-center gap-2 text-sm"
-            >
-              <Plus size={16} /> New Classroom
-            </button>
-          )}
         </div>
 
         {/* Content */}
@@ -68,14 +57,6 @@ export default function ClassroomsPage() {
             <p className="text-slate-500 text-sm">
               {isStudent ? 'You are not enrolled in any classrooms yet.' : 'No classrooms created yet.'}
             </p>
-            {canCreate && (
-              <button
-                onClick={() => setShowNewForm(true)}
-                className="mt-3 text-sm text-mps-blue-600 hover:text-mps-blue-700 font-medium"
-              >
-                Create the first classroom
-              </button>
-            )}
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -88,13 +69,10 @@ export default function ClassroomsPage() {
               >
                 <Link href={`/classrooms/${classroom.id}`}>
                   <div className="glass rounded-2xl p-5 hover:shadow-lg transition-all duration-200 group cursor-pointer border border-transparent hover:border-mps-blue-200">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="p-2 bg-gradient-to-br from-purple-100 to-mps-blue-100 rounded-lg group-hover:from-purple-200 group-hover:to-mps-blue-200 transition-colors">
+                    <div className="mb-3">
+                      <div className="p-2 bg-gradient-to-br from-purple-100 to-mps-blue-100 rounded-lg group-hover:from-purple-200 group-hover:to-mps-blue-200 transition-colors inline-block">
                         <BookOpen size={20} className="text-purple-600" />
                       </div>
-                      <span className="text-xs font-mono px-2 py-1 bg-slate-100 rounded-lg text-slate-500">
-                        {classroom.classroom_code}
-                      </span>
                     </div>
                     <h3 className="font-display font-bold text-slate-800 text-lg mb-1 group-hover:text-mps-blue-700 transition-colors">
                       {classroom.title}
@@ -119,14 +97,6 @@ export default function ClassroomsPage() {
           </div>
         )}
 
-        {/* New Classroom Form */}
-        <NewClassroomForm
-          isOpen={showNewForm}
-          onClose={() => setShowNewForm(false)}
-          onCreated={loadClassrooms}
-          currentUserId={user.id}
-          currentUserRole={profile.role}
-        />
       </div>
     </ProtectedLayout>
   )

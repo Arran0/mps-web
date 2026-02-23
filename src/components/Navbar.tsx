@@ -79,7 +79,7 @@ const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
 
   if (isAdmin) {
     moreChildren.push(
-      { label: 'Classrooms', href: '/more/classrooms', icon: <BookOpen size={18} /> },
+      { label: 'Classroom Management', href: '/more/classrooms', icon: <BookOpen size={18} /> },
       { label: 'Teacher Teams', href: '/more/teacher-teams', icon: <Users size={18} /> },
       { label: 'Profiles', href: '/more/profiles', icon: <UserPlus size={18} /> },
     )
