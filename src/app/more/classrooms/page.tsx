@@ -112,14 +112,11 @@ export default function ClassroomCreationPage() {
       if (coordProfile) coordinatorId = coordProfile.id
     }
 
-    const classroomCode = `${newClassroom.grade || '0'}-${newClassroom.section || 'A'}-${Date.now().toString(36)}`
-
     const result = await createClassroom({
       title: newClassroom.title.trim(),
       description: newClassroom.description.trim() || undefined,
       start_date: newClassroom.start_date || undefined,
       end_date: newClassroom.end_date || undefined,
-      classroom_code: classroomCode,
       coordinator_id: coordinatorId,
     }, user.id)
 
