@@ -147,7 +147,6 @@ export async function createClassroom(input: {
   creatorRole?: string
 }, createdBy: string): Promise<Classroom | null> {
   const id = crypto.randomUUID()
-  const classroomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
 
   const { error } = await supabase
     .from('classrooms')
@@ -159,7 +158,6 @@ export async function createClassroom(input: {
       end_date: input.end_date || null,
       coordinator_id: input.coordinator_id || null,
       created_by: createdBy,
-      classroom_code: classroomCode,
     })
 
   if (error) {

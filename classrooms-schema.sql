@@ -25,7 +25,6 @@ CREATE TABLE public.classrooms (
   description TEXT,
   start_date DATE,
   end_date DATE,
-  classroom_code TEXT NOT NULL UNIQUE,
   coordinator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_by UUID REFERENCES public.profiles(id) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -321,7 +320,6 @@ CREATE POLICY "Users can delete own posts"
 -- STEP 4: INDEXES
 -- ============================================
 
-CREATE INDEX idx_classrooms_code ON public.classrooms(classroom_code);
 CREATE INDEX idx_classrooms_coordinator ON public.classrooms(coordinator_id);
 CREATE INDEX idx_classroom_members_classroom ON public.classroom_members(classroom_id);
 CREATE INDEX idx_classroom_members_user ON public.classroom_members(user_id);
