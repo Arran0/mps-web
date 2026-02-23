@@ -43,6 +43,9 @@ export default function NewAnnouncementForm({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Audience type toggle: 'student' | 'staff' — only one at a time
+  const [audienceType, setAudienceType] = useState<'student' | 'staff'>('student')
+
   // Student audience state
   const [allStudents, setAllStudents] = useState(false)
   const [selectedGrades, setSelectedGrades] = useState<number[]>([])
@@ -78,10 +81,24 @@ export default function NewAnnouncementForm({
 
   const availableTeams = isPrincipalOrAdmin ? allTeams : userTeams
 
+  const switchAudienceType = (type: 'student' | 'staff') => {
+    setAudienceType(type)
+    // Reset the other side
+    if (type === 'student') {
+      setSelectedTeamIds([])
+      setAllStaff(false)
+    } else {
+      setAllStudents(false)
+      setSelectedGrades([])
+      setSelectedSections({})
+    }
+  }
+
   const resetForm = () => {
     setTitle('')
     setContent('')
     setError(null)
+    setAudienceType('student')
     setAllStudents(false)
     setSelectedGrades([])
     setSelectedSections({})
@@ -190,17 +207,19 @@ export default function NewAnnouncementForm({
   const canSubmit = () => {
     if (!title.trim() || !content.trim()) return false
 
-    // If grades are selected, each must have sections chosen
-    if (!allStudents && selectedGrades.length > 0) {
-      for (const grade of selectedGrades) {
-        if ((selectedSections[grade] || []).length === 0) return false
+    if (audienceType === 'student') {
+      if (!allStudents && selectedGrades.length === 0) return false
+      // Each selected grade must have sections chosen
+      if (!allStudents) {
+        for (const grade of selectedGrades) {
+          if ((selectedSections[grade] || []).length === 0) return false
+        }
       }
+      return true
     }
 
-    const hasStudentAudience = allStudents || selectedGrades.length > 0
-    const hasStaffAudience = allStaff || selectedTeamIds.length > 0
-
-    return hasStudentAudience || hasStaffAudience
+    // staff
+    return allStaff || selectedTeamIds.length > 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -211,40 +230,21 @@ export default function NewAnnouncementForm({
     setError(null)
 
     try {
-      const studentAudiences = buildStudentAudiences()
-      const staffAudiences = buildStaffAudiences()
+      const audiences = audienceType === 'student'
+        ? buildStudentAudiences()
+        : buildStaffAudiences()
 
-      let hasError = false
+      const result = await createAnnouncement(
+        {
+          title: title.trim(),
+          content: content.trim(),
+          type: audienceType,
+          audiences,
+        },
+        currentUserId
+      )
 
-      // Create student announcement if there are student audiences
-      if (studentAudiences.length > 0) {
-        const result = await createAnnouncement(
-          {
-            title: title.trim(),
-            content: content.trim(),
-            type: 'student',
-            audiences: studentAudiences,
-          },
-          currentUserId
-        )
-        if (!result) hasError = true
-      }
-
-      // Create staff announcement if there are staff audiences
-      if (staffAudiences.length > 0) {
-        const result = await createAnnouncement(
-          {
-            title: title.trim(),
-            content: content.trim(),
-            type: 'staff',
-            audiences: staffAudiences,
-          },
-          currentUserId
-        )
-        if (!result) hasError = true
-      }
-
-      if (hasError) {
+      if (!result) {
         setError('Failed to create announcement. Please try again.')
         setSubmitting(false)
         return
@@ -324,192 +324,219 @@ export default function NewAnnouncementForm({
                 />
               </div>
 
-              {/* Student Audience Section */}
-              {canCreateStudent && (
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                    <GraduationCap size={14} /> Student Audience
-                  </label>
+              {/* Audience Section */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-700 block">
+                  Audience
+                </label>
 
-                  {isTeacher && availableGrades.length < 12 && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      <span>You can only announce to grades assigned to your teams</span>
-                    </div>
-                  )}
+                {/* Audience type toggle */}
+                {canCreateStudent && canCreateStaff && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => switchAudienceType('student')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors border ${
+                        audienceType === 'student'
+                          ? 'bg-mps-blue-50 text-mps-blue-700 border-mps-blue-300'
+                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <GraduationCap size={14} /> Students
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchAudienceType('staff')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors border ${
+                        audienceType === 'staff'
+                          ? 'bg-purple-50 text-purple-700 border-purple-300'
+                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Users size={14} /> Staff
+                    </button>
+                  </div>
+                )}
 
-                  <div className="border border-slate-200 rounded-xl p-3 space-y-3">
-                    {/* All Students option - principal/admin only */}
-                    {isPrincipalOrAdmin && (
-                      <button
-                        type="button"
-                        onClick={toggleAllStudents}
-                        className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
-                          allStudents
-                            ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                          allStudents
-                            ? 'bg-mps-blue-500 border-mps-blue-500'
-                            : 'border-slate-300'
-                        }`}>
-                          {allStudents && <Check size={12} className="text-white" />}
-                        </div>
-                        <GraduationCap size={14} />
-                        <span className="font-medium">All Students</span>
-                      </button>
+                {/* Student audience picker */}
+                {audienceType === 'student' && canCreateStudent && (
+                  <>
+                    {isTeacher && availableGrades.length < 12 && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                        <AlertCircle size={14} className="flex-shrink-0" />
+                        <span>You can only announce to grades assigned to your teams</span>
+                      </div>
                     )}
 
-                    {/* Grade selector */}
-                    {!allStudents && (
-                      <>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-500 mb-1.5">Select Grades</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {availableGrades.map(grade => (
-                              <button
-                                key={grade}
-                                type="button"
-                                onClick={() => toggleGrade(grade)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                  selectedGrades.includes(grade)
-                                    ? 'bg-mps-blue-500 text-white shadow-sm'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                }`}
-                              >
-                                Grade {grade}
-                              </button>
-                            ))}
+                    <div className="border border-slate-200 rounded-xl p-3 space-y-3">
+                      {/* All Students option - principal/admin only */}
+                      {isPrincipalOrAdmin && (
+                        <button
+                          type="button"
+                          onClick={toggleAllStudents}
+                          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
+                            allStudents
+                              ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
+                              : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            allStudents
+                              ? 'bg-mps-blue-500 border-mps-blue-500'
+                              : 'border-slate-300'
+                          }`}>
+                            {allStudents && <Check size={12} className="text-white" />}
                           </div>
-                        </div>
+                          <GraduationCap size={14} />
+                          <span className="font-medium">All Students</span>
+                        </button>
+                      )}
 
-                        {/* Section selector per selected grade */}
-                        {selectedGrades.length > 0 && (
-                          <div className="space-y-3 border-t border-slate-100 pt-3">
-                            {selectedGrades.map(grade => {
-                              const sections = selectedSections[grade] || []
-                              return (
-                                <div key={grade}>
-                                  <p className="text-xs font-semibold text-slate-600 mb-1.5">
-                                    Grade {grade} - Sections
-                                  </p>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleSection(grade, 'all')}
-                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                        sections.includes('all')
-                                          ? 'bg-mps-green-500 text-white shadow-sm'
-                                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                      }`}
-                                    >
-                                      All Sections
-                                    </button>
-                                    {SECTIONS.map(sec => (
+                      {/* Grade selector */}
+                      {!allStudents && (
+                        <>
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 mb-1.5">Select Grades</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {availableGrades.map(grade => (
+                                <button
+                                  key={grade}
+                                  type="button"
+                                  onClick={() => toggleGrade(grade)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                    selectedGrades.includes(grade)
+                                      ? 'bg-mps-blue-500 text-white shadow-sm'
+                                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  Grade {grade}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Section selector per selected grade */}
+                          {selectedGrades.length > 0 && (
+                            <div className="space-y-3 border-t border-slate-100 pt-3">
+                              {selectedGrades.map(grade => {
+                                const sections = selectedSections[grade] || []
+                                return (
+                                  <div key={grade}>
+                                    <p className="text-xs font-semibold text-slate-600 mb-1.5">
+                                      Grade {grade} - Sections
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
                                       <button
-                                        key={sec}
                                         type="button"
-                                        onClick={() => toggleSection(grade, sec)}
-                                        disabled={sections.includes('all')}
+                                        onClick={() => toggleSection(grade, 'all')}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                          sections.includes(sec)
-                                            ? 'bg-mps-blue-500 text-white shadow-sm'
-                                            : sections.includes('all')
-                                              ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                          sections.includes('all')
+                                            ? 'bg-mps-green-500 text-white shadow-sm'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                       >
-                                        {sec}
+                                        All Sections
                                       </button>
-                                    ))}
+                                      {SECTIONS.map(sec => (
+                                        <button
+                                          key={sec}
+                                          type="button"
+                                          onClick={() => toggleSection(grade, sec)}
+                                          disabled={sections.includes('all')}
+                                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                            sections.includes(sec)
+                                              ? 'bg-mps-blue-500 text-white shadow-sm'
+                                              : sections.includes('all')
+                                                ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                          }`}
+                                        >
+                                          {sec}
+                                        </button>
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Staff Audience Section */}
-              {canCreateStaff && (
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                    <Users size={14} /> Staff Audience
-                  </label>
-
-                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
-                    <AlertCircle size={14} className="flex-shrink-0" />
-                    <span>Principals and Admins will automatically see all staff announcements</span>
-                  </div>
-
-                  {isCoordinator && availableTeams.length > 0 && availableTeams.length < allTeams.length && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      <span>You can only announce to teachers in your teams</span>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                  )}
+                  </>
+                )}
 
-                  <div className="border border-slate-200 rounded-xl p-3 space-y-1.5">
-                    {/* All Staff option - principal/admin only */}
-                    {isPrincipalOrAdmin && (
-                      <button
-                        type="button"
-                        onClick={toggleAllStaff}
-                        className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
-                          allStaff
-                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                          allStaff
-                            ? 'bg-purple-500 border-purple-500'
-                            : 'border-slate-300'
-                        }`}>
-                          {allStaff && <Check size={12} className="text-white" />}
-                        </div>
-                        <Users size={14} />
-                        <span className="font-medium">All Staff</span>
-                      </button>
+                {/* Staff audience picker */}
+                {audienceType === 'staff' && canCreateStaff && (
+                  <>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      <span>Principals and Admins will automatically see all staff announcements</span>
+                    </div>
+
+                    {isCoordinator && availableTeams.length > 0 && availableTeams.length < allTeams.length && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                        <AlertCircle size={14} className="flex-shrink-0" />
+                        <span>You can only announce to teachers in your teams</span>
+                      </div>
                     )}
 
-                    {/* Team checkboxes */}
-                    {!allStaff && availableTeams.map(team => (
-                      <button
-                        key={team.id}
-                        type="button"
-                        onClick={() => toggleTeam(team.id)}
-                        className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
-                          selectedTeamIds.includes(team.id)
-                            ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                          selectedTeamIds.includes(team.id)
-                            ? 'bg-mps-blue-500 border-mps-blue-500'
-                            : 'border-slate-300'
-                        }`}>
-                          {selectedTeamIds.includes(team.id) && <Check size={12} className="text-white" />}
-                        </div>
-                        <span>{team.name}</span>
-                      </button>
-                    ))}
+                    <div className="border border-slate-200 rounded-xl p-3 space-y-1.5">
+                      {/* All Staff option - principal/admin only */}
+                      {isPrincipalOrAdmin && (
+                        <button
+                          type="button"
+                          onClick={toggleAllStaff}
+                          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
+                            allStaff
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                              : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            allStaff
+                              ? 'bg-purple-500 border-purple-500'
+                              : 'border-slate-300'
+                          }`}>
+                            {allStaff && <Check size={12} className="text-white" />}
+                          </div>
+                          <Users size={14} />
+                          <span className="font-medium">All Staff</span>
+                        </button>
+                      )}
 
-                    {availableTeams.length === 0 && !isPrincipalOrAdmin && (
-                      <p className="text-sm text-slate-400 text-center py-3">
-                        No teams available
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+                      {/* Team checkboxes */}
+                      {!allStaff && availableTeams.map(team => (
+                        <button
+                          key={team.id}
+                          type="button"
+                          onClick={() => toggleTeam(team.id)}
+                          className={`w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left text-sm ${
+                            selectedTeamIds.includes(team.id)
+                              ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
+                              : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            selectedTeamIds.includes(team.id)
+                              ? 'bg-mps-blue-500 border-mps-blue-500'
+                              : 'border-slate-300'
+                          }`}>
+                            {selectedTeamIds.includes(team.id) && <Check size={12} className="text-white" />}
+                          </div>
+                          <span>{team.name}</span>
+                        </button>
+                      ))}
+
+                      {availableTeams.length === 0 && !isPrincipalOrAdmin && (
+                        <p className="text-sm text-slate-400 text-center py-3">
+                          No teams available
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Error Message */}
               {error && (
