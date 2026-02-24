@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import {
   ClassroomWithDetails,
+  ClassroomMemberRole,
   fetchClassroomsForUser,
   createClassroom,
   updateClassroom,
@@ -76,6 +77,7 @@ export default function ClassroomManagerPage() {
 
   // Add member
   const [addMemberEmailInput, setAddMemberEmailInput] = useState('')
+  const [addMemberRole, setAddMemberRole] = useState<ClassroomMemberRole>('student')
   const [addingMember, setAddingMember] = useState<string | null>(null)
   const [memberError, setMemberError] = useState('')
 
@@ -144,15 +146,22 @@ export default function ClassroomManagerPage() {
     if (!newClassroom.title.trim() || !user || !profile) return
     setCreating(true)
 
-    // Resolve coordinator
+    // Resolve coordinator — only coordinator/principal/admin are eligible
     let coordinatorId: string | undefined
     if (newClassroom.coordinator_email.trim()) {
       const { data: coordProfile } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, role')
         .eq('email', newClassroom.coordinator_email.trim().toLowerCase())
+        .in('role', ['coordinator', 'principal', 'admin'])
         .single()
-      if (coordProfile) coordinatorId = coordProfile.id
+      if (coordProfile) {
+        coordinatorId = coordProfile.id
+      } else {
+        setCreating(false)
+        alert('Coordinator email not found or user does not have a coordinator/principal/admin role.')
+        return
+      }
     }
 
     const result = await createClassroom({
@@ -170,10 +179,10 @@ export default function ClassroomManagerPage() {
         await addMemberByEmail(result.id, newClassroom.teacher_email.trim(), 'teacher')
       }
 
-      // Auto-add all principals and admins as members
+      // Auto-add all principals and admins as members using their actual role
       const { data: defaultMembers } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, role')
         .in('role', ['principal', 'admin'])
 
       for (const member of defaultMembers ?? []) {
@@ -181,7 +190,7 @@ export default function ClassroomManagerPage() {
         if (member.id === coordinatorId) continue // coordinator already added
         const { error } = await supabase
           .from('classroom_members')
-          .insert({ classroom_id: result.id, user_id: member.id, role: profile.role === 'principal' ? 'principal' : 'admin' })
+          .insert({ classroom_id: result.id, user_id: member.id, role: member.role })
         if (error && error.code !== '23505') {
           console.error('Failed to add default member:', error.message)
         }
@@ -199,7 +208,7 @@ export default function ClassroomManagerPage() {
     setAddingMember(classroomId)
     setMemberError('')
 
-    const result = await addMemberByEmail(classroomId, addMemberEmailInput.trim(), 'student')
+    const result = await addMemberByEmail(classroomId, addMemberEmailInput.trim(), addMemberRole)
     if (result.success) {
       setAddMemberEmailInput('')
       await loadClassroomDetails(classroomId)
@@ -407,6 +416,7 @@ export default function ClassroomManagerPage() {
                       editForm={editForm}
                       saving={saving}
                       addMemberEmailInput={addMemberEmailInput}
+                      addMemberRole={addMemberRole}
                       addingMember={addingMember}
                       memberError={memberError}
                       onExpand={() => handleExpand(classroom.id)}
@@ -415,6 +425,7 @@ export default function ClassroomManagerPage() {
                       onSaveEdit={() => handleSaveEdit(classroom.id)}
                       onEditFormChange={setEditForm}
                       onAddMemberEmailChange={(v) => { setAddMemberEmailInput(v); setMemberError('') }}
+                      onAddMemberRoleChange={setAddMemberRole}
                       onAddMember={() => handleAddMember(classroom.id)}
                       onRemoveMember={(uid, role) => handleRemoveMember(classroom.id, uid, role)}
                     />
@@ -443,6 +454,7 @@ export default function ClassroomManagerPage() {
                       editForm={editForm}
                       saving={saving}
                       addMemberEmailInput={addMemberEmailInput}
+                      addMemberRole={addMemberRole}
                       addingMember={addingMember}
                       memberError={memberError}
                       onExpand={() => handleExpand(classroom.id)}
@@ -451,6 +463,7 @@ export default function ClassroomManagerPage() {
                       onSaveEdit={() => handleSaveEdit(classroom.id)}
                       onEditFormChange={setEditForm}
                       onAddMemberEmailChange={(v) => { setAddMemberEmailInput(v); setMemberError('') }}
+                      onAddMemberRoleChange={setAddMemberRole}
                       onAddMember={() => handleAddMember(classroom.id)}
                       onRemoveMember={(uid, role) => handleRemoveMember(classroom.id, uid, role)}
                     />
@@ -484,6 +497,7 @@ interface ClassroomCardProps {
   editForm: EditFormState
   saving: boolean
   addMemberEmailInput: string
+  addMemberRole: ClassroomMemberRole
   addingMember: string | null
   memberError: string
   onExpand: () => void
@@ -492,6 +506,7 @@ interface ClassroomCardProps {
   onSaveEdit: () => void
   onEditFormChange: (form: EditFormState) => void
   onAddMemberEmailChange: (v: string) => void
+  onAddMemberRoleChange: (role: ClassroomMemberRole) => void
   onAddMember: () => void
   onRemoveMember: (userId: string, role: string) => void
 }
@@ -506,6 +521,7 @@ function ClassroomCard({
   editForm,
   saving,
   addMemberEmailInput,
+  addMemberRole,
   addingMember,
   memberError,
   onExpand,
@@ -514,6 +530,7 @@ function ClassroomCard({
   onSaveEdit,
   onEditFormChange,
   onAddMemberEmailChange,
+  onAddMemberRoleChange,
   onAddMember,
   onRemoveMember,
 }: ClassroomCardProps) {
@@ -678,20 +695,29 @@ function ClassroomCard({
                 )}
               </div>
 
-              {/* Add Member — only for active classrooms or admin on closed */}
+              {/* Add Member — only for active classrooms */}
               {isAdmin && (!closed) && (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 relative">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex-1 min-w-0 relative">
                     <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     <input
                       type="email"
                       value={addMemberEmailInput}
                       onChange={e => onAddMemberEmailChange(e.target.value)}
-                      className="input-field pl-10 py-2 text-sm"
+                      className="input-field pl-10 py-2 text-sm w-full"
                       placeholder="Add member by email..."
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAddMember() } }}
                     />
                   </div>
+                  <select
+                    value={addMemberRole}
+                    onChange={e => onAddMemberRoleChange(e.target.value as ClassroomMemberRole)}
+                    className="input-field py-2 text-sm w-auto"
+                  >
+                    <option value="student">Student</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="coordinator">Coordinator</option>
+                  </select>
                   <button
                     onClick={onAddMember}
                     disabled={addingMember === classroom.id}

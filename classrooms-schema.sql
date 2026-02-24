@@ -64,6 +64,9 @@ CREATE TABLE public.classroom_files (
   due_date DATE,
   requires_submission BOOLEAN DEFAULT FALSE,
   submission_type TEXT CHECK (submission_type IS NULL OR submission_type IN ('text', 'link')),
+  requires_check BOOLEAN DEFAULT FALSE,
+  attachment_url TEXT,
+  attachment_name TEXT,
   sort_order INTEGER DEFAULT 0,
   created_by UUID REFERENCES public.profiles(id) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -75,7 +78,7 @@ CREATE TABLE public.classroom_file_progress (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   file_id UUID REFERENCES public.classroom_files(id) ON DELETE CASCADE NOT NULL,
   student_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  status TEXT NOT NULL DEFAULT 'not_done' CHECK (status IN ('not_done', 'partial', 'done')),
+  status TEXT NOT NULL DEFAULT 'not_done' CHECK (status IN ('not_done', 'partial', 'done', 'completed')),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(file_id, student_id)
 );
@@ -143,7 +146,26 @@ ALTER TABLE public.classroom_assessment_marks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.classroom_discussions ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- STEP 3: CREATE ALL RLS POLICIES
+-- STEP 3: HELPER FUNCTION (bypasses RLS to avoid infinite recursion)
+-- ============================================
+
+-- Returns true if the current user is a member of the given classroom.
+-- SECURITY DEFINER so it runs without RLS, breaking the recursion loop.
+CREATE OR REPLACE FUNCTION public.user_is_classroom_member(p_classroom_id UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.classroom_members
+    WHERE classroom_id = p_classroom_id
+      AND user_id = auth.uid()
+  );
+$$;
+
+-- ============================================
+-- STEP 4: CREATE ALL RLS POLICIES
 -- (All tables exist now, so cross-table references work)
 -- ============================================
 
@@ -151,11 +173,7 @@ ALTER TABLE public.classroom_discussions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Members can view classrooms"
   ON public.classrooms FOR SELECT
   TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.classroom_members cm
-      WHERE cm.classroom_id = classrooms.id
-      AND cm.user_id = auth.uid()
-    )
+    public.user_is_classroom_member(classrooms.id)
     OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
   );
 
@@ -181,11 +199,7 @@ CREATE POLICY "Admin can delete classrooms"
 CREATE POLICY "Members can view classroom members"
   ON public.classroom_members FOR SELECT
   TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.classroom_members cm2
-      WHERE cm2.classroom_id = classroom_members.classroom_id
-      AND cm2.user_id = auth.uid()
-    )
+    public.user_is_classroom_member(classroom_members.classroom_id)
     OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
   );
 
@@ -205,11 +219,7 @@ CREATE POLICY "Staff can remove classroom members"
 CREATE POLICY "Classroom members can view folders"
   ON public.classroom_folders FOR SELECT
   TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.classroom_members cm
-      WHERE cm.classroom_id = classroom_folders.classroom_id
-      AND cm.user_id = auth.uid()
-    )
+    public.user_is_classroom_member(classroom_folders.classroom_id)
     OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
   );
 
@@ -225,9 +235,8 @@ CREATE POLICY "Classroom members can view files"
   TO authenticated USING (
     EXISTS (
       SELECT 1 FROM public.classroom_folders cf
-      JOIN public.classroom_members cm ON cm.classroom_id = cf.classroom_id
       WHERE cf.id = classroom_files.folder_id
-      AND cm.user_id = auth.uid()
+        AND public.user_is_classroom_member(cf.classroom_id)
     )
     OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
   );
@@ -258,11 +267,7 @@ CREATE POLICY "Students can manage own submissions"
 CREATE POLICY "Classroom members can view assessments"
   ON public.classroom_assessments FOR SELECT
   TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.classroom_members cm
-      WHERE cm.classroom_id = classroom_assessments.classroom_id
-      AND cm.user_id = auth.uid()
-    )
+    public.user_is_classroom_member(classroom_assessments.classroom_id)
     OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
   );
 
@@ -290,22 +295,14 @@ CREATE POLICY "Staff can manage marks"
 CREATE POLICY "Classroom members can view discussions"
   ON public.classroom_discussions FOR SELECT
   TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.classroom_members cm
-      WHERE cm.classroom_id = classroom_discussions.classroom_id
-      AND cm.user_id = auth.uid()
-    )
+    public.user_is_classroom_member(classroom_discussions.classroom_id)
     OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
   );
 
 CREATE POLICY "Classroom members can post discussions"
   ON public.classroom_discussions FOR INSERT
   TO authenticated WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.classroom_members cm
-      WHERE cm.classroom_id = classroom_discussions.classroom_id
-      AND cm.user_id = auth.uid()
-    )
+    public.user_is_classroom_member(classroom_discussions.classroom_id)
     OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('principal', 'admin')
   );
 

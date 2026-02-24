@@ -4,7 +4,7 @@ import { supabase, UserProfile, UserRole } from './supabase'
 
 export type ClassroomMemberRole = 'student' | 'teacher' | 'coordinator' | 'principal' | 'admin'
 export type FolderType = 'coursework' | 'homework'
-export type FileStatus = 'not_done' | 'partial' | 'done'
+export type FileStatus = 'not_done' | 'partial' | 'done' | 'completed'
 export type SubmissionType = 'text' | 'link'
 export type AssessmentTag = 'main' | 'other'
 
@@ -57,6 +57,9 @@ export interface ClassroomFile {
   due_date: string | null
   requires_submission: boolean
   submission_type: SubmissionType | null
+  requires_check: boolean
+  attachment_url: string | null
+  attachment_name: string | null
   sort_order: number
   created_by: string
   created_at: string
@@ -467,6 +470,9 @@ export async function createFile(input: {
   due_date?: string
   requires_submission?: boolean
   submission_type?: SubmissionType
+  requires_check?: boolean
+  attachment_url?: string
+  attachment_name?: string
 }, createdBy: string): Promise<ClassroomFile | null> {
   const id = crypto.randomUUID()
   const { error } = await supabase
@@ -479,6 +485,9 @@ export async function createFile(input: {
       due_date: input.due_date || null,
       requires_submission: input.requires_submission || false,
       submission_type: input.requires_submission ? (input.submission_type || 'text') : null,
+      requires_check: input.requires_check || false,
+      attachment_url: input.attachment_url || null,
+      attachment_name: input.attachment_name || null,
       created_by: createdBy,
     })
 
@@ -495,6 +504,9 @@ export async function createFile(input: {
     due_date: input.due_date || null,
     requires_submission: input.requires_submission || false,
     submission_type: input.requires_submission ? (input.submission_type || 'text') : null,
+    requires_check: input.requires_check || false,
+    attachment_url: input.attachment_url || null,
+    attachment_name: input.attachment_name || null,
     sort_order: 0,
     created_by: createdBy,
     created_at: new Date().toISOString(),
@@ -803,6 +815,82 @@ export async function fetchCoordinators(): Promise<UserProfile[]> {
     return []
   }
   return (data ?? []) as UserProfile[]
+}
+
+/** Returns all users eligible to be set as responsible coordinator (coordinator, principal, admin). */
+export async function fetchCoordinatorEligible(): Promise<UserProfile[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('role', ['coordinator', 'principal', 'admin'])
+    .order('full_name', { ascending: true })
+
+  if (error) {
+    console.error('Failed to fetch coordinator-eligible users:', error.message)
+    return []
+  }
+  return (data ?? []) as UserProfile[]
+}
+
+/** Fetches ALL file progress records across the given file IDs (any student). For staff use. */
+export async function fetchProgressForFiles(fileIds: string[]): Promise<FileProgress[]> {
+  if (fileIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('classroom_file_progress')
+    .select('*')
+    .in('file_id', fileIds)
+
+  if (error) {
+    console.error('Failed to fetch progress for files:', error.message)
+    return []
+  }
+  return (data ?? []) as FileProgress[]
+}
+
+/** Extracts a YouTube embed URL from any YouTube share/watch/embed link. Returns null if not YouTube. */
+export function extractYouTubeEmbedUrl(url: string): string | null {
+  const patterns = [
+    /youtube\.com\/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return `https://www.youtube.com/embed/${match[1]}`
+  }
+  return null
+}
+
+/** Uploads a document file to Supabase storage and returns its public URL and name.
+ *  Requires a 'classroom-files' storage bucket in Supabase with public read access.
+ *  Max size: 20 MB. */
+export async function uploadClassroomFile(
+  classroomId: string,
+  file: File,
+): Promise<{ url: string; name: string } | null> {
+  const MAX_SIZE = 20 * 1024 * 1024 // 20 MB
+  if (file.size > MAX_SIZE) {
+    console.error('File too large (max 20 MB)')
+    return null
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `${classroomId}/${Date.now()}_${safeName}`
+
+  const { data, error } = await supabase.storage
+    .from('classroom-files')
+    .upload(path, file, { upsert: false })
+
+  if (error) {
+    console.error('Failed to upload file:', error.message)
+    return null
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('classroom-files')
+    .getPublicUrl(data.path)
+
+  return { url: publicUrl, name: file.name }
 }
 
 export async function fetchStudentMembers(classroomId: string): Promise<(ClassroomMember & { user: UserProfile })[]> {
