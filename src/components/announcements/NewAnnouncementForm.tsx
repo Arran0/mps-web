@@ -89,9 +89,11 @@ export default function NewAnnouncementForm({
   teamGradeRanges = [],
 }: NewAnnouncementFormProps) {
   // ── Permissions ──────────────────────────────────────────────────────────
-  const isCoordinator     = currentUserRole === 'coordinator'
+  const isCoordinator      = currentUserRole === 'coordinator'
   const isPrincipalOrAdmin = currentUserRole === 'principal' || currentUserRole === 'admin'
-  // Only coordinator / principal / admin reach this form
+  // All three roles (coordinator, principal, admin) can target both students and staff
+  // but coordinator is limited to their own grade ranges and teams
+  const useInclusivePicker = isCoordinator || isPrincipalOrAdmin
 
   // ── Form state ───────────────────────────────────────────────────────────
   const [title,   setTitle]   = useState('')
@@ -242,14 +244,14 @@ export default function NewAnnouncementForm({
   const canSubmit = (): boolean => {
     if (!title.trim() || !content.trim()) return false
 
-    if (isPrincipalOrAdmin) {
+    if (useInclusivePicker) {
       if (!includeStudents && !includeStaff) return false
       if (includeStudents && !studentAudienceValid()) return false
       if (includeStaff && !staffAudienceValid()) return false
       return true
     }
 
-    // Coordinator
+    // Fallback (shouldn't be reached but kept for safety)
     if (audienceMode === 'student') return studentAudienceValid()
     return staffAudienceValid()
   }
@@ -265,8 +267,8 @@ export default function NewAnnouncementForm({
     try {
       const audiences: Parameters<typeof createAnnouncement>[0]['audiences'] = []
 
-      const wantStudents = isPrincipalOrAdmin ? includeStudents : audienceMode === 'student'
-      const wantStaff    = isPrincipalOrAdmin ? includeStaff    : audienceMode === 'staff'
+      const wantStudents = useInclusivePicker ? includeStudents : audienceMode === 'student'
+      const wantStaff    = useInclusivePicker ? includeStaff    : audienceMode === 'staff'
 
       if (wantStudents) audiences.push(...buildStudentAudiences())
       if (wantStaff)    audiences.push(...buildStaffAudiences())
@@ -487,62 +489,8 @@ export default function NewAnnouncementForm({
               <div className="space-y-3">
                 <label className="text-sm font-medium text-slate-700 block">Audience</label>
 
-                {/* ── COORDINATOR: exclusive toggle ── */}
-                {isCoordinator && (
-                  <>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => switchAudienceMode('student')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors border ${
-                          audienceMode === 'student'
-                            ? 'bg-mps-blue-50 text-mps-blue-700 border-mps-blue-300'
-                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        <GraduationCap size={14} /> Students
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => switchAudienceMode('staff')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors border ${
-                          audienceMode === 'staff'
-                            ? 'bg-purple-50 text-purple-700 border-purple-300'
-                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Users size={14} /> Staff
-                      </button>
-                    </div>
-
-                    {audienceMode === 'student' && (
-                      <>
-                        {availableGrades.length < 12 && (
-                          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                            <AlertCircle size={14} className="flex-shrink-0" />
-                            <span>Limited to grades assigned to your team</span>
-                          </div>
-                        )}
-                        <StudentPicker />
-                      </>
-                    )}
-
-                    {audienceMode === 'staff' && (
-                      <>
-                        {availableTeams.length > 0 && (
-                          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                            <AlertCircle size={14} className="flex-shrink-0" />
-                            <span>Limited to staff in your team</span>
-                          </div>
-                        )}
-                        <StaffPicker />
-                      </>
-                    )}
-                  </>
-                )}
-
-                {/* ── PRINCIPAL / ADMIN: can target students AND staff together ── */}
-                {isPrincipalOrAdmin && (
+                  {/* ── All privileged staff: inclusive checkbox picker ── */}
+                {useInclusivePicker && (
                   <div className="space-y-3">
                     {/* Students section */}
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -569,6 +517,9 @@ export default function NewAnnouncementForm({
                         <span className={`text-sm font-semibold ${includeStudents ? 'text-mps-blue-700' : 'text-slate-600'}`}>
                           Students
                         </span>
+                        {isCoordinator && availableGrades.length < 12 && (
+                          <span className="ml-auto text-xs text-amber-600 font-normal">Limited to your team&apos;s grades</span>
+                        )}
                       </button>
 
                       {includeStudents && (
@@ -599,6 +550,9 @@ export default function NewAnnouncementForm({
                         <span className={`text-sm font-semibold ${includeStaff ? 'text-purple-700' : 'text-slate-600'}`}>
                           Staff
                         </span>
+                        {isCoordinator && availableTeams.length > 0 && (
+                          <span className="ml-auto text-xs text-amber-600 font-normal">Limited to your team</span>
+                        )}
                       </button>
 
                       {includeStaff && (
