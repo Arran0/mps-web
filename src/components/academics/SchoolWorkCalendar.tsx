@@ -36,19 +36,22 @@ interface SchoolWorkCalendarProps {
 const STATUS_COLORS: Record<FileStatus, string> = {
   not_done: 'bg-red-100 text-red-700 border-red-200',
   partial: 'bg-amber-100 text-amber-700 border-amber-200',
-  done: 'bg-green-100 text-green-700 border-green-200',
+  done: 'bg-blue-100 text-blue-700 border-blue-200',
+  completed: 'bg-green-100 text-green-700 border-green-200',
 }
 
 const STATUS_LABELS: Record<FileStatus, string> = {
   not_done: 'Not Done',
   partial: 'Partial',
   done: 'Done',
+  completed: 'Completed',
 }
 
 function getNextStatus(current: FileStatus): FileStatus {
   if (current === 'not_done') return 'partial'
-  if (current === 'partial') return 'done'
-  return 'not_done'
+  if (current === 'partial') return 'completed'
+  if (current === 'completed') return 'not_done'
+  return 'not_done' // 'done' (requires_check) falls back
 }
 
 function getWeekDates(baseDate: Date): Date[] {
@@ -187,7 +190,7 @@ export default function SchoolWorkCalendar({ userId, classrooms }: SchoolWorkCal
               </div>
               <div className="p-1.5 space-y-1">
                 {dayItems.map((item) => {
-                  const isOverdue = isPast && item.progress !== 'done'
+                  const isOverdue = isPast && item.progress !== 'completed' && item.progress !== 'done'
                   return (
                     <div
                       key={item.file.id}
