@@ -12,7 +12,6 @@ import {
   FileText,
   ClipboardList,
   MessageSquare,
-  LayoutDashboard,
   ChevronLeft,
   Lock,
 } from 'lucide-react'
@@ -25,9 +24,8 @@ import CourseWorkTab from '@/components/classrooms/CourseWorkTab'
 import HomeworkTab from '@/components/classrooms/HomeworkTab'
 import AssessmentsTab from '@/components/classrooms/AssessmentsTab'
 import DiscussionTab from '@/components/classrooms/DiscussionTab'
-import StudentDashboard from '@/components/classrooms/StudentDashboard'
 
-type Tab = 'dashboard' | 'coursework' | 'homework' | 'assessments' | 'discussion'
+type Tab = 'coursework' | 'homework' | 'assessments' | 'discussion'
 
 export default function ClassroomDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -37,8 +35,6 @@ export default function ClassroomDetailPage() {
   const [classroom, setClassroom] = useState<ClassroomWithDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('coursework')
-
-  const isStudent = profile?.role === 'student'
 
   const loadClassroom = useCallback(async () => {
     if (!id) return
@@ -52,17 +48,11 @@ export default function ClassroomDetailPage() {
     loadClassroom()
   }, [loadClassroom])
 
-  useEffect(() => {
-    if (isStudent) setActiveTab('dashboard')
-    else setActiveTab('coursework')
-  }, [isStudent])
-
   if (!user || !profile) return null
 
   const closed = classroom ? isClassroomClosed(classroom) : false
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    ...(isStudent ? [{ id: 'dashboard' as Tab, label: 'Dashboard', icon: <LayoutDashboard size={16} /> }] : []),
     { id: 'coursework', label: 'Course Work', icon: <FileText size={16} /> },
     { id: 'homework', label: 'Homework', icon: <BookOpen size={16} /> },
     { id: 'assessments', label: 'Assessments', icon: <ClipboardList size={16} /> },
@@ -167,9 +157,6 @@ export default function ClassroomDetailPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.15 }}
             >
-              {activeTab === 'dashboard' && isStudent && (
-                <StudentDashboard classroomId={classroom.id} userId={user.id} />
-              )}
               {activeTab === 'coursework' && (
                 <CourseWorkTab
                   classroomId={classroom.id}

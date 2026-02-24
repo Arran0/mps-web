@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, BookOpen, AlertCircle } from 'lucide-react'
-import { createClassroom, fetchCoordinators } from '@/lib/classrooms'
+import { createClassroom, fetchCoordinatorEligible } from '@/lib/classrooms'
 import { UserRole, UserProfile } from '@/lib/supabase'
 
 interface NewClassroomFormProps {
@@ -35,7 +35,7 @@ export default function NewClassroomForm({
 
   useEffect(() => {
     if (isOpen && isPrincipalOrAdmin) {
-      fetchCoordinators().then(setCoordinators)
+      fetchCoordinatorEligible().then(setCoordinators)
     }
   }, [isOpen, isPrincipalOrAdmin])
 
@@ -75,7 +75,7 @@ export default function NewClassroomForm({
       )
 
       if (!result) {
-        setError('Failed to create classroom. The code may already be in use.')
+        setError('Failed to create classroom. Please try again.')
         return
       }
 
@@ -188,7 +188,7 @@ export default function NewClassroomForm({
                     <option value="">Select coordinator...</option>
                     {coordinators.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.full_name} ({c.email})
+                        {c.full_name} ({c.role})
                       </option>
                     ))}
                   </select>

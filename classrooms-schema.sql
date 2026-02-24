@@ -64,6 +64,9 @@ CREATE TABLE public.classroom_files (
   due_date DATE,
   requires_submission BOOLEAN DEFAULT FALSE,
   submission_type TEXT CHECK (submission_type IS NULL OR submission_type IN ('text', 'link')),
+  requires_check BOOLEAN DEFAULT FALSE,
+  attachment_url TEXT,
+  attachment_name TEXT,
   sort_order INTEGER DEFAULT 0,
   created_by UUID REFERENCES public.profiles(id) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -75,7 +78,7 @@ CREATE TABLE public.classroom_file_progress (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   file_id UUID REFERENCES public.classroom_files(id) ON DELETE CASCADE NOT NULL,
   student_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  status TEXT NOT NULL DEFAULT 'not_done' CHECK (status IN ('not_done', 'partial', 'done')),
+  status TEXT NOT NULL DEFAULT 'not_done' CHECK (status IN ('not_done', 'partial', 'done', 'completed')),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(file_id, student_id)
 );
