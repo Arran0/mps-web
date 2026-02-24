@@ -211,28 +211,29 @@ export async function fetchAnnouncementsForUser(
   }
 
   // ── Student: student (or 'both') announcements for their grade/section ───
-  if (userRole === 'student' && userGrade != null) {
-    // Collect matching announcement IDs from two types of audience rows:
+  if (userRole === 'student') {
     const matchedIds = new Set<string>()
 
-    // 1. Rows with all_students = true
+    // 1. Rows with all_students = true (visible regardless of grade)
     const { data: allStudentRows } = await supabase
       .from('announcement_audiences')
       .select('announcement_id')
       .eq('all_students', true)
     ;(allStudentRows ?? []).forEach(r => matchedIds.add(r.announcement_id))
 
-    // 2. Rows targeting this grade + matching section (null section = all sections)
-    const sectionFilter = userSection
-      ? `section.is.null,section.eq.${userSection}`
-      : `section.is.null`
+    // 2. Grade-specific rows (only if the student has a grade set)
+    if (userGrade != null) {
+      const sectionFilter = userSection
+        ? `section.is.null,section.eq.${userSection}`
+        : `section.is.null`
 
-    const { data: gradeRows } = await supabase
-      .from('announcement_audiences')
-      .select('announcement_id')
-      .eq('grade', userGrade)
-      .or(sectionFilter)
-    ;(gradeRows ?? []).forEach(r => matchedIds.add(r.announcement_id))
+      const { data: gradeRows } = await supabase
+        .from('announcement_audiences')
+        .select('announcement_id')
+        .eq('grade', userGrade)
+        .or(sectionFilter)
+      ;(gradeRows ?? []).forEach(r => matchedIds.add(r.announcement_id))
+    }
 
     const ids = Array.from(matchedIds)
     if (ids.length === 0) return []

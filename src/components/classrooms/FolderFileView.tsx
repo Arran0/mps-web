@@ -16,7 +16,7 @@ import {
   fetchProgressForFiles,
   submitWork, fetchSubmissions, fetchStudentSubmission, fetchStudentMembers,
   ClassroomMember,
-  extractYouTubeEmbedUrl, uploadClassroomFile,
+  extractYouTubeEmbedUrl, uploadClassroomFile, uploadSubmissionFile,
 } from '@/lib/classrooms'
 import { UserRole, UserProfile } from '@/lib/supabase'
 
@@ -69,6 +69,14 @@ function getNextStatus(
   return cycle[(cycle.indexOf(current) + 1) % cycle.length]
 }
 
+function getAttachmentType(url: string, name: string | null): 'youtube' | 'image' | 'pdf' | 'other' {
+  if (extractYouTubeEmbedUrl(url)) return 'youtube'
+  const ext = ((name || url).split('.').pop() || '').toLowerCase()
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return 'image'
+  if (ext === 'pdf') return 'pdf'
+  return 'other'
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function FolderFileView({
@@ -103,7 +111,11 @@ export default function FolderFileView({
   const [trackingUpdating, setTrackingUpdating] = useState<string | null>(null)  // studentId
   const [showSubmit,      setShowSubmit]      = useState<string | null>(null)
   const [submitContent,   setSubmitContent]   = useState('')
+  const [submitFile,      setSubmitFile]      = useState<File | null>(null)
+  const [submittingWork,  setSubmittingWork]  = useState(false)
   const [videoUrl,        setVideoUrl]        = useState<string | null>(null)   // YouTube embed URL
+  const [imageUrl,        setImageUrl]        = useState<string | null>(null)   // image lightbox
+  const [pdfUrl,          setPdfUrl]          = useState<string | null>(null)   // PDF viewer
 
   // New folder form
   const [newFolderTitle, setNewFolderTitle] = useState('')
@@ -228,7 +240,7 @@ export default function FolderFileView({
     } else if (newFileAttachmentMode === 'upload' && newFileUpload) {
       const uploaded = await uploadClassroomFile(classroomId, newFileUpload)
       if (!uploaded) {
-        alert('File upload failed. Check the file size (max 20 MB) and try again.')
+        alert('File upload failed. Please ensure the Supabase storage bucket "classroom-files" exists and try again.')
         setUploadingFile(false)
         return
       }
@@ -341,16 +353,33 @@ export default function FolderFileView({
   }
 
   const handleSubmitWork = async (fileId: string) => {
-    if (!submitContent.trim()) return
     const file = Object.values(folderFiles).flat().find(f => f.id === fileId)
-    const subType = file?.submission_type || 'text'
-    const success = await submitWork(fileId, userId, submitContent.trim(), subType as SubmissionType)
+    const subType = (file?.submission_type || 'text') as SubmissionType
+    let content = submitContent.trim()
+
+    if (subType === 'file') {
+      if (!submitFile) return
+      setSubmittingWork(true)
+      const uploaded = await uploadSubmissionFile(fileId, userId, submitFile)
+      if (!uploaded) {
+        setSubmittingWork(false)
+        alert('File upload failed. Please ensure the storage bucket is configured and try again.')
+        return
+      }
+      content = uploaded.url
+    } else {
+      if (!content) return
+    }
+
+    setSubmittingWork(true)
+    const success = await submitWork(fileId, userId, content, subType)
+    setSubmittingWork(false)
     if (success) {
       setStudentSubmissions(prev => ({
         ...prev,
         [fileId]: {
           id: '', file_id: fileId, student_id: userId,
-          content: submitContent.trim(), submission_type: subType as SubmissionType,
+          content, submission_type: subType,
           submitted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
         },
       }))
@@ -358,6 +387,7 @@ export default function FolderFileView({
       await updateFileProgress(fileId, userId, next)
       setStudentProgress(prev => ({ ...prev, [fileId]: next }))
       setSubmitContent('')
+      setSubmitFile(null)
       setShowSubmit(null)
     }
   }
@@ -655,6 +685,7 @@ export default function FolderFileView({
                                 >
                                   <option value="text">Text</option>
                                   <option value="link">Link</option>
+                                  <option value="file">File Upload</option>
                                 </select>
                               )}
                             </div>
@@ -693,7 +724,6 @@ export default function FolderFileView({
                                   <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.zip"
                                     onChange={e => setNewFileUpload(e.target.files?.[0] || null)}
                                     className="hidden"
                                   />
@@ -731,9 +761,10 @@ export default function FolderFileView({
                           const status     = studentProgress[file.id] || 'not_done'
                           const submission = studentSubmissions[file.id]
                           const fileOverdue = isOverdue(file.due_date)
-                          const embedUrl   = file.attachment_url ? extractYouTubeEmbedUrl(file.attachment_url) : null
-                          const isYoutube  = !!embedUrl
                           const hasAttachment = !!file.attachment_url
+                          const attachType = hasAttachment ? getAttachmentType(file.attachment_url!, file.attachment_name) : 'other'
+                          const embedUrl   = attachType === 'youtube' ? extractYouTubeEmbedUrl(file.attachment_url!) : null
+                          const isYoutube  = attachType === 'youtube'
 
                           return (
                             <div
@@ -778,7 +809,7 @@ export default function FolderFileView({
                                   {isHomework && file.requires_submission && (
                                     <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded-full flex items-center gap-0.5">
                                       {file.submission_type === 'link' ? <Link2 size={10} /> : <FileText size={10} />}
-                                      {isStudent && submission ? 'Submitted' : isStudent ? 'Submission required' : 'Requires submission'}
+                                      {isStudent && submission ? 'Submitted' : isStudent ? 'Submit required' : `Submit (${file.submission_type || 'text'})`}
                                     </span>
                                   )}
                                   {file.requires_check && (
@@ -794,18 +825,17 @@ export default function FolderFileView({
                                 {hasAttachment && (
                                   <button
                                     onClick={() => {
-                                      if (isYoutube) {
-                                        setVideoUrl(embedUrl)
-                                      } else {
-                                        window.open(file.attachment_url!, '_blank')
-                                      }
+                                      if (attachType === 'youtube') setVideoUrl(embedUrl)
+                                      else if (attachType === 'image') setImageUrl(file.attachment_url!)
+                                      else if (attachType === 'pdf') setPdfUrl(file.attachment_url!)
+                                      else window.open(file.attachment_url!, '_blank')
                                     }}
                                     className="mt-1 flex items-center gap-1.5 text-xs text-mps-blue-600 hover:text-mps-blue-700 font-medium"
                                   >
-                                    {isYoutube
-                                      ? <><Play size={11} /> Watch Video</>
-                                      : <><ExternalLink size={11} /> {file.attachment_name || 'View Attachment'}</>
-                                    }
+                                    {attachType === 'youtube' && <><Play size={11} /> Watch Video</>}
+                                    {attachType === 'image'   && <><ExternalLink size={11} /> View Image</>}
+                                    {attachType === 'pdf'     && <><ExternalLink size={11} /> View PDF</>}
+                                    {attachType === 'other'   && <><ExternalLink size={11} /> {file.attachment_name || 'View Attachment'}</>}
                                   </button>
                                 )}
                               </div>
@@ -866,12 +896,14 @@ export default function FolderFileView({
               <h3 className="text-lg font-bold text-slate-800">Submit Your Work</h3>
               {(() => {
                 const file = Object.values(folderFiles).flat().find(f => f.id === showSubmit)
+                const subType = file?.submission_type || 'text'
+                const isReady = subType === 'file' ? !!submitFile : !!submitContent.trim()
                 return (
                   <>
                     <p className="text-sm text-slate-500">
-                      {file?.submission_type === 'link' ? 'Paste your link below:' : 'Enter your submission:'}
+                      {subType === 'link' ? 'Paste your link below:' : subType === 'file' ? 'Upload your file:' : 'Enter your submission:'}
                     </p>
-                    {file?.submission_type === 'link' ? (
+                    {subType === 'link' && (
                       <input
                         type="url" value={submitContent}
                         onChange={e => setSubmitContent(e.target.value)}
@@ -879,7 +911,8 @@ export default function FolderFileView({
                         className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                         autoFocus
                       />
-                    ) : (
+                    )}
+                    {subType === 'text' && (
                       <textarea
                         value={submitContent}
                         onChange={e => setSubmitContent(e.target.value)}
@@ -888,16 +921,32 @@ export default function FolderFileView({
                         autoFocus
                       />
                     )}
+                    {subType === 'file' && (
+                      <div>
+                        <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-purple-400 transition-colors bg-slate-50">
+                          <Upload size={24} className="text-slate-400" />
+                          <span className="text-sm text-slate-600 text-center">
+                            {submitFile ? submitFile.name : 'Click to choose a file'}
+                          </span>
+                          {submitFile && (
+                            <span className="text-xs text-slate-400">
+                              {(submitFile.size / 1024 / 1024).toFixed(1)} MB
+                            </span>
+                          )}
+                          <input type="file" className="hidden" onChange={e => setSubmitFile(e.target.files?.[0] || null)} />
+                        </label>
+                      </div>
+                    )}
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => { setShowSubmit(null); setSubmitContent('') }}
+                        onClick={() => { setShowSubmit(null); setSubmitContent(''); setSubmitFile(null) }}
                         className="text-sm text-slate-500 px-4 py-2"
                       >Cancel</button>
                       <button
                         onClick={() => handleSubmitWork(showSubmit!)}
                         className="btn-primary text-sm px-4 py-2"
-                        disabled={!submitContent.trim()}
-                      >Submit</button>
+                        disabled={!isReady || submittingWork}
+                      >{submittingWork ? 'Uploading…' : 'Submit'}</button>
                     </div>
                   </>
                 )
@@ -969,10 +1018,22 @@ export default function FolderFileView({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-700">{member.user.full_name}</p>
-                          {sub && (
+                          {sub && sub.submission_type === 'text' && (
                             <p className="text-xs text-purple-600 truncate">
-                              Submitted: {sub.content.substring(0, 60)}{sub.content.length > 60 ? '…' : ''}
+                              {sub.content.substring(0, 60)}{sub.content.length > 60 ? '…' : ''}
                             </p>
+                          )}
+                          {sub && sub.submission_type === 'link' && (
+                            <a href={sub.content} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-mps-blue-600 hover:underline truncate block">
+                              {sub.content.substring(0, 60)}{sub.content.length > 60 ? '…' : ''}
+                            </a>
+                          )}
+                          {sub && sub.submission_type === 'file' && (
+                            <a href={sub.content} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-purple-600 hover:underline flex items-center gap-1">
+                              <ExternalLink size={10} /> View Submitted File
+                            </a>
                           )}
                         </div>
                         {/* Interactive status button */}
@@ -1023,6 +1084,56 @@ export default function FolderFileView({
                   allowFullScreen
                 />
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Image Lightbox ───────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {imageUrl && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85"
+            onClick={() => setImageUrl(null)}
+          >
+            <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => setImageUrl(null)}
+                className="absolute -top-10 right-0 text-white/80 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+              <img
+                src={imageUrl}
+                alt="Attachment"
+                className="w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── PDF Viewer ───────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {pdfUrl && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85"
+            onClick={() => setPdfUrl(null)}
+          >
+            <div className="relative w-full max-w-4xl h-[85vh]" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => setPdfUrl(null)}
+                className="absolute -top-10 right-0 text-white/80 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+              <iframe
+                src={pdfUrl}
+                className="w-full h-full rounded-xl shadow-2xl bg-white"
+                title="PDF Viewer"
+              />
             </div>
           </motion.div>
         )}

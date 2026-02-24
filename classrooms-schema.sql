@@ -63,7 +63,7 @@ CREATE TABLE public.classroom_files (
   description TEXT,
   due_date DATE,
   requires_submission BOOLEAN DEFAULT FALSE,
-  submission_type TEXT CHECK (submission_type IS NULL OR submission_type IN ('text', 'link')),
+  submission_type TEXT CHECK (submission_type IS NULL OR submission_type IN ('text', 'link', 'file')),
   requires_check BOOLEAN DEFAULT FALSE,
   attachment_url TEXT,
   attachment_name TEXT,
@@ -89,7 +89,7 @@ CREATE TABLE public.classroom_submissions (
   file_id UUID REFERENCES public.classroom_files(id) ON DELETE CASCADE NOT NULL,
   student_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   content TEXT NOT NULL,
-  submission_type TEXT NOT NULL CHECK (submission_type IN ('text', 'link')),
+  submission_type TEXT NOT NULL CHECK (submission_type IN ('text', 'link', 'file')),
   submitted_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(file_id, student_id)

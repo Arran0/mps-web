@@ -5,7 +5,7 @@ import { supabase, UserProfile, UserRole } from './supabase'
 export type ClassroomMemberRole = 'student' | 'teacher' | 'coordinator' | 'principal' | 'admin'
 export type FolderType = 'coursework' | 'homework'
 export type FileStatus = 'not_done' | 'partial' | 'done' | 'completed'
-export type SubmissionType = 'text' | 'link'
+export type SubmissionType = 'text' | 'link' | 'file'
 export type AssessmentTag = 'main' | 'other'
 
 export interface Classroom {
@@ -883,6 +883,39 @@ export async function uploadClassroomFile(
 
   if (error) {
     console.error('Failed to upload file:', error.message)
+    return null
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('classroom-files')
+    .getPublicUrl(data.path)
+
+  return { url: publicUrl, name: file.name }
+}
+
+/** Uploads a student submission file to Supabase storage.
+ *  Uses the same 'classroom-files' bucket, under a 'submissions' prefix.
+ *  Max size: 20 MB. Returns public URL and file name, or null on failure. */
+export async function uploadSubmissionFile(
+  fileId: string,
+  studentId: string,
+  file: File,
+): Promise<{ url: string; name: string } | null> {
+  const MAX_SIZE = 20 * 1024 * 1024
+  if (file.size > MAX_SIZE) {
+    console.error('Submission file too large (max 20 MB)')
+    return null
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `submissions/${fileId}/${studentId}/${Date.now()}_${safeName}`
+
+  const { data, error } = await supabase.storage
+    .from('classroom-files')
+    .upload(path, file, { upsert: true })
+
+  if (error) {
+    console.error('Failed to upload submission file:', error.message)
     return null
   }
 

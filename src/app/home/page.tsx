@@ -10,7 +10,6 @@ import {
   ClipboardList,
   CreditCard,
   Calendar,
-  Award,
   GraduationCap,
   ArrowRight,
   Bell,
@@ -100,16 +99,14 @@ export default function HomePage() {
 
   // Student quick access
   const studentQuickAccess: QuickButton[] = [
-    { label: 'Classrooms', href: '/classrooms', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
-    { label: 'Grades', href: '/academics/grades', icon: <Award size={24} />, color: 'from-amber-400 to-amber-600' },
+    { label: 'Academics', href: '/academics', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
     { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
     { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
   ]
 
   // Teacher/Coordinator/Principal quick access
   const staffQuickAccess: QuickButton[] = [
-    { label: 'Classrooms', href: '/classrooms', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
-    { label: 'Grades', href: '/academics/grades', icon: <Award size={24} />, color: 'from-amber-400 to-amber-600' },
+    { label: 'Academics', href: '/academics', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
     { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
     { label: 'Staff Leave', href: '/more/staff-leave', icon: <CalendarDays size={24} />, color: 'from-pink-400 to-pink-600' },
   ]
@@ -117,8 +114,7 @@ export default function HomePage() {
   // Admin quick access
   const adminQuickAccess: QuickButton[] = [
     { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
-    { label: 'Classrooms', href: '/classrooms', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
-    { label: 'Grades', href: '/academics/grades', icon: <Award size={24} />, color: 'from-amber-400 to-amber-600' },
+    { label: 'Academics', href: '/academics', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
     { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
     { label: 'Staff Leave', href: '/more/staff-leave', icon: <CalendarDays size={24} />, color: 'from-pink-400 to-pink-600' },
   ]
