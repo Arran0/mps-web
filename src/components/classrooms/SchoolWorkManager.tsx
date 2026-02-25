@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   ChevronLeft, ChevronRight, Circle, CircleDot, CheckCircle2,
   AlertTriangle, Clock, ChevronDown, X, BookOpen, Folder,
+  FileText, ExternalLink, Link2, Upload,
 } from 'lucide-react'
 import {
   ClassroomWithDetails, ClassroomFile, ClassroomFolder,
@@ -412,7 +413,7 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
           onClick={() => setDetailItem(null)}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 max-h-[85vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             {/* Status toggle at top */}
@@ -442,6 +443,11 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
               {detailItem.title}
             </h2>
 
+            {/* Description */}
+            {detailItem.description && (
+              <p className="text-sm text-slate-600 leading-relaxed mb-3">{detailItem.description}</p>
+            )}
+
             {/* Meta */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -454,15 +460,59 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
                   <span>{detailItem.folder.title}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <TypeBadge type={detailItem.folder.type} />
                 {detailItem.due_date && (
                   <span className="text-xs text-red-500 font-medium">
                     Due {parseDate(detailItem.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </span>
                 )}
+                {detailItem.requires_submission && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-600 font-medium flex items-center gap-1">
+                    <Upload size={10} /> Submission Required
+                  </span>
+                )}
               </div>
             </div>
+
+            {/* Attachment */}
+            {detailItem.attachment_url && (
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                {detailItem.attachment_name === 'Link' ? (
+                  <a
+                    href={detailItem.attachment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors"
+                  >
+                    <Link2 size={14} />
+                    <span className="flex-1 truncate">{detailItem.attachment_url}</span>
+                    <ExternalLink size={12} />
+                  </a>
+                ) : detailItem.attachment_url.includes('youtube') || detailItem.attachment_url.includes('youtu.be') ? (
+                  <a
+                    href={detailItem.attachment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors"
+                  >
+                    <ExternalLink size={14} />
+                    <span className="flex-1 truncate">YouTube Video</span>
+                  </a>
+                ) : (
+                  <a
+                    href={detailItem.attachment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors"
+                  >
+                    <FileText size={14} />
+                    <span className="flex-1 truncate">{detailItem.attachment_name || 'Attachment'}</span>
+                    <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

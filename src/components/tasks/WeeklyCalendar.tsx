@@ -15,6 +15,9 @@ import {
   X,
   Edit3,
   Check,
+  Circle,
+  CircleDot,
+  CheckCircle2,
 } from 'lucide-react'
 import NewTaskForm from './NewTaskForm'
 import {
@@ -188,17 +191,22 @@ export default function WeeklyCalendar({
       </div>
 
       {/* Week Navigation */}
-      <div className="flex items-center justify-between glass rounded-xl p-3">
-        <button onClick={goToPrevWeek} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+      <div className="flex items-center justify-between">
+        <button
+          onClick={goToPrevWeek}
+          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+          aria-label="Previous week"
+        >
           <ChevronLeft size={18} />
         </button>
-        <div className="text-center">
-          <p className="font-semibold text-slate-800 text-sm">{weekLabel}</p>
-          <button onClick={goToThisWeek} className="text-xs text-mps-blue-600 hover:text-mps-blue-700 font-medium">
-            Today
-          </button>
-        </div>
-        <button onClick={goToNextWeek} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+        <button onClick={goToThisWeek} className="text-sm font-semibold text-slate-700 hover:text-cyan-600 transition-colors">
+          {weekLabel}
+        </button>
+        <button
+          onClick={goToNextWeek}
+          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+          aria-label="Next week"
+        >
           <ChevronRight size={18} />
         </button>
       </div>
@@ -211,7 +219,7 @@ export default function WeeklyCalendar({
       ) : (
         <>
           {/* ── 7-Column Grid ─────────────────────────────────────────────────── */}
-          <div className="overflow-x-auto rounded-xl border border-slate-100 shadow-sm -mx-1 px-1">
+          <div className="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
             <div className="flex min-w-[560px]">
               {weekDays.map((day, i) => {
                 const dayTasks = getTasksForDay(day.full)
@@ -225,35 +233,24 @@ export default function WeeklyCalendar({
                     className={`flex-1 min-w-0 flex flex-col ${!isLast ? 'border-r border-slate-100' : ''}`}
                   >
                     {/* Day header */}
-                    <div className={`px-1.5 py-2 text-center border-b border-slate-100 flex items-center justify-between ${
-                      isToday ? 'bg-cyan-50' : 'bg-slate-50'
+                    <div className={`px-1.5 py-2 text-center border-b border-slate-100 ${
+                      isToday ? 'bg-cyan-100' : 'bg-slate-50'
                     }`}>
-                      <div className="flex-1 text-center">
-                        <p className={`text-[10px] font-semibold uppercase tracking-wide ${
-                          isToday ? 'text-cyan-600' : 'text-slate-400'
-                        }`}>
-                          {day.day}
-                        </p>
-                        <p className={`text-sm font-bold leading-tight ${
-                          isToday ? 'text-cyan-700' : 'text-slate-700'
-                        }`}>
-                          {day.date}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => { setNewTaskDate(day.full); setShowNewTask(true) }}
-                        className={`flex-shrink-0 p-0.5 rounded transition-colors ${
-                          isToday ? 'text-cyan-500 hover:bg-cyan-100' : 'text-slate-400 hover:bg-slate-100'
-                        }`}
-                        title={`Add task for ${day.day} ${day.date}`}
-                      >
-                        <Plus size={12} />
-                      </button>
+                      <p className={`text-[10px] font-semibold uppercase tracking-wide ${
+                        isToday ? 'text-cyan-600' : 'text-slate-400'
+                      }`}>
+                        {day.day}
+                      </p>
+                      <p className={`text-base font-bold leading-tight ${
+                        isToday ? 'text-cyan-700' : 'text-slate-700'
+                      }`}>
+                        {day.date}
+                      </p>
                     </div>
 
                     {/* Tasks for this day */}
-                    <div className={`p-1 space-y-1 flex-1 min-h-[80px] max-h-[240px] overflow-y-auto ${
-                      isToday ? 'bg-cyan-50/30' : ''
+                    <div className={`p-1 space-y-1 flex-1 min-h-[96px] ${
+                      isToday ? 'bg-cyan-50/40' : ''
                     }`}>
                       {dayTasks.map(task => (
                         <TaskGridChip
@@ -273,9 +270,6 @@ export default function WeeklyCalendar({
                           onOpen={() => setOpenSubtask(sub)}
                         />
                       ))}
-                      {dayTasks.length === 0 && daySubs.length === 0 && (
-                        <p className="text-[10px] text-slate-300 text-center py-3">–</p>
-                      )}
                     </div>
                   </div>
                 )
@@ -285,12 +279,14 @@ export default function WeeklyCalendar({
 
           {/* ── Overdue & Undated ─────────────────────────────────────────────── */}
           {overdueUndated.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                <AlertTriangle size={14} className="text-amber-500" />
-                Overdue &amp; Undated
-                <span className="text-xs font-normal text-slate-400">({overdueUndated.length})</span>
-              </h3>
+            <div className="glass rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle size={15} className="text-red-500" />
+                <h3 className="text-sm font-semibold text-slate-700">
+                  Overdue &amp; Undated
+                  <span className="ml-1.5 text-xs font-normal text-red-400">({overdueUndated.length})</span>
+                </h3>
+              </div>
               <div className="space-y-1.5">
                 {overdueUndated.map(task => (
                   <TaskGridChip
@@ -303,7 +299,7 @@ export default function WeeklyCalendar({
                   />
                 ))}
               </div>
-            </motion.div>
+            </div>
           )}
         </>
       )}
@@ -357,6 +353,14 @@ export default function WeeklyCalendar({
   )
 }
 
+// Status icons matching SchoolWorkManager style
+const TASK_STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
+  not_done: <Circle       size={14} className="text-red-400" />,
+  partial:  <CircleDot    size={14} className="text-amber-500" />,
+  done:     <CheckCircle2 size={14} className="text-blue-500" />,
+  checked:  <CheckCircle2 size={14} className="text-green-500" />,
+}
+
 // ─── Task Grid Chip ────────────────────────────────────────────────────────────
 
 function TaskGridChip({
@@ -372,7 +376,7 @@ function TaskGridChip({
   onOpen: () => void
   showDate?: boolean
 }) {
-  const handleDotClick = async (e: React.MouseEvent) => {
+  const handleIconClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
     const next = getNextStatus(task.status, canCheck)
     if (next === task.status) return
@@ -381,17 +385,22 @@ function TaskGridChip({
   }
 
   return (
-    <button
-      onClick={onOpen}
-      className={`w-full text-left text-[11px] px-1.5 py-1.5 rounded-lg border transition-all active:scale-95 ${CHIP_STYLE[task.status]}`}
+    <div
+      className={`w-full text-[11px] p-1.5 rounded-lg border transition-all ${CHIP_STYLE[task.status]}`}
     >
       <div className="flex items-start gap-1">
-        <div
-          onClick={handleDotClick}
-          className={`flex-shrink-0 mt-[2px] w-2.5 h-2.5 rounded-full ${STATUS_DOT_COLORS[task.status]} cursor-pointer hover:scale-125 transition-transform`}
-          title={`${STATUS_LABELS[task.status]} → tap to change`}
-        />
-        <div className="min-w-0 flex-1">
+        <button
+          onClick={handleIconClick}
+          className="flex-shrink-0 mt-0.5 hover:scale-125 transition-transform"
+          title="Tap to cycle status"
+        >
+          {TASK_STATUS_ICON[task.status]}
+        </button>
+        <button
+          onClick={onOpen}
+          className="min-w-0 flex-1 text-left"
+          title="Tap to see details"
+        >
           <p className={`font-medium leading-tight truncate ${
             task.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-700'
           }`}>
@@ -400,12 +409,9 @@ function TaskGridChip({
           {(showDate && task.due_date) && (
             <p className="text-[9px] text-red-400 font-medium">{task.due_date}</p>
           )}
-          {task.timing && !showDate && (
-            <p className="text-[9px] text-slate-400">{task.timing}</p>
-          )}
-        </div>
+        </button>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -422,35 +428,44 @@ function SubtaskGridChip({
   onStatusTap: (s: SubtaskWithProject) => void
   onOpen: () => void
 }) {
-  const handleDotClick = (e: React.MouseEvent) => {
+  const handleIconClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     onStatusTap(subtask)
   }
 
   return (
-    <button
-      onClick={onOpen}
-      className={`w-full text-left text-[11px] px-1.5 py-1.5 rounded-lg border transition-all active:scale-95 ${CHIP_STYLE[subtask.status]}`}
+    <div
+      className={`w-full text-[11px] p-1.5 rounded-lg border transition-all ${CHIP_STYLE[subtask.status]}`}
     >
       <div className="flex items-start gap-1">
-        <div
-          onClick={handleDotClick}
-          className={`flex-shrink-0 mt-[2px] w-2.5 h-2.5 rounded-full ${STATUS_DOT_COLORS[subtask.status]} cursor-pointer hover:scale-125 transition-transform`}
-          title={`${STATUS_LABELS[subtask.status]} → tap to change`}
-        />
-        <div className="min-w-0 flex-1">
+        <button
+          onClick={handleIconClick}
+          className="flex-shrink-0 mt-0.5 hover:scale-125 transition-transform"
+          title="Tap to cycle status"
+        >
+          {TASK_STATUS_ICON[subtask.status]}
+        </button>
+        <button
+          onClick={onOpen}
+          className="min-w-0 flex-1 text-left"
+          title="Tap to see details"
+        >
           <p className={`font-medium leading-tight truncate ${
             subtask.status === 'checked' ? 'line-through text-slate-400' : 'text-slate-700'
           }`}>
             {subtask.title}
           </p>
-          <p className="text-[9px] text-purple-400 truncate flex items-center gap-0.5">
-            <FolderKanban size={7} className="inline flex-shrink-0" />
-            {subtask.project_title}
-          </p>
-        </div>
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="inline-block px-1 rounded text-[9px] font-bold leading-tight bg-purple-100 text-purple-600">
+              P
+            </span>
+            <span className="text-slate-400 truncate text-[10px]">
+              {subtask.project_title}
+            </span>
+          </div>
+        </button>
       </div>
-    </button>
+    </div>
   )
 }
 

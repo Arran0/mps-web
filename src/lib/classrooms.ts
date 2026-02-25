@@ -15,6 +15,8 @@ export interface Classroom {
   start_date: string | null
   end_date: string | null
   coordinator_id: string | null
+  banner_url: string | null
+  logo_url: string | null
   created_by: string
   created_at: string
   updated_at: string
@@ -137,6 +139,42 @@ export function isClassroomClosed(classroom: Pick<Classroom, 'end_date'>): boole
   if (!classroom.end_date) return false
   const today = new Date().toISOString().split('T')[0]
   return classroom.end_date < today
+}
+
+/** Upload a classroom banner or logo image and return the public URL. */
+export async function uploadClassroomImage(
+  classroomId: string,
+  file: File,
+  kind: 'banner' | 'logo',
+): Promise<string | null> {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `${classroomId}/${kind}_${Date.now()}_${safeName}`
+
+  const { data, error } = await supabase.storage
+    .from('classroom-files')
+    .upload(path, file, { upsert: true })
+
+  if (error) {
+    console.error(`Failed to upload ${kind}:`, error.message)
+    return null
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('classroom-files')
+    .getPublicUrl(data.path)
+
+  // Save URL to classroom row
+  const { error: updateErr } = await supabase
+    .from('classrooms')
+    .update({ [`${kind}_url`]: publicUrl, updated_at: new Date().toISOString() })
+    .eq('id', classroomId)
+
+  if (updateErr) {
+    console.error(`Failed to update classroom ${kind}_url:`, updateErr.message)
+    return null
+  }
+
+  return publicUrl
 }
 
 // --- Classroom CRUD ---

@@ -10,8 +10,17 @@ import {
   Check,
   AlertCircle,
   Megaphone,
+  ImageIcon,
+  Youtube,
+  Paperclip,
+  Trash2,
+  Link2,
 } from 'lucide-react'
-import { createAnnouncement } from '@/lib/announcements'
+import {
+  createAnnouncement,
+  uploadAnnouncementFile,
+  AnnouncementAttachment,
+} from '@/lib/announcements'
 import { UserRole } from '@/lib/supabase'
 
 interface NewAnnouncementFormProps {
@@ -101,6 +110,11 @@ export default function NewAnnouncementForm({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]     = useState<string | null>(null)
 
+  // Attachments
+  const [attachments, setAttachments] = useState<AnnouncementAttachment[]>([])
+  const [youtubeUrl, setYoutubeUrl]   = useState('')
+  const [uploading, setUploading]     = useState(false)
+
   // ── Audience type (coordinator: exclusive toggle; principal/admin: multi-select) ──
   // 'student' | 'staff' | 'both'  — for coordinator only 'student' or 'staff'
   const [audienceMode, setAudienceMode] = useState<'student' | 'staff'>('student')
@@ -139,11 +153,38 @@ export default function NewAnnouncementForm({
   /** Teams shown in the team picker */
   const availableTeams = isPrincipalOrAdmin ? allTeams : userTeams
 
+  // ── Attachment helpers ────────────────────────────────────────────────────
+  const handleFileAttach = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setUploading(true)
+    for (const file of Array.from(files)) {
+      const result = await uploadAnnouncementFile(file)
+      if (result) {
+        const isImage = file.type.startsWith('image/')
+        setAttachments(prev => [...prev, { type: isImage ? 'image' : 'document', url: result.url, name: result.name }])
+      }
+    }
+    setUploading(false)
+  }
+
+  const handleAddYoutube = () => {
+    const url = youtubeUrl.trim()
+    if (!url) return
+    setAttachments(prev => [...prev, { type: 'youtube', url, name: 'YouTube Video' }])
+    setYoutubeUrl('')
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+
   // ── Form reset ───────────────────────────────────────────────────────────
   const resetForm = () => {
     setTitle('')
     setContent('')
     setError(null)
+    setAttachments([])
+    setYoutubeUrl('')
     setAudienceMode('student')
     setAllStudents(false)
     setSelectedGrades([])
@@ -274,7 +315,7 @@ export default function NewAnnouncementForm({
       if (wantStaff)    audiences.push(...buildStaffAudiences())
 
       const result = await createAnnouncement(
-        { title: title.trim(), content: content.trim(), audiences },
+        { title: title.trim(), content: content.trim(), attachments: attachments.length > 0 ? attachments : undefined, audiences },
         currentUserId
       )
 
@@ -483,6 +524,67 @@ export default function NewAnnouncementForm({
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 focus:border-mps-blue-500 resize-none"
                   required
                 />
+              </div>
+
+              {/* ── Attachments ── */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-700 block">Attachments</label>
+
+                {/* Existing attachments */}
+                {attachments.length > 0 && (
+                  <div className="space-y-1.5">
+                    {attachments.map((att, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm">
+                        {att.type === 'image' && <ImageIcon size={14} className="text-green-500 flex-shrink-0" />}
+                        {att.type === 'youtube' && <Youtube size={14} className="text-red-500 flex-shrink-0" />}
+                        {att.type === 'document' && <FileText size={14} className="text-blue-500 flex-shrink-0" />}
+                        <span className="flex-1 truncate text-slate-700">{att.name}</span>
+                        <button type="button" onClick={() => removeAttachment(i)} className="p-1 text-slate-400 hover:text-red-500 transition-colors">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium cursor-pointer hover:bg-green-100 transition-colors border border-green-200">
+                    <ImageIcon size={13} /> Image
+                    <input type="file" accept="image/*" className="hidden" multiple onChange={e => handleFileAttach(e.target.files)} />
+                  </label>
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium cursor-pointer hover:bg-blue-100 transition-colors border border-blue-200">
+                    <Paperclip size={13} /> Document
+                    <input type="file" className="hidden" multiple onChange={e => handleFileAttach(e.target.files)} />
+                  </label>
+                </div>
+
+                {/* YouTube URL input */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 bg-white">
+                    <Youtube size={14} className="text-red-500 flex-shrink-0" />
+                    <input
+                      type="url"
+                      value={youtubeUrl}
+                      onChange={e => setYoutubeUrl(e.target.value)}
+                      placeholder="Paste YouTube URL"
+                      className="flex-1 text-sm focus:outline-none"
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddYoutube())}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddYoutube}
+                    disabled={!youtubeUrl.trim()}
+                    className="px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition-colors border border-red-200 disabled:opacity-40"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {uploading && (
+                  <p className="text-xs text-slate-400">Uploading…</p>
+                )}
               </div>
 
               {/* ── Audience ── */}
