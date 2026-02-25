@@ -419,12 +419,11 @@ function TaskGridChip({
 
 function SubtaskGridChip({
   subtask,
-  canCheck,
   onStatusTap,
   onOpen,
 }: {
   subtask: SubtaskWithProject
-  canCheck: boolean
+  canCheck?: boolean
   onStatusTap: (s: SubtaskWithProject) => void
   onOpen: () => void
 }) {

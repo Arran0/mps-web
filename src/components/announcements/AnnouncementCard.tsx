@@ -10,8 +10,6 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
-  ImageIcon,
-  Youtube,
   FileText,
   ExternalLink,
 } from 'lucide-react'
