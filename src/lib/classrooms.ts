@@ -224,6 +224,8 @@ export async function createClassroom(input: {
     start_date: input.start_date || null,
     end_date: input.end_date || null,
     coordinator_id: input.coordinator_id || null,
+    banner_url: null,
+    logo_url: null,
     created_by: createdBy,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
