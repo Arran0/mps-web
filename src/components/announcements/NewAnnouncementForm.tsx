@@ -14,7 +14,6 @@ import {
   Youtube,
   Paperclip,
   Trash2,
-  Link2,
 } from 'lucide-react'
 import {
   createAnnouncement,
