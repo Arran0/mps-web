@@ -644,7 +644,7 @@ function TaskCalendarModal({
                 <div>
                   <h4 className="text-sm font-semibold text-slate-700 mb-1.5">Assignee</h4>
                   <span className="text-xs bg-mps-blue-50 text-mps-blue-700 px-2.5 py-1 rounded-full font-medium">
-                    {task.assignees[0].full_name}
+                    {task.assignees[0].user?.full_name ?? task.assignees[0].user_id}
                   </span>
                 </div>
               )}
