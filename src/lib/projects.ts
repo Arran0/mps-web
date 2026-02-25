@@ -61,6 +61,7 @@ export interface NewSubtaskInput {
   due_date?: string
   timing?: string
   tag?: TaskTag
+  bonus_points?: number
   assignee_id?: string
   sort_order?: number
 }
@@ -157,7 +158,8 @@ export async function addSubtask(
       description: input.description || null,
       due_date: input.due_date || null,
       timing: input.timing || null,
-      tag: input.tag || null,
+      tag: input.bonus_points ? 'bonus' : (input.tag || null),
+      bonus_points: input.bonus_points ?? 0,
       assignee_id: input.assignee_id || null,
       sort_order: input.sort_order ?? 0,
     })
@@ -366,7 +368,7 @@ export async function fetchSubtasksForCalendar(
 
 export async function updateSubtask(
   subtaskId: string,
-  updates: Partial<Pick<Subtask, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'assignee_id'>>
+  updates: Partial<Pick<Subtask, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'bonus_points' | 'assignee_id'>>
 ): Promise<boolean> {
   const { error } = await supabase
     .from('subtasks')

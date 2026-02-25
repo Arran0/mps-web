@@ -69,12 +69,22 @@ function getNextStatus(
   return cycle[(cycle.indexOf(current) + 1) % cycle.length]
 }
 
-function getAttachmentType(url: string, name: string | null): 'youtube' | 'image' | 'pdf' | 'other' {
+type AttachmentType = 'youtube' | 'image' | 'doc' | 'other'
+
+const DOC_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'txt', 'csv', 'rtf']
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']
+
+function getAttachmentType(url: string, name: string | null): AttachmentType {
   if (extractYouTubeEmbedUrl(url)) return 'youtube'
-  const ext = ((name || url).split('.').pop() || '').toLowerCase()
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return 'image'
-  if (ext === 'pdf') return 'pdf'
+  const ext = ((name || url).split('.').pop() || '').toLowerCase().split('?')[0]
+  if (IMAGE_EXTENSIONS.includes(ext)) return 'image'
+  if (DOC_EXTENSIONS.includes(ext)) return 'doc'
   return 'other'
+}
+
+/** Wrap a public URL in Google Docs Viewer for in-app rendering */
+function googleDocsViewerUrl(url: string): string {
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -115,7 +125,7 @@ export default function FolderFileView({
   const [submittingWork,  setSubmittingWork]  = useState(false)
   const [videoUrl,        setVideoUrl]        = useState<string | null>(null)   // YouTube embed URL
   const [imageUrl,        setImageUrl]        = useState<string | null>(null)   // image lightbox
-  const [pdfUrl,          setPdfUrl]          = useState<string | null>(null)   // PDF viewer
+  const [docViewerUrl,    setDocViewerUrl]    = useState<string | null>(null)  // Google Docs viewer (PDFs, office docs)
 
   // New folder form
   const [newFolderTitle, setNewFolderTitle] = useState('')
@@ -239,8 +249,8 @@ export default function FolderFileView({
       attachmentUrl = newFileYoutubeUrl.trim()
     } else if (newFileAttachmentMode === 'upload' && newFileUpload) {
       const uploaded = await uploadClassroomFile(classroomId, newFileUpload)
-      if (!uploaded) {
-        alert('File upload failed. Please ensure the Supabase storage bucket "classroom-files" exists and try again.')
+      if ('error' in uploaded) {
+        alert(uploaded.error)
         setUploadingFile(false)
         return
       }
@@ -361,9 +371,9 @@ export default function FolderFileView({
       if (!submitFile) return
       setSubmittingWork(true)
       const uploaded = await uploadSubmissionFile(fileId, userId, submitFile)
-      if (!uploaded) {
+      if ('error' in uploaded) {
         setSubmittingWork(false)
-        alert('File upload failed. Please ensure the storage bucket is configured and try again.')
+        alert(uploaded.error)
         return
       }
       content = uploaded.url
@@ -827,14 +837,14 @@ export default function FolderFileView({
                                     onClick={() => {
                                       if (attachType === 'youtube') setVideoUrl(embedUrl)
                                       else if (attachType === 'image') setImageUrl(file.attachment_url!)
-                                      else if (attachType === 'pdf') setPdfUrl(file.attachment_url!)
+                                      else if (attachType === 'doc') setDocViewerUrl(googleDocsViewerUrl(file.attachment_url!))
                                       else window.open(file.attachment_url!, '_blank')
                                     }}
                                     className="mt-1 flex items-center gap-1.5 text-xs text-mps-blue-600 hover:text-mps-blue-700 font-medium"
                                   >
                                     {attachType === 'youtube' && <><Play size={11} /> Watch Video</>}
                                     {attachType === 'image'   && <><ExternalLink size={11} /> View Image</>}
-                                    {attachType === 'pdf'     && <><ExternalLink size={11} /> View PDF</>}
+                                    {attachType === 'doc'     && <><ExternalLink size={11} /> {file.attachment_name || 'View Document'}</>}
                                     {attachType === 'other'   && <><ExternalLink size={11} /> {file.attachment_name || 'View Attachment'}</>}
                                   </button>
                                 )}
@@ -1114,25 +1124,28 @@ export default function FolderFileView({
         )}
       </AnimatePresence>
 
-      {/* ── PDF Viewer ───────────────────────────────────────────────────── */}
+      {/* ── Document Viewer (Google Docs — PDF, Word, PPT, Excel, etc.) ─── */}
       <AnimatePresence>
-        {pdfUrl && (
+        {docViewerUrl && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85"
-            onClick={() => setPdfUrl(null)}
+            className="fixed inset-0 z-50 flex flex-col bg-black/90"
+            onClick={() => setDocViewerUrl(null)}
           >
-            <div className="relative w-full max-w-4xl h-[85vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
+              <p className="text-white/70 text-sm">Document Viewer</p>
               <button
-                onClick={() => setPdfUrl(null)}
-                className="absolute -top-10 right-0 text-white/80 hover:text-white transition-colors"
+                onClick={() => setDocViewerUrl(null)}
+                className="text-white/80 hover:text-white transition-colors p-1"
               >
-                <X size={24} />
+                <X size={22} />
               </button>
+            </div>
+            <div className="flex-1 px-4 pb-4" onClick={e => e.stopPropagation()}>
               <iframe
-                src={pdfUrl}
+                src={docViewerUrl}
                 className="w-full h-full rounded-xl shadow-2xl bg-white"
-                title="PDF Viewer"
+                title="Document Viewer"
               />
             </div>
           </motion.div>
