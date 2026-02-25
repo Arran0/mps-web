@@ -250,7 +250,7 @@ export default function WeeklyCalendar({
 
                     {/* Tasks for this day */}
                     <div className={`p-1 space-y-1 flex-1 min-h-[96px] ${
-                      isToday ? 'bg-cyan-50/40' : ''
+                      isToday ? 'bg-cyan-50/40' : 'bg-white'
                     }`}>
                       {dayTasks.map(task => (
                         <TaskGridChip
