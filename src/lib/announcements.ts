@@ -7,11 +7,18 @@ import { supabase, UserProfile, UserRole } from './supabase'
 /** 'student' | 'staff' | 'both' — derived from audience rows, stored for RLS */
 export type AnnouncementType = 'student' | 'staff' | 'both'
 
+export interface AnnouncementAttachment {
+  type: 'image' | 'youtube' | 'document'
+  url: string
+  name: string
+}
+
 export interface Announcement {
   id: string
   title: string
   content: string
   type: AnnouncementType
+  attachments: AnnouncementAttachment[] | null
   created_by: string
   created_at: string
   updated_at: string
@@ -46,6 +53,7 @@ export interface AnnouncementWithDetails extends Announcement {
 export interface NewAnnouncementInput {
   title: string
   content: string
+  attachments?: AnnouncementAttachment[]
   audiences: {
     grade?: number
     section?: string       // undefined = all sections for that grade
@@ -84,6 +92,7 @@ export async function createAnnouncement(
       title: input.title,
       content: input.content,
       type,
+      attachments: input.attachments && input.attachments.length > 0 ? input.attachments : null,
       created_by: createdBy,
     })
 
@@ -119,6 +128,7 @@ export async function createAnnouncement(
     title: input.title,
     content: input.content,
     type,
+    attachments: input.attachments && input.attachments.length > 0 ? input.attachments : null,
     created_by: createdBy,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -250,6 +260,28 @@ export async function fetchAnnouncementsForUser(
   }
 
   return []
+}
+
+// ---------------------------------------------------------------------------
+// Attachment upload helper
+// ---------------------------------------------------------------------------
+
+export async function uploadAnnouncementFile(
+  file: File,
+): Promise<{ url: string; name: string } | null> {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `announcements/${Date.now()}_${safeName}`
+  const { data, error } = await supabase.storage
+    .from('classroom-files')
+    .upload(path, file, { upsert: true })
+  if (error) {
+    console.error('Upload failed:', error)
+    return null
+  }
+  const { data: { publicUrl } } = supabase.storage
+    .from('classroom-files')
+    .getPublicUrl(data.path)
+  return { url: publicUrl, name: file.name }
 }
 
 // ---------------------------------------------------------------------------

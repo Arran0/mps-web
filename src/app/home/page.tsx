@@ -19,7 +19,10 @@ import {
   BarChart3,
   FolderKanban,
   BookOpen,
+  ImageIcon,
+  MessageSquare,
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import {
   AnnouncementWithDetails,
   fetchAnnouncementsForUser,
@@ -64,6 +67,23 @@ export default function HomePage() {
   const isAdmin = profile ? isAdminRole(profile.role) : false
   const isStudent = profile?.role === 'student'
   const [announcements, setAnnouncements] = useState<AnnouncementWithDetails[]>([])
+  const [welcomeBanner, setWelcomeBanner] = useState<string | null>(null)
+
+  // Load welcome banner from site_settings
+  useEffect(() => {
+    supabase.from('site_settings').select('value').eq('key', 'welcome_banner').single()
+      .then(({ data }) => { if (data?.value) setWelcomeBanner(data.value) })
+  }, [])
+
+  const handleBannerUpload = async (file: File) => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `site/welcome_banner_${Date.now()}_${safeName}`
+    const { data, error } = await supabase.storage.from('classroom-files').upload(path, file, { upsert: true })
+    if (error) { alert('Upload failed: ' + error.message); return }
+    const { data: { publicUrl } } = supabase.storage.from('classroom-files').getPublicUrl(data.path)
+    await supabase.from('site_settings').upsert({ key: 'welcome_banner', value: publicUrl }, { onConflict: 'key' })
+    setWelcomeBanner(publicUrl)
+  }
 
   const loadAnnouncements = useCallback(async () => {
     if (!user || !profile) return
@@ -102,6 +122,7 @@ export default function HomePage() {
     { label: 'Academics', href: '/academics', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
     { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
     { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
+    { label: 'Feedback', href: '/more/feedback', icon: <MessageSquare size={24} />, color: 'from-orange-400 to-red-500' },
   ]
 
   // Teacher/Coordinator/Principal quick access
@@ -131,9 +152,17 @@ export default function HomePage() {
         >
           {/* Welcome Section */}
           <motion.div variants={itemVariants} className="mb-8">
-            <div className="glass-strong rounded-3xl p-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-mps-blue-200/30 to-mps-green-200/30 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-              <div className="relative z-10">
+            <div className="glass-strong rounded-3xl relative overflow-hidden">
+              {welcomeBanner && (
+                <div className="h-36 sm:h-44 relative">
+                  <img src={welcomeBanner} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-white/80 to-transparent" />
+                </div>
+              )}
+              {!welcomeBanner && (
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-mps-blue-200/30 to-mps-green-200/30 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+              )}
+              <div className={`relative z-10 p-8 ${welcomeBanner ? '-mt-16' : ''}`}>
                 <p className="text-mps-blue-600 font-medium mb-2">{getGreeting()}</p>
                 <h1 className="font-display text-3xl sm:text-4xl font-bold text-slate-800 mb-2">
                   Welcome back, {profile?.full_name?.split(' ')[0] || 'User'}!
@@ -141,6 +170,16 @@ export default function HomePage() {
                 <p className="text-slate-500">
                   You&apos;re logged in as <span className="font-medium text-slate-700">{profile ? getRoleDisplayName(profile.role) : 'User'}</span>
                 </p>
+                {isAdmin && (
+                  <label className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs text-slate-600 font-medium cursor-pointer transition-colors">
+                    <ImageIcon size={14} />
+                    {welcomeBanner ? 'Change Banner' : 'Add Banner'}
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      const f = e.target.files?.[0]
+                      if (f) handleBannerUpload(f)
+                    }} />
+                  </label>
+                )}
               </div>
             </div>
           </motion.div>
@@ -214,11 +253,8 @@ export default function HomePage() {
 
           {/* Quick Access Section */}
           <motion.div variants={itemVariants}>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center mb-6">
               <h2 className="font-display text-xl font-bold text-slate-800">Quick Access</h2>
-              <Link href="/academics" className="text-mps-blue-600 hover:text-mps-blue-700 text-sm font-medium flex items-center gap-1">
-                View All <ArrowRight size={16} />
-              </Link>
             </div>
 
             <div className={`grid grid-cols-2 sm:grid-cols-3 ${quickAccess.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>

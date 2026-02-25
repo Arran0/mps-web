@@ -10,8 +10,12 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  ImageIcon,
+  Youtube,
+  FileText,
+  ExternalLink,
 } from 'lucide-react'
-import { AnnouncementWithDetails, deleteAnnouncement } from '@/lib/announcements'
+import { AnnouncementWithDetails, AnnouncementAttachment, deleteAnnouncement } from '@/lib/announcements'
 
 interface AnnouncementCardProps {
   announcement: AnnouncementWithDetails
@@ -177,6 +181,44 @@ export default function AnnouncementCard({
                 <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
                   {announcement.content}
                 </p>
+
+                {/* Attachments */}
+                {announcement.attachments && announcement.attachments.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {announcement.attachments.map((att: AnnouncementAttachment, i: number) => (
+                      <div key={i}>
+                        {att.type === 'image' && (
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                            <img src={att.url} alt={att.name} className="max-h-64 rounded-xl border border-slate-200 object-contain" />
+                          </a>
+                        )}
+                        {att.type === 'youtube' && (
+                          <div className="rounded-xl overflow-hidden border border-slate-200" onClick={e => e.stopPropagation()}>
+                            <iframe
+                              src={att.url.replace('watch?v=', 'embed/').replace('youtu.be/', 'www.youtube.com/embed/')}
+                              className="w-full aspect-video"
+                              allowFullScreen
+                              title={att.name}
+                            />
+                          </div>
+                        )}
+                        {att.type === 'document' && (
+                          <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors"
+                          >
+                            <FileText size={14} />
+                            <span className="flex-1 truncate">{att.name}</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Audience badges */}
                 {badges.length > 0 && (

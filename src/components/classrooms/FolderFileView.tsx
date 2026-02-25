@@ -139,8 +139,9 @@ export default function FolderFileView({
   const [newFileRequiresSubmission,  setNewFileRequiresSubmission]  = useState(false)
   const [newFileSubmissionType,      setNewFileSubmissionType]      = useState<SubmissionType>('text')
   const [newFileRequiresCheck,       setNewFileRequiresCheck]       = useState(false)
-  const [newFileAttachmentMode,      setNewFileAttachmentMode]      = useState<'none' | 'youtube' | 'upload'>('none')
+  const [newFileAttachmentMode,      setNewFileAttachmentMode]      = useState<'none' | 'youtube' | 'upload' | 'link'>('none')
   const [newFileYoutubeUrl,          setNewFileYoutubeUrl]          = useState('')
+  const [newFileLinkUrl,             setNewFileLinkUrl]             = useState('')
   const [newFileUpload,              setNewFileUpload]              = useState<File | null>(null)
   const [uploadingFile,              setUploadingFile]              = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -176,12 +177,10 @@ export default function FolderFileView({
       for (const p of progress) map[p.file_id] = p.status as FileStatus
       setStudentProgress(prev => ({ ...prev, ...map }))
 
-      if (isHomework) {
-        for (const f of files) {
-          if (f.requires_submission) {
-            const sub = await fetchStudentSubmission(f.id, userId)
-            if (sub) setStudentSubmissions(prev => ({ ...prev, [f.id]: sub }))
-          }
+      for (const f of files) {
+        if (f.requires_submission) {
+          const sub = await fetchStudentSubmission(f.id, userId)
+          if (sub) setStudentSubmissions(prev => ({ ...prev, [f.id]: sub }))
         }
       }
     }
@@ -228,7 +227,7 @@ export default function FolderFileView({
     setNewFileTitle(''); setNewFileDesc(''); setNewFileDue('')
     setNewFileRequiresSubmission(false); setNewFileSubmissionType('text')
     setNewFileRequiresCheck(false)
-    setNewFileAttachmentMode('none'); setNewFileYoutubeUrl(''); setNewFileUpload(null)
+    setNewFileAttachmentMode('none'); setNewFileYoutubeUrl(''); setNewFileUpload(null); setNewFileLinkUrl('')
   }
 
   const handleCreateFile = async (e: React.FormEvent, folderId: string) => {
@@ -247,6 +246,9 @@ export default function FolderFileView({
         return
       }
       attachmentUrl = newFileYoutubeUrl.trim()
+    } else if (newFileAttachmentMode === 'link' && newFileLinkUrl.trim()) {
+      attachmentUrl = newFileLinkUrl.trim()
+      attachmentName = 'Link'
     } else if (newFileAttachmentMode === 'upload' && newFileUpload) {
       const uploaded = await uploadClassroomFile(classroomId, newFileUpload)
       if ('error' in uploaded) {
@@ -263,8 +265,8 @@ export default function FolderFileView({
       title: newFileTitle.trim(),
       description: newFileDesc.trim() || undefined,
       due_date: newFileDue || undefined,
-      requires_submission: isHomework ? newFileRequiresSubmission : false,
-      submission_type: isHomework && newFileRequiresSubmission ? newFileSubmissionType : undefined,
+      requires_submission: newFileRequiresSubmission,
+      submission_type: newFileRequiresSubmission ? newFileSubmissionType : undefined,
       requires_check: newFileRequiresCheck,
       attachment_url: attachmentUrl,
       attachment_name: attachmentName,
@@ -675,19 +677,17 @@ export default function FolderFileView({
                                 />
                                 Requires staff check
                               </label>
-                              {/* Requires submission (homework only) */}
-                              {isHomework && (
-                                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={newFileRequiresSubmission}
-                                    onChange={e => setNewFileRequiresSubmission(e.target.checked)}
-                                    className="rounded"
-                                  />
-                                  Require submission
-                                </label>
-                              )}
-                              {isHomework && newFileRequiresSubmission && (
+                              {/* Requires submission */}
+                              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={newFileRequiresSubmission}
+                                  onChange={e => setNewFileRequiresSubmission(e.target.checked)}
+                                  className="rounded"
+                                />
+                                Require submission
+                              </label>
+                              {newFileRequiresSubmission && (
                                 <select
                                   value={newFileSubmissionType}
                                   onChange={e => setNewFileSubmissionType(e.target.value as SubmissionType)}
@@ -703,8 +703,8 @@ export default function FolderFileView({
                             {/* Attachment */}
                             <div>
                               <p className="text-xs font-medium text-slate-500 mb-1.5">Attachment (optional)</p>
-                              <div className="flex gap-2 mb-2">
-                                {(['none', 'youtube', 'upload'] as const).map(mode => (
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                {(['none', 'youtube', 'link', 'upload'] as const).map(mode => (
                                   <button
                                     key={mode}
                                     type="button"
@@ -717,6 +717,7 @@ export default function FolderFileView({
                                   >
                                     {mode === 'none'    && 'None'}
                                     {mode === 'youtube' && <><Youtube size={13} /> YouTube</>}
+                                    {mode === 'link'    && <><Link2 size={13} /> Link</>}
                                     {mode === 'upload'  && <><Upload size={13} /> Upload</>}
                                   </button>
                                 ))}
@@ -726,6 +727,14 @@ export default function FolderFileView({
                                   type="url" value={newFileYoutubeUrl}
                                   onChange={e => setNewFileYoutubeUrl(e.target.value)}
                                   placeholder="https://youtube.com/watch?v=..."
+                                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                                />
+                              )}
+                              {newFileAttachmentMode === 'link' && (
+                                <input
+                                  type="url" value={newFileLinkUrl}
+                                  onChange={e => setNewFileLinkUrl(e.target.value)}
+                                  placeholder="https://example.com/resource"
                                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                                 />
                               )}
@@ -816,7 +825,7 @@ export default function FolderFileView({
                                   {fileOverdue && (!isStudent || status !== 'completed') && (
                                     <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full">Overdue</span>
                                   )}
-                                  {isHomework && file.requires_submission && (
+                                  {file.requires_submission && (
                                     <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded-full flex items-center gap-0.5">
                                       {file.submission_type === 'link' ? <Link2 size={10} /> : <FileText size={10} />}
                                       {isStudent && submission ? 'Submitted' : isStudent ? 'Submit required' : `Submit (${file.submission_type || 'text'})`}
@@ -833,20 +842,31 @@ export default function FolderFileView({
                                 )}
                                 {/* Attachment button */}
                                 {hasAttachment && (
-                                  <button
-                                    onClick={() => {
-                                      if (attachType === 'youtube') setVideoUrl(embedUrl)
-                                      else if (attachType === 'image') setImageUrl(file.attachment_url!)
-                                      else if (attachType === 'doc') setDocViewerUrl(googleDocsViewerUrl(file.attachment_url!))
-                                      else window.open(file.attachment_url!, '_blank')
-                                    }}
-                                    className="mt-1 flex items-center gap-1.5 text-xs text-mps-blue-600 hover:text-mps-blue-700 font-medium"
-                                  >
-                                    {attachType === 'youtube' && <><Play size={11} /> Watch Video</>}
-                                    {attachType === 'image'   && <><ExternalLink size={11} /> View Image</>}
-                                    {attachType === 'doc'     && <><ExternalLink size={11} /> {file.attachment_name || 'View Document'}</>}
-                                    {attachType === 'other'   && <><ExternalLink size={11} /> {file.attachment_name || 'View Attachment'}</>}
-                                  </button>
+                                  attachType === 'other' && file.attachment_name === 'Link' ? (
+                                    <a
+                                      href={file.attachment_url!}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-1 flex items-center gap-1.5 text-xs text-mps-blue-600 hover:text-mps-blue-700 font-medium"
+                                    >
+                                      <ExternalLink size={11} /> Open Link
+                                    </a>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        if (attachType === 'youtube') setVideoUrl(embedUrl)
+                                        else if (attachType === 'image') setImageUrl(file.attachment_url!)
+                                        else if (attachType === 'doc') setDocViewerUrl(googleDocsViewerUrl(file.attachment_url!))
+                                        else window.open(file.attachment_url!, '_blank')
+                                      }}
+                                      className="mt-1 flex items-center gap-1.5 text-xs text-mps-blue-600 hover:text-mps-blue-700 font-medium"
+                                    >
+                                      {attachType === 'youtube' && <><Play size={11} /> Watch Video</>}
+                                      {attachType === 'image'   && <><ExternalLink size={11} /> View Image</>}
+                                      {attachType === 'doc'     && <><ExternalLink size={11} /> {file.attachment_name || 'View Document'}</>}
+                                      {attachType === 'other'   && <><ExternalLink size={11} /> {file.attachment_name || 'View Attachment'}</>}
+                                    </button>
+                                  )
                                 )}
                               </div>
 
