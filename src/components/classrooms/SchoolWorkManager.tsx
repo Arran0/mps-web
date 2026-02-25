@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   ChevronLeft, ChevronRight, Circle, CircleDot, CheckCircle2,
-  AlertTriangle, Clock, ChevronDown,
+  AlertTriangle, Clock, ChevronDown, X, BookOpen, Folder,
 } from 'lucide-react'
 import {
   ClassroomWithDetails, ClassroomFile, ClassroomFolder,
@@ -94,11 +94,12 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 function WorkItemRow({
-  item, status, onToggle, showDate,
+  item, status, onToggle, onExpand, showDate,
 }: {
   item: WorkItem
   status: FileStatus
   onToggle: () => void
+  onExpand: () => void
   showDate: boolean
 }) {
   return (
@@ -106,7 +107,7 @@ function WorkItemRow({
       <button onClick={onToggle} className="flex-shrink-0" title="Tap to change status">
         {STATUS_ICON[status]}
       </button>
-      <div className="flex-1 min-w-0">
+      <button onClick={onExpand} className="flex-1 min-w-0 text-left">
         <p className={`text-sm font-medium truncate ${
           status === 'completed' ? 'line-through text-slate-400' : 'text-slate-700'
         }`}>
@@ -119,7 +120,7 @@ function WorkItemRow({
             <span className="truncate">· {item.folder.title}</span>
           )}
         </div>
-      </div>
+      </button>
       {showDate && item.due_date && (
         <span className="text-xs text-red-500 flex-shrink-0 font-medium whitespace-nowrap">
           {parseDate(item.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -145,6 +146,7 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
   const [filesLoading, setFilesLoading] = useState(true)
   const [showMoreOverdue, setShowMoreOverdue]   = useState(false)
   const [showMoreUndated, setShowMoreUndated]   = useState(false)
+  const [detailItem, setDetailItem]     = useState<WorkItem | null>(null)
 
   const loadFiles = useCallback(async () => {
     if (classrooms.length === 0) {
@@ -283,15 +285,25 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
                   {dayFiles.map(item => {
                     const status = progressMap[item.id] || 'not_done'
                     return (
-                      <button
+                      <div
                         key={item.id}
-                        onClick={() => handleToggle(item)}
-                        className={`w-full text-left text-[11px] p-1.5 rounded-lg border transition-all active:scale-95 ${STATUS_BORDER[status]}`}
-                        title={`${item.title} — tap to cycle status`}
+                        className={`w-full text-[11px] p-1.5 rounded-lg border transition-all ${STATUS_BORDER[status]}`}
                       >
                         <div className="flex items-start gap-1">
-                          <span className="flex-shrink-0 mt-0.5">{STATUS_ICON[status]}</span>
-                          <div className="min-w-0 flex-1">
+                          {/* Status toggle — icon only */}
+                          <button
+                            onClick={() => handleToggle(item)}
+                            className="flex-shrink-0 mt-0.5 hover:scale-125 transition-transform"
+                            title="Tap to cycle status"
+                          >
+                            {STATUS_ICON[status]}
+                          </button>
+                          {/* Title — click to expand */}
+                          <button
+                            onClick={() => setDetailItem(item)}
+                            className="min-w-0 flex-1 text-left"
+                            title="Tap to see full title"
+                          >
                             <p className={`font-medium leading-tight truncate ${
                               status === 'completed' ? 'line-through text-slate-400' : 'text-slate-700'
                             }`}>
@@ -303,9 +315,9 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
                                 {item.classroomTitle}
                               </span>
                             </div>
-                          </div>
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -332,6 +344,7 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
                 item={item}
                 status={progressMap[item.id] || 'not_done'}
                 onToggle={() => handleToggle(item)}
+                onExpand={() => setDetailItem(item)}
                 showDate
               />
             ))}
@@ -370,6 +383,7 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
                 item={item}
                 status={progressMap[item.id] || 'not_done'}
                 onToggle={() => handleToggle(item)}
+                onExpand={() => setDetailItem(item)}
                 showDate={false}
               />
             ))}
@@ -388,6 +402,68 @@ export default function SchoolWorkManager({ classrooms, userId }: SchoolWorkMana
               />
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── Work Item Detail Modal ───────────────────────────────────────────── */}
+      {detailItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setDetailItem(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Status toggle at top */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => { handleToggle(detailItem); setDetailItem(null) }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 text-sm font-semibold transition-all active:scale-95 ${STATUS_BORDER[progressMap[detailItem.id] || 'not_done']}`}
+                title="Tap to cycle status"
+              >
+                {STATUS_ICON[progressMap[detailItem.id] || 'not_done']}
+                <span className="capitalize">{(progressMap[detailItem.id] || 'not_done').replace('_', ' ')}</span>
+              </button>
+              <button
+                onClick={() => setDetailItem(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Full title */}
+            <h2 className={`text-lg font-bold mb-3 leading-snug ${
+              (progressMap[detailItem.id] || 'not_done') === 'completed'
+                ? 'line-through text-slate-400'
+                : 'text-slate-800'
+            }`}>
+              {detailItem.title}
+            </h2>
+
+            {/* Meta */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <BookOpen size={14} className="text-cyan-500 flex-shrink-0" />
+                <span>{detailItem.classroomTitle}</span>
+              </div>
+              {detailItem.folder.title && (
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Folder size={14} className="text-slate-400 flex-shrink-0" />
+                  <span>{detailItem.folder.title}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <TypeBadge type={detailItem.folder.type} />
+                {detailItem.due_date && (
+                  <span className="text-xs text-red-500 font-medium">
+                    Due {parseDate(detailItem.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

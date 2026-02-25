@@ -2,20 +2,22 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, ChevronRight, GraduationCap, CalendarDays, Award, ChevronDown } from 'lucide-react'
+import { BookOpen, ChevronRight, GraduationCap, CalendarDays, Award, ChevronDown, Users, Check, Loader2 } from 'lucide-react'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { isStaffRole } from '@/lib/supabase'
+import { isStaffRole, UserProfile } from '@/lib/supabase'
 import {
   ClassroomWithDetails, fetchClassroomsForUser,
   fetchAssessments, ClassroomAssessment,
   fetchAssessmentMarks, AssessmentMark,
+  fetchStudentMembers, upsertAssessmentMark,
 } from '@/lib/classrooms'
 import SchoolWorkManager from '@/components/classrooms/SchoolWorkManager'
 
 interface GradeData {
   classroom: ClassroomWithDetails
   assessments: (ClassroomAssessment & { marks: AssessmentMark[] })[]
+  students: UserProfile[]
 }
 
 export default function AcademicsPage() {
@@ -24,10 +26,11 @@ export default function AcademicsPage() {
   const [loading, setLoading] = useState(true)
 
   // Scores section
-  const [scoresExpanded, setScoresExpanded] = useState(false)
-  const [gradeData, setGradeData]           = useState<GradeData[]>([])
-  const [gradesLoading, setGradesLoading]   = useState(false)
-  const [gradesLoaded, setGradesLoaded]     = useState(false)
+  const [scoresExpanded, setScoresExpanded]   = useState(false)
+  const [gradeData, setGradeData]             = useState<GradeData[]>([])
+  const [gradesLoading, setGradesLoading]     = useState(false)
+  const [gradesLoaded, setGradesLoaded]       = useState(false)
+  const [expandedAssessment, setExpandedAssessment] = useState<string | null>(null)
 
   const isStudent = profile?.role === 'student'
   const isStaff   = profile ? isStaffRole(profile.role) : false
@@ -55,10 +58,15 @@ export default function AcademicsPage() {
       for (const room of rooms) {
         const assessments = await fetchAssessments(room.id)
         const main = assessments.filter(a => a.tag === 'main')
-        const withMarks = await Promise.all(
-          main.map(async a => ({ ...a, marks: await fetchAssessmentMarks(a.id) }))
-        )
-        if (withMarks.length > 0) data.push({ classroom: room, assessments: withMarks })
+        const [withMarks, studentMembers] = await Promise.all([
+          Promise.all(main.map(async a => ({ ...a, marks: await fetchAssessmentMarks(a.id) }))),
+          fetchStudentMembers(room.id),
+        ])
+        if (withMarks.length > 0) data.push({
+          classroom: room,
+          assessments: withMarks,
+          students: studentMembers.map(m => m.user),
+        })
       }
       setGradeData(data)
       setGradesLoaded(true)
@@ -172,11 +180,16 @@ export default function AcademicsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {gradeData.map(({ classroom, assessments }) => (
+                  {gradeData.map(({ classroom, assessments, students }) => (
                     <div key={classroom.id} className="rounded-xl overflow-hidden border border-slate-100">
                       <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100 flex items-center gap-2">
                         <BookOpen size={16} className="text-amber-600" />
                         <span className="font-semibold text-slate-800 text-sm">{classroom.title}</span>
+                        {isStaff && (
+                          <span className="ml-auto text-xs text-amber-600 flex items-center gap-1">
+                            <Users size={12} /> {students.length} students
+                          </span>
+                        )}
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -192,56 +205,83 @@ export default function AcademicsPage() {
                                 </>
                               )}
                               {isStaff && (
-                                <th className="text-center px-4 py-2.5 font-medium text-slate-600">Students Graded</th>
+                                <th className="text-center px-4 py-2.5 font-medium text-slate-600">Graded</th>
                               )}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100">
+                          <tbody>
                             {assessments.map(assessment => {
-                              const myMark    = assessment.marks.find(m => m.student_id === user.id)
-                              const pct       = myMark && myMark.marks != null
+                              const myMark = assessment.marks.find(m => m.student_id === user.id)
+                              const pct    = myMark && myMark.marks != null
                                 ? Math.round((myMark.marks / myMark.max_marks) * 100)
                                 : null
+                              const isExpanded = expandedAssessment === assessment.id
+
                               return (
-                                <tr key={assessment.id} className="hover:bg-slate-50/50">
-                                  <td className="px-4 py-2.5">
-                                    <p className="font-medium text-slate-800">{assessment.title}</p>
-                                    {assessment.description && (
-                                      <p className="text-xs text-slate-500">{assessment.description}</p>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-2.5 text-slate-600">
-                                    {assessment.date
-                                      ? new Date(assessment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                                      : '-'}
-                                  </td>
-                                  {isStudent && (
-                                    <>
-                                      <td className="px-4 py-2.5 text-center font-semibold text-slate-800">
-                                        {myMark?.marks != null ? myMark.marks : '-'}
-                                      </td>
-                                      <td className="px-4 py-2.5 text-center text-slate-600">
-                                        {myMark?.max_marks || '-'}
-                                      </td>
-                                      <td className="px-4 py-2.5 text-center">
-                                        {pct != null ? (
-                                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                            pct >= 80 ? 'bg-green-100 text-green-700' :
-                                            pct >= 60 ? 'bg-amber-100 text-amber-700' :
-                                            'bg-red-100 text-red-700'
-                                          }`}>
-                                            {pct}%
-                                          </span>
-                                        ) : '-'}
-                                      </td>
-                                    </>
-                                  )}
-                                  {isStaff && (
-                                    <td className="px-4 py-2.5 text-center text-slate-600">
-                                      {assessment.marks.filter(m => m.marks != null).length} / {assessment.marks.length}
+                                <React.Fragment key={assessment.id}>
+                                  <tr
+                                    className={`border-t border-slate-100 hover:bg-slate-50/50 ${isStaff ? 'cursor-pointer' : ''}`}
+                                    onClick={() => isStaff && setExpandedAssessment(isExpanded ? null : assessment.id)}
+                                  >
+                                    <td className="px-4 py-2.5">
+                                      <p className="font-medium text-slate-800">{assessment.title}</p>
+                                      {assessment.description && (
+                                        <p className="text-xs text-slate-500">{assessment.description}</p>
+                                      )}
                                     </td>
+                                    <td className="px-4 py-2.5 text-slate-600">
+                                      {assessment.date
+                                        ? new Date(assessment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                        : '-'}
+                                    </td>
+                                    {isStudent && (
+                                      <>
+                                        <td className="px-4 py-2.5 text-center font-semibold text-slate-800">
+                                          {myMark?.marks != null ? myMark.marks : '-'}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-center text-slate-600">
+                                          {myMark?.max_marks || '-'}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-center">
+                                          {pct != null ? (
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                              pct >= 80 ? 'bg-green-100 text-green-700' :
+                                              pct >= 60 ? 'bg-amber-100 text-amber-700' :
+                                              'bg-red-100 text-red-700'
+                                            }`}>
+                                              {pct}%
+                                            </span>
+                                          ) : '-'}
+                                        </td>
+                                      </>
+                                    )}
+                                    {isStaff && (
+                                      <td className="px-4 py-2.5 text-center">
+                                        <div className="flex items-center justify-center gap-1.5">
+                                          <span className="text-slate-600">
+                                            {assessment.marks.filter(m => m.marks != null).length} / {students.length}
+                                          </span>
+                                          <ChevronDown
+                                            size={14}
+                                            className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                          />
+                                        </div>
+                                      </td>
+                                    )}
+                                  </tr>
+
+                                  {/* Inline Marksheet Editor for staff */}
+                                  {isStaff && isExpanded && (
+                                    <tr>
+                                      <td colSpan={3} className="p-0 border-t border-amber-100">
+                                        <MarksheetEditor
+                                          assessment={assessment}
+                                          students={students}
+                                        />
+                                      </td>
+                                    </tr>
                                   )}
-                                </tr>
+                                </React.Fragment>
                               )
                             })}
                           </tbody>
@@ -256,5 +296,103 @@ export default function AcademicsPage() {
         </section>
       </div>
     </ProtectedLayout>
+  )
+}
+
+// ─── Marksheet Editor ─────────────────────────────────────────────────────────
+
+function MarksheetEditor({
+  assessment,
+  students,
+}: {
+  assessment: ClassroomAssessment & { marks: AssessmentMark[] }
+  students: UserProfile[]
+}) {
+  const defaultMax = assessment.marks.length > 0 ? (assessment.marks[0].max_marks ?? 100) : 100
+  const [maxMarks, setMaxMarks] = useState<number>(defaultMax)
+  const [markValues, setMarkValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {}
+    for (const m of assessment.marks) {
+      if (m.marks != null) init[m.student_id] = String(m.marks)
+    }
+    return init
+  })
+  const [saving, setSaving] = useState<Set<string>>(new Set())
+  const [saved, setSaved]   = useState<Set<string>>(new Set())
+
+  const handleSave = async (studentId: string) => {
+    const raw = markValues[studentId]
+    const parsed = raw === '' || raw === undefined ? null : Number(raw)
+    if (raw !== '' && raw !== undefined && isNaN(parsed!)) return
+    setSaving(s => new Set([...s, studentId]))
+    await upsertAssessmentMark(assessment.id, studentId, parsed, maxMarks)
+    setSaving(s => { const n = new Set(s); n.delete(studentId); return n })
+    setSaved(s => new Set([...s, studentId]))
+    setTimeout(() => setSaved(s => { const n = new Set(s); n.delete(studentId); return n }), 2000)
+  }
+
+  return (
+    <div className="bg-amber-50/40 p-4">
+      {/* Max marks control */}
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-xs font-semibold text-amber-700">Marksheet — {assessment.title}</span>
+        <div className="flex items-center gap-1.5 ml-auto">
+          <span className="text-xs text-slate-500">Out of</span>
+          <input
+            type="number"
+            value={maxMarks}
+            onChange={e => setMaxMarks(Number(e.target.value))}
+            className="w-16 border border-amber-200 rounded-lg px-2 py-0.5 text-xs text-center bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+            min={1}
+          />
+        </div>
+      </div>
+
+      {students.length === 0 ? (
+        <p className="text-xs text-slate-400 text-center py-3">No students enrolled</p>
+      ) : (
+        <div className="space-y-1.5">
+          {students.map(student => {
+            const val = markValues[student.id] ?? ''
+            const num = val !== '' ? Number(val) : null
+            const pct = num != null && !isNaN(num) ? Math.round((num / maxMarks) * 100) : null
+
+            return (
+              <div key={student.id} className="flex items-center gap-3 rounded-lg bg-white px-3 py-2 border border-slate-100 shadow-sm">
+                <span className="flex-1 text-sm font-medium text-slate-700 truncate">{student.full_name}</span>
+                <input
+                  type="number"
+                  value={val}
+                  onChange={e => setMarkValues(prev => ({ ...prev, [student.id]: e.target.value }))}
+                  onBlur={() => handleSave(student.id)}
+                  onKeyDown={e => e.key === 'Enter' && handleSave(student.id)}
+                  placeholder="—"
+                  className="w-16 border border-slate-200 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-400/50 bg-white"
+                  min={0}
+                  max={maxMarks}
+                />
+                <span className="text-xs text-slate-400 w-8 text-center">/{maxMarks}</span>
+                {pct != null ? (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium w-12 text-center ${
+                    pct >= 80 ? 'bg-green-100 text-green-700' :
+                    pct >= 60 ? 'bg-amber-100 text-amber-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {pct}%
+                  </span>
+                ) : <span className="w-12" />}
+                <span className="w-5 text-center">
+                  {saving.has(student.id) ? (
+                    <Loader2 size={12} className="animate-spin text-slate-400" />
+                  ) : saved.has(student.id) ? (
+                    <Check size={12} className="text-green-500" />
+                  ) : null}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
