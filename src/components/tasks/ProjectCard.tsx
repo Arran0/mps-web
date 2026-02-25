@@ -31,7 +31,6 @@ import {
 } from '@/lib/projects'
 import {
   TaskStatus,
-  TaskTag,
   STATUS_LABELS,
   STATUS_COLORS,
   STATUS_DOT_COLORS,
@@ -71,7 +70,7 @@ export default function ProjectCard({
   const [newSubDesc, setNewSubDesc] = useState('')
   const [newSubDueDate, setNewSubDueDate] = useState('')
   const [newSubTiming, setNewSubTiming] = useState('')
-  const [newSubTag, setNewSubTag] = useState<TaskTag>(null)
+  const [newSubBonusPoints, setNewSubBonusPoints] = useState(0)
   const [newSubAssignee, setNewSubAssignee] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -159,7 +158,7 @@ export default function ProjectCard({
       description: newSubDesc.trim() || undefined,
       due_date: newSubDueDate || undefined,
       timing: newSubTiming || undefined,
-      tag: newSubTag,
+      bonus_points: newSubBonusPoints,
       assignee_id: newSubAssignee || undefined,
       sort_order: localProject.subtasks.length,
     }
@@ -177,7 +176,7 @@ export default function ProjectCard({
       setNewSubDesc('')
       setNewSubDueDate('')
       setNewSubTiming('')
-      setNewSubTag(null)
+      setNewSubBonusPoints(0)
       setNewSubAssignee('')
       setShowAddSubtask(false)
       onUpdated()
@@ -528,9 +527,9 @@ export default function ProjectCard({
                               <Clock size={10} /> {subtask.timing}
                             </span>
                           )}
-                          {subtask.tag === 'bonus' && (
+                          {(subtask.bonus_points > 0 || subtask.tag === 'bonus') && (
                             <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium flex items-center gap-0.5">
-                              <Star size={8} /> Bonus
+                              <Star size={8} /> {subtask.bonus_points > 0 ? `${subtask.bonus_points} BP` : 'Bonus'}
                             </span>
                           )}
                         </div>
@@ -625,14 +624,16 @@ export default function ProjectCard({
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-slate-600 mb-1 block">Tag</label>
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">Bonus Points</label>
                         <select
-                          value={newSubTag || ''}
-                          onChange={e => setNewSubTag(e.target.value === 'bonus' ? 'bonus' : null)}
+                          value={newSubBonusPoints}
+                          onChange={e => setNewSubBonusPoints(Number(e.target.value))}
                           className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
                         >
-                          <option value="">No tag</option>
-                          <option value="bonus">Bonus</option>
+                          <option value={0}>None</option>
+                          {[1,2,3,4,5].map(n => (
+                            <option key={n} value={n}>{n} BP</option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -691,9 +692,9 @@ export default function ProjectCard({
                 {STATUS_LABELS[selectedSubtask.status]}
                 <ChevronRight size={14} className="opacity-50" />
               </button>
-              {selectedSubtask.tag === 'bonus' && (
+              {(selectedSubtask.bonus_points > 0 || selectedSubtask.tag === 'bonus') && (
                 <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
-                  <Star size={10} /> Bonus
+                  <Star size={10} /> {selectedSubtask.bonus_points > 0 ? `${selectedSubtask.bonus_points} BP` : 'Bonus'}
                 </span>
               )}
             </div>

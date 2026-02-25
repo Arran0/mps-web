@@ -23,7 +23,6 @@ import {
   fetchTodayTasks,
   TaskWithDetails,
   TaskStatus,
-  TaskTag,
   STATUS_DOT_COLORS,
   STATUS_LABELS,
   STATUS_COLORS,
@@ -512,9 +511,9 @@ function SubtaskCalendarCard({
                 <Clock size={8} /> {subtask.timing}
               </span>
             )}
-            {((subtask as any).bonus_points > 0) && (
+            {(subtask.bonus_points > 0 || subtask.tag === 'bonus') && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
-                {(subtask as any).bonus_points} BP
+                {subtask.bonus_points > 0 ? `${subtask.bonus_points} BP` : 'Bonus'}
               </span>
             )}
           </div>
@@ -566,7 +565,7 @@ function SubtaskDetailModal({
   const [editDesc, setEditDesc] = useState(subtask.description || '')
   const [editDueDate, setEditDueDate] = useState(subtask.due_date || '')
   const [editTiming, setEditTiming] = useState(subtask.timing || '')
-  const [editTag, setEditTag] = useState<TaskTag>(subtask.tag || null)
+  const [editBonusPoints, setEditBonusPoints] = useState<number>(subtask.bonus_points || 0)
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
@@ -577,7 +576,8 @@ function SubtaskDetailModal({
       description: editDesc.trim() || null,
       due_date: editDueDate || null,
       timing: editTiming || null,
-      tag: editTag,
+      bonus_points: editBonusPoints,
+      tag: editBonusPoints > 0 ? 'bonus' : null,
     })
     setSaving(false)
     if (ok) {
@@ -591,7 +591,7 @@ function SubtaskDetailModal({
     setEditDesc(subtask.description || '')
     setEditDueDate(subtask.due_date || '')
     setEditTiming(subtask.timing || '')
-    setEditTag(subtask.tag || null)
+    setEditBonusPoints(subtask.bonus_points || 0)
     setEditing(true)
   }
 
@@ -627,9 +627,9 @@ function SubtaskDetailModal({
               {STATUS_LABELS[subtask.status]}
               <ChevronRight size={14} className="opacity-50" />
             </button>
-            {((subtask as any).bonus_points > 0) && !editing && (
+            {(subtask.bonus_points > 0 || subtask.tag === 'bonus') && !editing && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
-                {(subtask as any).bonus_points} BP
+                {subtask.bonus_points > 0 ? `${subtask.bonus_points} BP` : 'Bonus'}
               </span>
             )}
           </div>
@@ -695,14 +695,16 @@ function SubtaskDetailModal({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Tag</label>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Bonus Points</label>
                 <select
-                  value={editTag || ''}
-                  onChange={e => setEditTag(e.target.value === 'bonus' ? 'bonus' : null)}
+                  value={editBonusPoints}
+                  onChange={e => setEditBonusPoints(Number(e.target.value))}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
                 >
-                  <option value="">No tag</option>
-                  <option value="bonus">Bonus</option>
+                  <option value={0}>None</option>
+                  {[1,2,3,4,5].map(n => (
+                    <option key={n} value={n}>{n} BP</option>
+                  ))}
                 </select>
               </div>
 

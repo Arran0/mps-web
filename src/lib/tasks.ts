@@ -585,7 +585,7 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
       // Fetch project subtasks for this member
       const { data: subtasks } = await supabase
         .from('subtasks')
-        .select('status, due_date, created_at, tag')
+        .select('status, due_date, created_at, tag, bonus_points')
         .eq('assignee_id', member.id)
 
       const monthSubtasks = (subtasks || []).filter((s: any) => {
@@ -606,7 +606,10 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
       ]
 
       const completed = allItems.filter(t => t.status === 'checked').length
-      const bonus = allItems.reduce((sum, t) => sum + ((t as any).bonus_points || (t.tag === 'bonus' ? 1 : 0)), 0)
+      // Only count bonus points from tasks that have been fully checked (completed)
+      const bonus = allItems
+        .filter(t => t.status === 'checked')
+        .reduce((sum, t) => sum + (t.bonus_points || 0), 0)
       const overdue = allItems.filter(t => t.is_overdue).length
       const total = allItems.length
 

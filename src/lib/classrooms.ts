@@ -863,15 +863,14 @@ export function extractYouTubeEmbedUrl(url: string): string | null {
 
 /** Uploads a document file to Supabase storage and returns its public URL and name.
  *  Requires a 'classroom-files' storage bucket in Supabase with public read access.
- *  Max size: 20 MB. */
+ *  Max size: 20 MB. Returns { url, name } on success or { error } on failure. */
 export async function uploadClassroomFile(
   classroomId: string,
   file: File,
-): Promise<{ url: string; name: string } | null> {
+): Promise<{ url: string; name: string } | { error: string }> {
   const MAX_SIZE = 20 * 1024 * 1024 // 20 MB
   if (file.size > MAX_SIZE) {
-    console.error('File too large (max 20 MB)')
-    return null
+    return { error: `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 20 MB.` }
   }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -883,7 +882,14 @@ export async function uploadClassroomFile(
 
   if (error) {
     console.error('Failed to upload file:', error.message)
-    return null
+    const msg = error.message.toLowerCase()
+    if (msg.includes('bucket') || msg.includes('not found') || msg.includes('does not exist')) {
+      return { error: 'Storage bucket "classroom-files" not found. Please create it in Supabase Storage with public read access.' }
+    }
+    if (msg.includes('policy') || msg.includes('permission') || msg.includes('unauthorized')) {
+      return { error: 'Upload permission denied. Check the storage bucket RLS policies.' }
+    }
+    return { error: `Upload failed: ${error.message}` }
   }
 
   const { data: { publicUrl } } = supabase.storage
@@ -895,16 +901,15 @@ export async function uploadClassroomFile(
 
 /** Uploads a student submission file to Supabase storage.
  *  Uses the same 'classroom-files' bucket, under a 'submissions' prefix.
- *  Max size: 20 MB. Returns public URL and file name, or null on failure. */
+ *  Max size: 20 MB. Returns { url, name } on success or { error } on failure. */
 export async function uploadSubmissionFile(
   fileId: string,
   studentId: string,
   file: File,
-): Promise<{ url: string; name: string } | null> {
+): Promise<{ url: string; name: string } | { error: string }> {
   const MAX_SIZE = 20 * 1024 * 1024
   if (file.size > MAX_SIZE) {
-    console.error('Submission file too large (max 20 MB)')
-    return null
+    return { error: `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 20 MB.` }
   }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -916,7 +921,11 @@ export async function uploadSubmissionFile(
 
   if (error) {
     console.error('Failed to upload submission file:', error.message)
-    return null
+    const msg = error.message.toLowerCase()
+    if (msg.includes('bucket') || msg.includes('not found') || msg.includes('does not exist')) {
+      return { error: 'Storage bucket "classroom-files" not found. Please create it in Supabase Storage.' }
+    }
+    return { error: `Upload failed: ${error.message}` }
   }
 
   const { data: { publicUrl } } = supabase.storage
