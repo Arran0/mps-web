@@ -107,25 +107,25 @@ function TasksPageContent() {
         </div>
 
         {/* Navigation Tabs + inline space selector */}
-        <div className="mb-5">
-          <div className="glass rounded-2xl px-2 py-1.5 flex items-center gap-2 flex-wrap">
-            <div className="flex flex-wrap gap-1 flex-1">
-              {visibleTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-sm transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-mps-blue-500 to-mps-green-500 text-white shadow-lg'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {tab.icon}
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              ))}
-            </div>
-            {canAssignToOthers && teamMembers.length > 0 && activeTab !== 'team' && activeTab !== 'projects' && (
+        <div className="mb-5 space-y-1.5">
+          <div className="glass rounded-2xl px-2 py-1.5 flex items-center gap-1 overflow-x-auto scrollbar-none">
+            {visibleTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-medium text-sm transition-all duration-200 flex-shrink-0 ${
+                  activeTab === tab.id
+                    ? 'bg-gradient-to-r from-mps-blue-500 to-mps-green-500 text-white shadow-lg'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+          {canAssignToOthers && teamMembers.length > 0 && activeTab !== 'team' && activeTab !== 'projects' && (
+            <div className="flex justify-end">
               <TeamMemberSelector
                 members={teamMembers}
                 selectedUserId={viewingUserId}
@@ -133,8 +133,8 @@ function TasksPageContent() {
                 currentUserName={profile.full_name}
                 onSelect={setViewingUserId}
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Tab Content */}

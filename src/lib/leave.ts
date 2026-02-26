@@ -23,7 +23,7 @@ export interface LeaveApproval {
   id: string
   leave_application_id: string
   approver_id: string | null
-  approver_role: 'coordinator' | 'principal' | 'admin'
+  approver_role: 'teacher' | 'coordinator' | 'principal' | 'admin'
   team_id: string | null
   status: LeaveStatus
   comments: string | null
@@ -43,6 +43,13 @@ export interface NewLeaveInput {
   start_date: string
   end_date: string
   reason: string
+}
+
+export interface RecipientProfile {
+  id: string
+  full_name: string
+  email: string
+  role: string
 }
 
 // Leave allowances per year
@@ -247,25 +254,14 @@ export async function fetchPendingApprovalsForUser(
   userRole: UserRole
 ): Promise<LeaveApplicationWithDetails[]> {
   // Get approvals where current user is the designated approver
+  // All pending approvals explicitly addressed to this user
   let query = supabase
     .from('leave_approvals')
     .select('leave_application_id')
     .eq('status', 'pending')
+    .eq('approver_id', userId)
 
-  if (userRole === 'coordinator') {
-    // Match by approver_id (explicit selection) or by role with matching team
-    query = query
-      .eq('approver_role', 'coordinator')
-      .eq('approver_id', userId)
-  } else if (userRole === 'principal') {
-    query = query
-      .eq('approver_role', 'principal')
-      .eq('approver_id', userId)
-  } else if (userRole === 'admin') {
-    query = query
-      .eq('approver_role', 'admin')
-      .eq('approver_id', userId)
-  } else {
+  if (!['teacher', 'coordinator', 'principal', 'admin'].includes(userRole)) {
     return []
   }
 
@@ -395,6 +391,68 @@ export async function fetchLeaveBalance(
     casual: { used: casualUsed, total: LEAVE_ALLOWANCES.casual },
     medical: { used: medicalUsed, total: LEAVE_ALLOWANCES.medical },
   }
+}
+
+// ============================================
+// Search Recipients (for student leave)
+// ============================================
+
+export async function searchLeaveRecipients(query: string): Promise<RecipientProfile[]> {
+  if (!query || query.trim().length < 2) return []
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role')
+    .in('role', ['teacher', 'coordinator', 'principal'])
+    .or(`email.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%`)
+    .order('role')
+    .order('full_name')
+    .limit(6)
+  return (data || []) as RecipientProfile[]
+}
+
+// ============================================
+// Create Student Leave Application
+// ============================================
+
+export async function createStudentLeaveApplication(
+  input: NewLeaveInput,
+  applicantId: string,
+  recipientId: string,
+  recipientRole: string
+): Promise<LeaveApplication | null> {
+  const { data: application, error } = await supabase
+    .from('leave_applications')
+    .insert({
+      applicant_id: applicantId,
+      leave_type: input.leave_type,
+      start_date: input.start_date,
+      end_date: input.end_date,
+      reason: input.reason,
+      status: 'pending',
+    })
+    .select()
+    .single()
+
+  if (error || !application) {
+    console.error('Failed to create student leave application:', error)
+    return null
+  }
+
+  const { error: approvalError } = await supabase
+    .from('leave_approvals')
+    .insert({
+      leave_application_id: application.id,
+      approver_id: recipientId,
+      approver_role: recipientRole,
+    })
+
+  if (approvalError) {
+    console.error('Failed to create approval record:', approvalError)
+    await supabase.from('leave_applications').delete().eq('id', application.id)
+    return null
+  }
+
+  return application as LeaveApplication
 }
 
 // ============================================

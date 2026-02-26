@@ -74,11 +74,14 @@ export default function LeaveApplicationCard({
   const isPending = application.status === 'pending'
 
   // Find approvals that current user can act on
+  // Match by explicit approver_id (for student→teacher/coordinator/principal leaves)
+  // OR by role (for legacy staff leave with no explicit approver_id)
   const myPendingApprovals = application.approvals.filter(a => {
     if (a.status !== 'pending') return false
-    if (currentUserRole === 'coordinator' && a.approver_role === 'coordinator') return true
-    if (currentUserRole === 'principal' && a.approver_role === 'principal') return true
-    if (currentUserRole === 'admin' && a.approver_role === 'admin') return true
+    if (a.approver_id === currentUserId) return true
+    if (currentUserRole === 'coordinator' && a.approver_role === 'coordinator' && !a.approver_id) return true
+    if (currentUserRole === 'principal'   && a.approver_role === 'principal'   && !a.approver_id) return true
+    if (currentUserRole === 'admin'       && a.approver_role === 'admin'       && !a.approver_id) return true
     return false
   })
 
