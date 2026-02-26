@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Folder, File, Plus, Trash2, ChevronRight, ChevronDown, Clock,
   X, Circle, CircleDot, CheckCircle2, Users, Link2, FileText,
-  Youtube, Upload, BarChart2, ExternalLink, Play,
+  Youtube, Upload, BarChart2, ExternalLink, Play, Edit3, Check,
 } from 'lucide-react'
 import {
   ClassroomFolder, ClassroomFile, FileProgress, FileSubmission,
   FolderType, FileStatus, SubmissionType, ClassroomWithDetails,
-  createFolder, fetchFolders, deleteFolder,
+  createFolder, fetchFolders, deleteFolder, updateFolder,
   createFile, fetchFilesForFolder, deleteFile,
   updateFileProgress, fetchFileProgress, fetchProgressForStudent,
   fetchProgressForFiles,
@@ -126,6 +126,13 @@ export default function FolderFileView({
   const [videoUrl,        setVideoUrl]        = useState<string | null>(null)   // YouTube embed URL
   const [imageUrl,        setImageUrl]        = useState<string | null>(null)   // image lightbox
   const [docViewerUrl,    setDocViewerUrl]    = useState<string | null>(null)  // Google Docs viewer (PDFs, office docs)
+
+  // Folder editing
+  const [editingFolder,    setEditingFolder]    = useState<string | null>(null)
+  const [editFolderTitle,  setEditFolderTitle]  = useState('')
+  const [editFolderDesc,   setEditFolderDesc]   = useState('')
+  const [editFolderDue,    setEditFolderDue]    = useState('')
+  const [savingFolder,     setSavingFolder]     = useState(false)
 
   // New folder form
   const [newFolderTitle, setNewFolderTitle] = useState('')
@@ -288,6 +295,32 @@ export default function FolderFileView({
     if (!confirm('Delete this folder and all its files?')) return
     if (await deleteFolder(folderId)) {
       setFolders(prev => prev.filter(f => f.id !== folderId))
+    }
+  }
+
+  const openEditFolder = (folder: ClassroomFolder) => {
+    setEditingFolder(folder.id)
+    setEditFolderTitle(folder.title)
+    setEditFolderDesc(folder.description || '')
+    setEditFolderDue(folder.due_date || '')
+  }
+
+  const handleSaveFolder = async (folderId: string) => {
+    if (!editFolderTitle.trim()) return
+    setSavingFolder(true)
+    const ok = await updateFolder(folderId, {
+      title: editFolderTitle.trim(),
+      description: editFolderDesc.trim() || null,
+      due_date: editFolderDue || null,
+    })
+    setSavingFolder(false)
+    if (ok) {
+      setFolders(prev => prev.map(f =>
+        f.id === folderId
+          ? { ...f, title: editFolderTitle.trim(), description: editFolderDesc.trim() || null, due_date: editFolderDue || null }
+          : f
+      ))
+      setEditingFolder(null)
     }
   }
 
@@ -549,14 +582,67 @@ export default function FolderFileView({
                     </span>
                   )}
                   {isStaff && (
-                    <button
-                      onClick={e => { e.stopPropagation(); handleDeleteFolder(folder.id) }}
-                      className="p-1 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => openEditFolder(folder)}
+                        className="p-1 text-slate-300 hover:text-mps-blue-500 transition-colors"
+                        title="Edit folder"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFolder(folder.id)}
+                        className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   )}
                 </button>
+
+                {/* Inline folder edit form */}
+                {isStaff && editingFolder === folder.id && (
+                  <div className="px-4 py-3 border-b border-slate-100 bg-mps-blue-50/30 space-y-2">
+                    <input
+                      type="text"
+                      value={editFolderTitle}
+                      onChange={e => setEditFolderTitle(e.target.value)}
+                      placeholder="Folder title"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-400/50 bg-white"
+                      autoFocus
+                    />
+                    <textarea
+                      value={editFolderDesc}
+                      onChange={e => setEditFolderDesc(e.target.value)}
+                      placeholder="Description (optional)"
+                      rows={2}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-400/50 resize-none bg-white"
+                    />
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-slate-500 flex items-center gap-1.5">
+                        <Clock size={12} /> Due:
+                      </label>
+                      <input
+                        type="date"
+                        value={editFolderDue}
+                        onChange={e => setEditFolderDue(e.target.value)}
+                        className="border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-400/50 bg-white"
+                      />
+                      <div className="flex-1" />
+                      <button
+                        onClick={() => setEditingFolder(null)}
+                        className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+                      >Cancel</button>
+                      <button
+                        onClick={() => handleSaveFolder(folder.id)}
+                        disabled={savingFolder || !editFolderTitle.trim()}
+                        className="flex items-center gap-1 text-xs bg-mps-blue-500 text-white rounded-lg px-3 py-1.5 hover:bg-mps-blue-600 disabled:opacity-50 transition-colors"
+                      >
+                        <Check size={12} /> {savingFolder ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Expanded Content */}
                 <AnimatePresence>
@@ -629,7 +715,7 @@ export default function FolderFileView({
                         </div>
                       )}
 
-                      <div className="p-3 space-y-1">
+                      <div className="p-2 space-y-0.5">
                         {/* Add File Button */}
                         {isStaff && (
                           <button
@@ -776,7 +862,7 @@ export default function FolderFileView({
                           <p className="text-xs text-slate-400 text-center py-4">No files in this folder</p>
                         )}
 
-                        {files.map(file => {
+                        {files.map((file, fileIdx) => {
                           const status     = studentProgress[file.id] || 'not_done'
                           const submission = studentSubmissions[file.id]
                           const fileOverdue = isOverdue(file.due_date)
@@ -784,11 +870,12 @@ export default function FolderFileView({
                           const attachType = hasAttachment ? getAttachmentType(file.attachment_url!, file.attachment_name) : 'other'
                           const embedUrl   = attachType === 'youtube' ? extractYouTubeEmbedUrl(file.attachment_url!) : null
                           const isYoutube  = attachType === 'youtube'
+                          const rowBg = fileIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'
 
                           return (
                             <div
                               key={file.id}
-                              className="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
+                              className={`flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100/60 transition-colors group border border-transparent hover:border-slate-200 ${rowBg}`}
                             >
                               {/* Student: Status Toggle */}
                               {isStudent && (

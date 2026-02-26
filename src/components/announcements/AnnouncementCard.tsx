@@ -119,17 +119,15 @@ export default function AnnouncementCard({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -12 }}
-        className="glass rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+        className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:border-mps-blue-200 hover:shadow-sm transition-all cursor-pointer"
         onClick={() => setIsExpanded(prev => !prev)}
       >
         {/* Compact header */}
-        <div className="p-4 flex items-center justify-between gap-3">
+        <div className="p-3.5 flex items-center justify-between gap-3">
           {/* Avatar + title */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-sm font-bold">
-                {announcement.creator?.full_name?.charAt(0) || '?'}
-              </span>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0 text-white text-sm font-bold">
+              {announcement.creator?.full_name?.charAt(0) || '?'}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -175,7 +173,7 @@ export default function AnnouncementCard({
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="px-4 pb-4 pt-2 border-t border-slate-100">
+              <div className="px-4 pb-4 pt-3 border-t border-slate-100 bg-slate-50/50">
                 <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
                   {announcement.content}
                 </p>
