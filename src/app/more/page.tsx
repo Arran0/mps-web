@@ -153,31 +153,29 @@ export default function MorePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {moreSections.map((section, index) => (
               <motion.div key={section.href} variants={itemVariants}>
-                <Link href={section.href}>
-                  <div className="glass rounded-2xl p-6 h-full card-hover group relative overflow-hidden">
-                    {section.adminOnly && (
-                      <span className="absolute top-4 right-4 text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
-                        Admin
-                      </span>
-                    )}
-                    {section.staffOnly && !section.adminOnly && (
-                      <span className="absolute top-4 right-4 text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
-                        Staff
-                      </span>
-                    )}
-                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${section.color} flex items-center justify-center text-white mb-5 shadow-lg group-hover:shadow-xl transition-shadow`}>
-                      {section.icon}
-                    </div>
-                    <h3 className="font-display text-xl font-bold text-slate-800 mb-2 group-hover:text-mps-blue-600 transition-colors">
-                      {section.title}
-                    </h3>
-                    <p className="text-slate-500 text-sm mb-4">
-                      {section.description}
-                    </p>
-                    <div className="flex items-center text-mps-blue-600 font-medium text-sm">
-                      <span>Open</span>
-                      <ArrowRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-                    </div>
+                <Link href={section.href} className="glass rounded-2xl p-6 flex flex-col card-hover group relative overflow-hidden">
+                  {section.adminOnly && (
+                    <span className="absolute top-4 right-4 text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
+                      Admin
+                    </span>
+                  )}
+                  {section.staffOnly && !section.adminOnly && (
+                    <span className="absolute top-4 right-4 text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
+                      Staff
+                    </span>
+                  )}
+                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${section.color} flex items-center justify-center text-white mb-5 shadow-lg group-hover:shadow-xl transition-shadow`}>
+                    {section.icon}
+                  </div>
+                  <h3 className="font-display text-xl font-bold text-slate-800 mb-2 group-hover:text-mps-blue-600 transition-colors">
+                    {section.title}
+                  </h3>
+                  <p className="text-slate-500 text-sm mb-4">
+                    {section.description}
+                  </p>
+                  <div className="flex items-center text-mps-blue-600 font-medium text-sm mt-auto">
+                    <span>Open</span>
+                    <ArrowRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </Link>
               </motion.div>

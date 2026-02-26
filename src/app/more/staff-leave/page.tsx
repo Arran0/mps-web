@@ -94,7 +94,7 @@ export default function StaffLeavePage() {
   const pastApplications   = myApplications.filter(a => a.status !== 'pending')
 
   // Build tab list based on role
-  const tabs: { id: TabId; label: string; Icon: React.FC<{ size: number }>; count?: number }[] = []
+  const tabs: { id: TabId; label: string; Icon: React.ElementType; count?: number }[] = []
 
   if (!isAdmin) {
     tabs.push({ id: 'active',   label: 'My Active', Icon: CalendarDays, count: activeApplications.length })
