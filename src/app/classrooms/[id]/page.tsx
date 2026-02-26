@@ -119,11 +119,11 @@ export default function ClassroomDetailPage() {
                 )}
               </div>
 
-              <div className="px-6 pb-4 mt-4 relative">
-                <div className="flex items-center gap-4">
+              <div className="px-4 sm:px-6 pb-4 mt-4 relative">
+                <div className="flex items-center gap-3 sm:gap-4">
                   {/* Logo */}
                   <div className="relative group">
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shrink-0 border-4 border-white ${closed ? 'bg-slate-400' : 'bg-gradient-to-br from-purple-400 to-mps-blue-500'} overflow-hidden`}>
+                    <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shrink-0 border-4 border-white ${closed ? 'bg-slate-400' : 'bg-gradient-to-br from-purple-400 to-mps-blue-500'} overflow-hidden`}>
                       {classroom.logo_url ? (
                         <img src={classroom.logo_url} alt="" className="w-full h-full object-cover" />
                       ) : closed ? (
@@ -144,7 +144,7 @@ export default function ClassroomDetailPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h1 className="font-display text-2xl font-bold text-slate-800">{classroom.title}</h1>
+                      <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-800">{classroom.title}</h1>
                       {closed && (
                         <span className="text-xs px-2.5 py-1 rounded-full bg-slate-200 text-slate-500 font-medium flex items-center gap-1">
                           <Lock size={11} /> Closed

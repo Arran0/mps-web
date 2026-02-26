@@ -559,12 +559,17 @@ export default function FolderFileView({
                     <Folder size={18} className="text-amber-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-slate-800 text-sm">{folder.title}</span>
                       {overdue && (
-                        <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full">Overdue</span>
+                        <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full flex-shrink-0">Overdue</span>
                       )}
                     </div>
+                    {folder.due_date && (
+                      <span className={`sm:hidden text-xs flex items-center gap-1 mt-0.5 ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
+                        <Clock size={11} /> {new Date(folder.due_date).toLocaleDateString()}
+                      </span>
+                    )}
                     {folder.description && (
                       <p className="text-xs text-slate-500 truncate">{folder.description}</p>
                     )}
@@ -577,7 +582,7 @@ export default function FolderFileView({
                     )}
                   </div>
                   {folder.due_date && (
-                    <span className={`text-xs flex items-center gap-1 flex-shrink-0 ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
+                    <span className={`hidden sm:flex text-xs items-center gap-1 flex-shrink-0 ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
                       <Clock size={12} /> {new Date(folder.due_date).toLocaleDateString()}
                     </span>
                   )}
