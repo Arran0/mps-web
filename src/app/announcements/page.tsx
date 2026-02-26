@@ -85,9 +85,10 @@ export default function AnnouncementsPage() {
             {canCreate && (
               <button
                 onClick={() => setShowNewForm(true)}
-                className="btn-primary flex items-center gap-2 text-sm"
+                className="btn-primary flex items-center gap-2 text-sm flex-shrink-0"
               >
-                <Plus size={16} /> New Announcement
+                <Plus size={16} />
+                <span className="hidden sm:inline">New Announcement</span>
               </button>
             )}
           </div>
