@@ -220,32 +220,22 @@ export default function HomePage() {
           {/* Task Manager Quick Access (Staff only) */}
           {isStaff && (
             <motion.div variants={itemVariants} className="mb-8">
-              <div className="flex items-center gap-2 mb-6">
-                <ClipboardList className="text-amber-600" size={20} />
+              <div className="flex items-center gap-2 mb-4">
+                <ClipboardList className="text-amber-600" size={18} />
                 <h2 className="font-display text-xl font-bold text-slate-800">Task Manager</h2>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {taskManagerButtons.map((button) => (
-                  <motion.div
-                    key={button.label}
-                    variants={itemVariants}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Link href={button.href}>
-                      <div className="glass rounded-2xl p-5 card-hover group h-full">
-                        <div className={`w-12 h-12 mb-3 rounded-xl bg-gradient-to-br ${button.color} flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow`}>
-                          {button.icon}
-                        </div>
-                        <h3 className="font-semibold text-slate-800 text-sm mb-1 group-hover:text-mps-blue-600 transition-colors">
-                          {button.label}
-                        </h3>
-                        {button.description && (
-                          <p className="text-xs text-slate-500">{button.description}</p>
-                        )}
+                  <Link key={button.label} href={button.href}>
+                    <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-amber-200 hover:shadow-sm transition-all group">
+                      <div className={`w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br ${button.color} flex items-center justify-center text-white shadow-md`}>
+                        {button.icon}
                       </div>
-                    </Link>
-                  </motion.div>
+                      <span className="font-medium text-slate-700 text-sm group-hover:text-amber-600 transition-colors leading-tight">
+                        {button.label}
+                      </span>
+                    </div>
+                  </Link>
                 ))}
               </div>
             </motion.div>
@@ -253,27 +243,22 @@ export default function HomePage() {
 
           {/* Quick Access Section */}
           <motion.div variants={itemVariants}>
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
               <h2 className="font-display text-xl font-bold text-slate-800">Quick Access</h2>
             </div>
 
-            <div className={`grid grid-cols-2 sm:grid-cols-3 ${quickAccess.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {quickAccess.map((link) => (
-                <motion.div
-                  key={link.label}
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link href={link.href}>
-                    <div className="glass rounded-2xl p-5 text-center card-hover group">
-                      <div className={`w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br ${link.color} flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow`}>
-                        {link.icon}
-                      </div>
-                      <p className="font-medium text-slate-700 text-sm">{link.label}</p>
+                <Link key={link.label} href={link.href}>
+                  <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-mps-blue-200 hover:shadow-sm transition-all group">
+                    <div className={`w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br ${link.color} flex items-center justify-center text-white shadow-md`}>
+                      {link.icon}
                     </div>
-                  </Link>
-                </motion.div>
+                    <span className="font-medium text-slate-700 text-sm group-hover:text-mps-blue-600 transition-colors">
+                      {link.label}
+                    </span>
+                  </div>
+                </Link>
               ))}
             </div>
           </motion.div>

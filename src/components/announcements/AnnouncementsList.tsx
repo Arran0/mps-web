@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Megaphone, Plus } from 'lucide-react'
+import { Megaphone } from 'lucide-react'
 import AnnouncementCard from './AnnouncementCard'
 import NewAnnouncementForm from './NewAnnouncementForm'
 import { AnnouncementWithDetails, fetchAnnouncementsForUser } from '@/lib/announcements'
@@ -16,6 +16,8 @@ interface AnnouncementsListProps {
   userTeams?: { id: string; name: string }[]
   allTeams?: { id: string; name: string }[]
   teamGradeRanges?: { teamId: string; grades: number[] }[]
+  showNewForm?: boolean
+  onNewFormChange?: (show: boolean) => void
 }
 
 const containerVariants = {
@@ -36,10 +38,19 @@ export default function AnnouncementsList({
   userTeams = [],
   allTeams  = [],
   teamGradeRanges = [],
+  showNewForm: externalShowNewForm,
+  onNewFormChange,
 }: AnnouncementsListProps) {
   const [announcements, setAnnouncements] = useState<AnnouncementWithDetails[]>([])
   const [loading, setLoading] = useState(true)
-  const [showNewForm, setShowNewForm] = useState(false)
+  const [localShowNewForm, setLocalShowNewForm] = useState(false)
+
+  // Use external state if provided, otherwise local
+  const showNewForm = externalShowNewForm ?? localShowNewForm
+  const setShowNewForm = (show: boolean) => {
+    if (onNewFormChange) onNewFormChange(show)
+    else setLocalShowNewForm(show)
+  }
 
   // Only coordinator / principal / admin can create announcements
   const canCreate = ['coordinator', 'principal', 'admin'].includes(userRole)
@@ -64,19 +75,7 @@ export default function AnnouncementsList({
   const handleCreated = () => loadAnnouncements()
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      {canCreate && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => setShowNewForm(true)}
-            className="btn-primary flex items-center gap-2 text-sm"
-          >
-            <Plus size={16} /> New Announcement
-          </button>
-        </div>
-      )}
-
+    <div className="space-y-4">
       {/* Content */}
       {loading ? (
         <div className="text-center py-12">

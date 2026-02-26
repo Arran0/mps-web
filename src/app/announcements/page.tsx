@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { Megaphone } from 'lucide-react'
+import { Megaphone, Plus } from 'lucide-react'
 import AnnouncementsList from '@/components/announcements/AnnouncementsList'
 import { fetchTeamsForUser, fetchAllTeams } from '@/lib/announcements'
 
@@ -28,6 +28,9 @@ export default function AnnouncementsPage() {
   const [userTeams, setUserTeams] = useState<{ id: string; name: string }[]>([])
   const [allTeams,  setAllTeams]  = useState<{ id: string; name: string }[]>([])
   const [teamsLoaded, setTeamsLoaded] = useState(false)
+  const [showNewForm, setShowNewForm] = useState(false)
+
+  const canCreate = profile ? ['coordinator', 'principal', 'admin'].includes(profile.role) : false
 
   const loadTeams = useCallback(async () => {
     if (!user || !profile) return
@@ -66,17 +69,27 @@ export default function AnnouncementsPage() {
 
   return (
     <ProtectedLayout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-br from-mps-blue-400 to-purple-500 rounded-xl shadow-lg">
-              <Megaphone className="text-white" size={24} />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-gradient-to-br from-mps-blue-400 to-purple-500 rounded-xl shadow-lg">
+                <Megaphone className="text-white" size={24} />
+              </div>
+              <div>
+                <h1 className="font-display text-3xl font-bold text-slate-800">Announcements</h1>
+                <p className="text-slate-500 text-sm">Stay updated with the latest news</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-display text-3xl font-bold text-slate-800">Announcements</h1>
-              <p className="text-slate-500 text-sm">Stay updated with the latest news</p>
-            </div>
+            {canCreate && (
+              <button
+                onClick={() => setShowNewForm(true)}
+                className="btn-primary flex items-center gap-2 text-sm"
+              >
+                <Plus size={16} /> New Announcement
+              </button>
+            )}
           </div>
         </div>
 
@@ -94,6 +107,8 @@ export default function AnnouncementsPage() {
             userTeams={userTeams}
             allTeams={allTeams}
             teamGradeRanges={teamGradeRanges}
+            showNewForm={showNewForm}
+            onNewFormChange={setShowNewForm}
           />
         )}
       </div>
