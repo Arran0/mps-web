@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Megaphone, Plus, Bell } from 'lucide-react'
+import { Megaphone, Plus } from 'lucide-react'
 import AnnouncementCard from './AnnouncementCard'
 import NewAnnouncementForm from './NewAnnouncementForm'
 import { AnnouncementWithDetails, fetchAnnouncementsForUser } from '@/lib/announcements'
@@ -66,20 +66,16 @@ export default function AnnouncementsList({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-bold text-slate-800 flex items-center gap-2">
-          <Bell size={22} className="text-mps-blue-600" />
-          Announcements
-        </h2>
-        {canCreate && (
+      {canCreate && (
+        <div className="flex justify-end">
           <button
             onClick={() => setShowNewForm(true)}
             className="btn-primary flex items-center gap-2 text-sm"
           >
-            <Plus size={16} /> New
+            <Plus size={16} /> New Announcement
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Content */}
       {loading ? (
@@ -105,7 +101,7 @@ export default function AnnouncementsList({
           variants={containerVariants}
           initial="hidden"
           animate="show"
-          className="space-y-3"
+          className="space-y-2"
         >
           <AnimatePresence mode="popLayout">
             {announcements.map(announcement => (

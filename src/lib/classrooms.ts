@@ -476,6 +476,28 @@ export async function createFolder(input: {
   }
 }
 
+export async function updateFolder(folderId: string, input: {
+  title?: string
+  description?: string | null
+  due_date?: string | null
+}): Promise<boolean> {
+  const { error } = await supabase
+    .from('classroom_folders')
+    .update({
+      title: input.title,
+      description: input.description,
+      due_date: input.due_date,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', folderId)
+
+  if (error) {
+    console.error('Failed to update folder:', error.message)
+    return false
+  }
+  return true
+}
+
 export async function fetchFolders(classroomId: string, type: FolderType): Promise<ClassroomFolder[]> {
   const { data, error } = await supabase
     .from('classroom_folders')

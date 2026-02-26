@@ -99,6 +99,7 @@ export default function WeeklyCalendar({
   const [loading, setLoading] = useState(true)
   const [showNewTask, setShowNewTask] = useState(false)
   const [newTaskDate, setNewTaskDate] = useState('')
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   // Modal state
   const [openTask, setOpenTask]       = useState<TaskWithDetails | null>(null)
@@ -227,26 +228,31 @@ export default function WeeklyCalendar({
                 const isToday  = day.full === todayStr
                 const isLast   = i === 6
 
+                const isSelected = selectedDay === day.full
+
                 return (
                   <div
                     key={day.full}
                     className={`flex-1 min-w-0 flex flex-col ${!isLast ? 'border-r border-slate-100' : ''}`}
                   >
-                    {/* Day header */}
-                    <div className={`px-1.5 py-2 text-center border-b border-slate-100 ${
-                      isToday ? 'bg-cyan-100' : 'bg-slate-50'
-                    }`}>
+                    {/* Day header — clickable */}
+                    <button
+                      onClick={() => setSelectedDay(isSelected ? null : day.full)}
+                      className={`px-1.5 py-2 text-center border-b border-slate-100 w-full transition-colors ${
+                        isSelected ? 'bg-mps-blue-100' : isToday ? 'bg-cyan-100' : 'bg-slate-50 hover:bg-slate-100'
+                      }`}
+                    >
                       <p className={`text-[10px] font-semibold uppercase tracking-wide ${
-                        isToday ? 'text-cyan-600' : 'text-slate-400'
+                        isSelected ? 'text-mps-blue-600' : isToday ? 'text-cyan-600' : 'text-slate-400'
                       }`}>
                         {day.day}
                       </p>
                       <p className={`text-base font-bold leading-tight ${
-                        isToday ? 'text-cyan-700' : 'text-slate-700'
+                        isSelected ? 'text-mps-blue-700' : isToday ? 'text-cyan-700' : 'text-slate-700'
                       }`}>
                         {day.date}
                       </p>
-                    </div>
+                    </button>
 
                     {/* Tasks for this day */}
                     <div className={`p-1 space-y-1 flex-1 min-h-[96px] ${
@@ -276,6 +282,62 @@ export default function WeeklyCalendar({
               })}
             </div>
           </div>
+
+          {/* ── Selected Day Panel ───────────────────────────────────────────── */}
+          <AnimatePresence>
+            {selectedDay && (() => {
+              const dayLabel = weekDays.find(d => d.full === selectedDay)
+              const dayTasks = getTasksForDay(selectedDay)
+              const daySubs  = getSubtasksForDay(selectedDay)
+              const total    = dayTasks.length + daySubs.length
+              return (
+                <motion.div
+                  key={selectedDay}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15 }}
+                  className="rounded-xl border border-mps-blue-100 bg-mps-blue-50/40 p-3"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-mps-blue-700 uppercase tracking-wide">
+                      {dayLabel?.day} {dayLabel?.date} · {total} item{total !== 1 ? 's' : ''}
+                    </p>
+                    <button
+                      onClick={() => { setNewTaskDate(selectedDay); setShowNewTask(true) }}
+                      className="text-xs text-mps-blue-600 hover:text-mps-blue-800 font-medium flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Add Task
+                    </button>
+                  </div>
+                  {total === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-2">No tasks for this day</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {dayTasks.map(task => (
+                        <TaskGridChip
+                          key={task.id}
+                          task={task}
+                          canCheck={canCheck}
+                          onStatusChange={handleTaskStatusChange}
+                          onOpen={() => setOpenTask(task)}
+                        />
+                      ))}
+                      {daySubs.map(sub => (
+                        <SubtaskGridChip
+                          key={sub.id}
+                          subtask={sub}
+                          canCheck={canCheck}
+                          onStatusTap={handleSubtaskStatusTap}
+                          onOpen={() => setOpenSubtask(sub)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )
+            })()}
+          </AnimatePresence>
 
           {/* ── Overdue & Undated ─────────────────────────────────────────────── */}
           {overdueUndated.length > 0 && (

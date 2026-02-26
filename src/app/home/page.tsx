@@ -162,7 +162,7 @@ export default function HomePage() {
               {!welcomeBanner && (
                 <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-mps-blue-200/30 to-mps-green-200/30 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
               )}
-              <div className={`relative z-10 p-8 ${welcomeBanner ? '-mt-16' : ''}`}>
+              <div className={`relative z-10 px-8 pt-6 pb-8 ${welcomeBanner ? 'mt-0' : ''}`}>
                 <p className="text-mps-blue-600 font-medium mb-2">{getGreeting()}</p>
                 <h1 className="font-display text-3xl sm:text-4xl font-bold text-slate-800 mb-2">
                   Welcome back, {profile?.full_name?.split(' ')[0] || 'User'}!

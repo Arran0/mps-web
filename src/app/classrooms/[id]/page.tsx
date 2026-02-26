@@ -101,7 +101,7 @@ export default function ClassroomDetailPage() {
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-2xl overflow-hidden mb-5"
+              className="glass rounded-2xl overflow-hidden mb-3"
             >
               {/* Banner */}
               <div className="relative h-32 sm:h-40 bg-gradient-to-br from-purple-400 via-mps-blue-500 to-cyan-500">
@@ -119,11 +119,11 @@ export default function ClassroomDetailPage() {
                 )}
               </div>
 
-              <div className="px-6 pb-5 -mt-8 relative">
+              <div className="px-6 pb-4 -mt-6 relative">
                 <div className="flex items-end gap-4">
                   {/* Logo */}
                   <div className="relative group">
-                    <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shrink-0 border-4 border-white ${closed ? 'bg-slate-400' : 'bg-gradient-to-br from-purple-400 to-mps-blue-500'} overflow-hidden`}>
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shrink-0 border-4 border-white ${closed ? 'bg-slate-400' : 'bg-gradient-to-br from-purple-400 to-mps-blue-500'} overflow-hidden`}>
                       {classroom.logo_url ? (
                         <img src={classroom.logo_url} alt="" className="w-full h-full object-cover" />
                       ) : closed ? (
@@ -142,7 +142,7 @@ export default function ClassroomDetailPage() {
                       </label>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0 pt-9">
+                  <div className="flex-1 min-w-0 pt-7">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="font-display text-2xl font-bold text-slate-800">{classroom.title}</h1>
                       {closed && (
@@ -182,7 +182,7 @@ export default function ClassroomDetailPage() {
             </motion.div>
 
             {/* Tabs */}
-            <div className="flex gap-1 mb-5 overflow-x-auto pb-1">
+            <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
               {tabs.map(tab => (
                 <button
                   key={tab.id}

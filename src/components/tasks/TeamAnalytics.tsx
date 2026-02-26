@@ -57,9 +57,8 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   return (
-    <div className="space-y-6">
-      <h2 className="font-display text-xl font-bold text-slate-800">Team Analytics</h2>
-      <p className="text-sm text-slate-500">Monthly report for {currentMonth}</p>
+    <div className="space-y-5">
+      <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Monthly report · {currentMonth}</p>
 
       {loading ? (
         <div className="text-center py-16">
@@ -70,42 +69,20 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
         <>
           {/* Summary Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="glass rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                  <TrendingUp size={16} className="text-green-600" />
+            {([
+              { icon: <TrendingUp size={15} className="text-white" />, gradient: 'from-green-400 to-emerald-500', value: `${teamCompletionRate}%`, label: 'Completion Rate' },
+              { icon: <Star size={15} className="text-white" />, gradient: 'from-amber-400 to-orange-500', value: totalBonus, label: 'Bonus Points' },
+              { icon: <CheckCircle2 size={15} className="text-white" />, gradient: 'from-mps-blue-400 to-mps-blue-600', value: totalCompleted, label: 'Tasks Completed' },
+              { icon: <AlertTriangle size={15} className="text-white" />, gradient: 'from-red-400 to-rose-500', value: totalOverdue, label: 'Overdue' },
+            ] as const).map((stat, i) => (
+              <div key={i} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center mb-2.5`}>
+                  {stat.icon}
                 </div>
+                <p className="text-xl font-bold text-slate-800 leading-none mb-1">{stat.value}</p>
+                <p className="text-xs text-slate-400">{stat.label}</p>
               </div>
-              <p className="text-2xl font-bold text-green-700">{teamCompletionRate}%</p>
-              <p className="text-xs text-slate-500">Completion Rate</p>
-            </div>
-            <div className="glass rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                  <Star size={16} className="text-amber-600" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-amber-700">{totalBonus}</p>
-              <p className="text-xs text-slate-500">Bonus Points</p>
-            </div>
-            <div className="glass rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <CheckCircle2 size={16} className="text-blue-600" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-blue-700">{totalCompleted}</p>
-              <p className="text-xs text-slate-500">Tasks Completed</p>
-            </div>
-            <div className="glass rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                  <AlertTriangle size={16} className="text-red-600" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-red-700">{totalOverdue}</p>
-              <p className="text-xs text-slate-500">Overdue Tasks</p>
-            </div>
+            ))}
           </div>
 
           {/* Member Stats Table */}
@@ -198,41 +175,39 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className={`flex items-center gap-3 p-3 rounded-xl ${
-                    index === 0 ? 'bg-amber-50 border border-amber-200' :
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                    index === 0 ? 'bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200' :
                     index === 1 ? 'bg-slate-50 border border-slate-200' :
                     index === 2 ? 'bg-orange-50 border border-orange-200' :
-                    'bg-white border border-slate-100'
+                    'bg-white border border-slate-100 hover:bg-slate-50'
                   }`}
                 >
-                  {/* Rank */}
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                    index === 0 ? 'bg-amber-400 text-white' :
-                    index === 1 ? 'bg-slate-400 text-white' :
-                    index === 2 ? 'bg-orange-400 text-white' :
-                    'bg-slate-100 text-slate-600'
+                  {/* Rank medal */}
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                    index === 0 ? 'bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm' :
+                    index === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-white shadow-sm' :
+                    index === 2 ? 'bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm' :
+                    'bg-slate-100 text-slate-500'
                   }`}>
                     {index + 1}
                   </div>
 
                   {/* Avatar */}
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">{m.user.full_name?.charAt(0) || '?'}</span>
                   </div>
 
                   {/* Name */}
-                  <div className="flex-1">
-                    <p className="font-medium text-slate-800 text-sm">{m.user.full_name}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-800 text-sm truncate">{m.user.full_name}</p>
+                    <p className="text-[10px] text-slate-400">{m.user.role}</p>
                   </div>
 
                   {/* Score */}
-                  <div className="text-right">
-                    <p className="font-bold text-slate-800">
-                      {leaderboardBasis === 'completed' ? m.stats.completed : m.stats.bonus}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {leaderboardBasis === 'completed' ? 'completed' : 'points'}
-                    </p>
+                  <div className={`text-right flex-shrink-0 ${index < 3 ? 'font-bold text-base' : 'font-semibold text-sm'} ${
+                    index === 0 ? 'text-amber-600' : index === 1 ? 'text-slate-500' : index === 2 ? 'text-orange-500' : 'text-slate-600'
+                  }`}>
+                    {leaderboardBasis === 'completed' ? m.stats.completed : m.stats.bonus}
                   </div>
                 </motion.div>
               ))}

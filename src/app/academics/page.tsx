@@ -91,8 +91,8 @@ export default function AcademicsPage() {
 
   return (
     <ProtectedLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-page-theme="academics">
-        <div className="mb-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-page-theme="academics">
+        <div className="mb-5">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500">
               <GraduationCap className="text-white" size={24} />
@@ -107,10 +107,10 @@ export default function AcademicsPage() {
         </div>
 
         {/* Classrooms */}
-        <section className="glass rounded-2xl p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BookOpen size={18} className="text-cyan-600" />
-            <h2 className="font-display text-xl font-bold text-slate-800">Classrooms</h2>
+        <section className="glass rounded-2xl p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen size={16} className="text-cyan-600" />
+            <h2 className="font-semibold text-slate-700 text-sm">Classrooms</h2>
           </div>
 
           {loading ? (
@@ -118,28 +118,27 @@ export default function AcademicsPage() {
           ) : classrooms.length === 0 ? (
             <p className="text-sm text-slate-500">You are not enrolled in any classrooms yet.</p>
           ) : (
-            <ul className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {classrooms.map(classroom => (
-                <li key={classroom.id}>
-                  <Link
-                    href={`/classrooms/${classroom.id}`}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white/60 px-4 py-3 text-slate-700 hover:border-cyan-300 hover:text-cyan-700 transition-colors"
-                  >
-                    <span className="font-medium">{classroom.title}</span>
-                    <ChevronRight size={18} />
-                  </Link>
-                </li>
+                <Link
+                  key={classroom.id}
+                  href={`/classrooms/${classroom.id}`}
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-slate-700 hover:border-cyan-300 hover:bg-cyan-50/50 hover:text-cyan-700 transition-colors"
+                >
+                  <span className="text-sm font-medium truncate">{classroom.title}</span>
+                  <ChevronRight size={15} className="flex-shrink-0 ml-2" />
+                </Link>
               ))}
-            </ul>
+            </div>
           )}
         </section>
 
         {/* School Work Manager — students only */}
         {isStudent && (
-          <section className="glass rounded-2xl p-6 mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <CalendarDays size={18} className="text-cyan-600" />
-              <h2 className="font-display text-xl font-bold text-slate-800">School Work</h2>
+          <section className="glass rounded-2xl p-4 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarDays size={16} className="text-cyan-600" />
+              <h2 className="font-semibold text-slate-700 text-sm">School Work</h2>
             </div>
             {loading ? (
               <p className="text-sm text-slate-500">Loading…</p>
@@ -153,12 +152,12 @@ export default function AcademicsPage() {
         <section className="glass rounded-2xl overflow-hidden">
           <button
             onClick={() => setScoresExpanded(prev => !prev)}
-            className="w-full flex items-center justify-between p-6 hover:bg-slate-50/60 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50/60 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <Award size={18} className="text-amber-500" />
-              <h2 className="font-display text-xl font-bold text-slate-800">Scores</h2>
-              <span className="text-xs text-slate-400 font-normal ml-1">Main scoresheet results</span>
+              <Award size={16} className="text-amber-500" />
+              <h2 className="font-semibold text-slate-700 text-sm">Scores</h2>
+              <span className="text-xs text-slate-400 font-normal">· Main scoresheet results</span>
             </div>
             <ChevronDown
               size={18}
@@ -167,7 +166,7 @@ export default function AcademicsPage() {
           </button>
 
           {scoresExpanded && (
-            <div className="border-t border-slate-100 p-6 pt-4">
+            <div className="border-t border-slate-100 px-4 py-3">
               {gradesLoading ? (
                 <div className="text-center py-8">
                   <div className="spinner mx-auto mb-3" />

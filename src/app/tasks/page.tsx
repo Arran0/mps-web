@@ -106,28 +106,15 @@ function TasksPageContent() {
           </div>
         </div>
 
-        {/* Team Member Selector (for coordinator/principal/admin) */}
-        {canAssignToOthers && teamMembers.length > 0 && activeTab !== 'team' && activeTab !== 'projects' && (
-          <div className="mb-4">
-            <TeamMemberSelector
-              members={teamMembers}
-              selectedUserId={viewingUserId}
-              currentUserId={user.id}
-              currentUserName={profile.full_name}
-              onSelect={setViewingUserId}
-            />
-          </div>
-        )}
-
-        {/* Navigation Tabs */}
-        <div className="mb-6">
-          <div className="glass rounded-2xl p-2">
-            <div className="flex flex-wrap gap-1.5">
+        {/* Navigation Tabs + inline space selector */}
+        <div className="mb-5">
+          <div className="glass rounded-2xl px-2 py-1.5 flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-1 flex-1">
               {visibleTabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-sm transition-all duration-200 ${
                     activeTab === tab.id
                       ? 'bg-gradient-to-r from-mps-blue-500 to-mps-green-500 text-white shadow-lg'
                       : 'text-slate-600 hover:bg-slate-100'
@@ -138,6 +125,15 @@ function TasksPageContent() {
                 </button>
               ))}
             </div>
+            {canAssignToOthers && teamMembers.length > 0 && activeTab !== 'team' && activeTab !== 'projects' && (
+              <TeamMemberSelector
+                members={teamMembers}
+                selectedUserId={viewingUserId}
+                currentUserId={user.id}
+                currentUserName={profile.full_name}
+                onSelect={setViewingUserId}
+              />
+            )}
           </div>
         </div>
 

@@ -129,9 +129,8 @@ export default function TaskAnalytics({ userId, viewingUserId }: TaskAnalyticsPr
   useEffect(() => { loadData() }, [loadData])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-bold text-slate-800">Analytics</h2>
+    <div className="space-y-4">
+      <div className="flex items-center justify-end">
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
           {(['week', 'month', 'year'] as const).map(p => (
             <button
@@ -158,12 +157,12 @@ export default function TaskAnalytics({ userId, viewingUserId }: TaskAnalyticsPr
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="glass rounded-2xl p-8"
+          className="glass rounded-2xl p-5"
         >
           <PieChart data={data} />
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 gap-3 mt-8">
+          <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="bg-green-50 rounded-xl p-4 text-center">
               <p className="text-2xl font-bold text-green-700">
                 {Object.values(data).reduce((s, v) => s + v, 0) > 0
