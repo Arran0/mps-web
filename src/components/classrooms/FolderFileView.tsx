@@ -715,7 +715,7 @@ export default function FolderFileView({
                         </div>
                       )}
 
-                      <div className="p-2 space-y-0.5">
+                      <div className="px-2 pb-2">
                         {/* Add File Button */}
                         {isStaff && (
                           <button
@@ -870,12 +870,13 @@ export default function FolderFileView({
                           const attachType = hasAttachment ? getAttachmentType(file.attachment_url!, file.attachment_name) : 'other'
                           const embedUrl   = attachType === 'youtube' ? extractYouTubeEmbedUrl(file.attachment_url!) : null
                           const isYoutube  = attachType === 'youtube'
-                          const rowBg = fileIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'
 
                           return (
                             <div
                               key={file.id}
-                              className={`flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100/60 transition-colors group border border-transparent hover:border-slate-200 ${rowBg}`}
+                              className={`flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors group ${
+                                fileIdx < files.length - 1 ? 'border-b border-slate-100' : ''
+                              }`}
                             >
                               {/* Student: Status Toggle */}
                               {isStudent && (

@@ -373,13 +373,13 @@ export default function ProjectsList({
               </h3>
             </div>
 
-            <div className="flex items-center justify-between glass rounded-xl p-3 mb-4">
-              <button onClick={goToPrevMonth} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <ChevronLeft size={18} />
+            <div className="flex items-center justify-center gap-1 mb-4">
+              <button onClick={goToPrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
+                <ChevronLeft size={16} />
               </button>
-              <p className="font-semibold text-slate-800">{monthLabel}</p>
-              <button onClick={goToNextMonth} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <ChevronRight size={18} />
+              <span className="text-sm font-semibold text-slate-600 px-2">{monthLabel}</span>
+              <button onClick={goToNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
+                <ChevronRight size={16} />
               </button>
             </div>
 

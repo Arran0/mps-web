@@ -232,7 +232,10 @@ export async function fetchMyLeaveApplications(
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Failed to fetch leave applications:', error)
+    const errMsg = String((error as any)?.message || '')
+    if (!errMsg.toLowerCase().includes('abort') && !errMsg.toLowerCase().includes('signal')) {
+      console.error('Failed to fetch leave applications:', error)
+    }
     return []
   }
 

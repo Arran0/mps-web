@@ -129,8 +129,13 @@ export default function TaskAnalytics({ userId, viewingUserId }: TaskAnalyticsPr
   useEffect(() => { loadData() }, [loadData])
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-end">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="glass rounded-2xl p-5"
+    >
+      {/* Period filter inside the card */}
+      <div className="flex items-center justify-end mb-4">
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
           {(['week', 'month', 'year'] as const).map(p => (
             <button
@@ -149,16 +154,12 @@ export default function TaskAnalytics({ userId, viewingUserId }: TaskAnalyticsPr
       </div>
 
       {loading ? (
-        <div className="text-center py-16">
+        <div className="text-center py-12">
           <div className="spinner mx-auto mb-3" />
           <p className="text-sm text-slate-500">Loading analytics...</p>
         </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="glass rounded-2xl p-5"
-        >
+        <>
           <PieChart data={data} />
 
           {/* Stats Cards */}
@@ -184,8 +185,8 @@ export default function TaskAnalytics({ userId, viewingUserId }: TaskAnalyticsPr
               <p className="text-xs text-blue-600 font-medium">Verified</p>
             </div>
           </div>
-        </motion.div>
+        </>
       )}
-    </div>
+    </motion.div>
   )
 }
