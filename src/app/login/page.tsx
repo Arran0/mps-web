@@ -46,12 +46,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   useEffect(() => {
     if (user && !authLoading) {
       router.push('/home')
     }
   }, [user, authLoading, router])
+
+  // Show a message when the user was redirected here because their session expired
+  useEffect(() => {
+    if (sessionStorage.getItem('session_expired')) {
+      sessionStorage.removeItem('session_expired')
+      setSessionExpired(true)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -236,6 +245,21 @@ export default function LoginPage() {
                 }
               </p>
             </div>
+
+            {/* Session expired notice */}
+            <AnimatePresence>
+              {sessionExpired && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center gap-2 p-4 mb-6 bg-amber-50 border border-amber-200 rounded-xl text-amber-800"
+                >
+                  <AlertCircle size={18} className="flex-shrink-0" />
+                  <span className="text-sm">Your session has expired. Please sign in again to continue.</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Error/Success Messages */}
             <AnimatePresence>
