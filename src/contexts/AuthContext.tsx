@@ -88,14 +88,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchProfile])
 
   // Re-validate session whenever the user returns to this tab.
-  // Browsers can suspend JS timers in background tabs, causing Supabase's
-  // built-in token refresh to miss its window. This ensures the auth state
-  // is always fresh and prevents blank-page / stuck-state issues on return.
+  // Handles two cases:
+  //   1. visibilitychange — tab was hidden/backgrounded (timers throttled by browser)
+  //   2. pageshow with persisted=true — tab was restored from bfcache (Chrome's
+  //      Back/Forward Cache completely freezes JS; timers never ran at all)
+  // In both cases we call getSession() which will transparently refresh the access
+  // token via the refresh token if needed.  If there is no valid session at all we
+  // mark sessionStorage so the login page can show an "expired" message.
   useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState !== 'visible') return
+    const revalidate = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession()
       if (!currentSession) {
+        // Only flag as "expired" if the user was previously logged in
+        if (user) {
+          sessionStorage.setItem('session_expired', '1')
+        }
         setUser(null)
         setProfile(null)
         setSession(null)
@@ -108,9 +115,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') revalidate()
+    }
+    const handlePageShow = (e: PageTransitionEvent) => {
+      // e.persisted is true when the page is restored from bfcache
+      if (e.persisted) revalidate()
+    }
+
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [fetchProfile])
+    window.addEventListener('pageshow', handlePageShow)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [fetchProfile, user])
 
   const signIn = async (email: string, password: string) => {
     try {
