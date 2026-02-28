@@ -268,7 +268,7 @@ export default function Navbar() {
               </div>
 
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                onClick={() => { setMobileMenuOpen(prev => !prev); setActiveDropdown(null) }}
                 className="md:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -279,12 +279,12 @@ export default function Navbar() {
       </nav>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden" onClick={() => setMobileMenuOpen(false)}>
+        <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden" onClick={() => { setMobileMenuOpen(false); setActiveDropdown(null) }}>
           <div
             className="absolute right-0 top-20 w-72 h-[calc(100vh-5rem)] bg-white shadow-2xl animate-slide-down"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 space-y-2">
+            <div className="p-4 space-y-2 overflow-y-auto h-full">
               {filteredNavItems.map((item) => (
                 <div key={item.label}>
                   {item.children ? (

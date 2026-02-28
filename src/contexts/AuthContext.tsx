@@ -87,6 +87,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [fetchProfile])
 
+  // Re-validate session whenever the user returns to this tab.
+  // Browsers can suspend JS timers in background tabs, causing Supabase's
+  // built-in token refresh to miss its window. This ensures the auth state
+  // is always fresh and prevents blank-page / stuck-state issues on return.
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      if (!currentSession) {
+        setUser(null)
+        setProfile(null)
+        setSession(null)
+      } else {
+        setSession(currentSession)
+        setUser(currentSession.user)
+        if (currentSession.user) {
+          const profileData = await fetchProfile(currentSession.user.id)
+          if (profileData) setProfile(profileData)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [fetchProfile])
+
   const signIn = async (email: string, password: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({

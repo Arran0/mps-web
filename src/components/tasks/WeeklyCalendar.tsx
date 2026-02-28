@@ -47,6 +47,7 @@ interface WeeklyCalendarProps {
   canAssignToOthers: boolean
   availableAssignees: UserProfile[]
   viewingUserId?: string
+  initialDate?: string
 }
 
 function getWeekStart(date: Date): Date {
@@ -91,8 +92,11 @@ export default function WeeklyCalendar({
   canAssignToOthers,
   availableAssignees,
   viewingUserId,
+  initialDate,
 }: WeeklyCalendarProps) {
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))
+  const [weekStart, setWeekStart] = useState(() =>
+    initialDate ? getWeekStart(new Date(initialDate)) : getWeekStart(new Date())
+  )
   const [tasks, setTasks] = useState<TaskWithDetails[]>([])
   const [subtasks, setSubtasks] = useState<SubtaskWithProject[]>([])
   const [overdueUndated, setOverdueUndated] = useState<TaskWithDetails[]>([])
