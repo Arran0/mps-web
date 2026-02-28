@@ -33,10 +33,10 @@ export default function StaffLeavePage() {
   const isPrincipal  = profile?.role === 'principal'
   const isTeacher    = profile?.role === 'teacher'
   const canApply     = !isAdmin
-  const canReview    = profile?.role ? ['teacher', 'coordinator', 'principal'].includes(profile.role) : false
+  const canReview    = profile?.role ? ['teacher', 'coordinator', 'principal', 'admin'].includes(profile.role) : false
   const showAllRecords = isAdmin || isPrincipal
 
-  const defaultTab: TabId = isAdmin ? 'all' : 'active'
+  const defaultTab: TabId = isAdmin ? 'pending' : 'active'
   const [activeTab, setActiveTab] = useState<TabId>(defaultTab)
   const [showNewForm, setShowNewForm] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -60,7 +60,7 @@ export default function StaffLeavePage() {
         )
       }
 
-      if (canReview && !isAdmin) {
+      if (canReview) {
         promises.push(
           fetchPendingApprovalsForUser(user.id, profile.role).then(setPendingApprovals)
         )
@@ -70,12 +70,6 @@ export default function StaffLeavePage() {
         promises.push(
           fetchAllLeaveApplications().then(setAllApplications)
         )
-        // Admin still needs pending approvals for their own review role
-        if (isAdmin) {
-          promises.push(
-            fetchPendingApprovalsForUser(user.id, profile.role).then(setPendingApprovals)
-          )
-        }
       }
 
       await Promise.all(promises)
@@ -98,16 +92,21 @@ export default function StaffLeavePage() {
 
   if (!isAdmin) {
     tabs.push({ id: 'active',   label: 'My Active', Icon: CalendarDays, count: activeApplications.length })
-    if (canReview) tabs.push({ id: 'pending', label: 'Review',    Icon: Clock, count: pendingApprovals.length })
-    tabs.push({ id: 'history',  label: 'My History', Icon: History,     count: pastApplications.length })
+  }
+
+  if (canReview) {
+    tabs.push({ id: 'pending', label: 'Review', Icon: Clock, count: pendingApprovals.length })
+  }
+
+  if (!isAdmin) {
+    tabs.push({ id: 'history', label: 'My History', Icon: History, count: pastApplications.length })
   }
 
   if (showAllRecords) {
-    tabs.push({ id: 'all', label: isPrincipal ? 'All Records' : 'All Records', Icon: Database, count: allApplications.length })
+    tabs.push({ id: 'all', label: 'All Records', Icon: Database, count: allApplications.length })
   }
 
-  // For admin, show only "All Records"
-  const visibleTabs = isAdmin ? [{ id: 'all' as TabId, label: 'All Records', Icon: Database, count: allApplications.length }] : tabs
+  const visibleTabs = tabs
 
   return (
     <ProtectedLayout staffOnly>
@@ -266,7 +265,7 @@ export default function StaffLeavePage() {
                             application={app}
                             currentUserId={user.id}
                             currentUserRole={profile.role}
-                            isApprover={!isAdmin && isPrincipal}
+                            isApprover={isPrincipal || isAdmin}
                             onStatusChange={loadData}
                           />
                         </motion.div>
