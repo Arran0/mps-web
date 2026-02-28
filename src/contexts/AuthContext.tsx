@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase, UserProfile, UserRole } from '@/lib/supabase'
 
@@ -22,6 +22,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Track whether the user was logged in so we can show the "session expired"
+  // banner on the login page.  Using a ref avoids stale-closure issues — it
+  // always reflects the latest value no matter which async callback reads it.
+  const wasLoggedInRef = useRef(false)
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
@@ -51,12 +56,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchProfile])
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Initial session load.
+    // IMPORTANT: we await profile before calling setLoading(false) so that
+    // ProtectedLayout never briefly renders with user!=null but profile==null
+    // (which would produce a blank screen while the profile is still in-flight).
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
+      wasLoggedInRef.current = !!session?.user
       if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile)
+        const profileData = await fetchProfile(session.user.id)
+        setProfile(profileData)
       }
       setLoading(false)
     }).catch((err) => {
@@ -64,18 +74,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    // Listen for auth changes
+    // onAuthStateChange is the single source of truth for all subsequent auth
+    // events (token refresh, sign-out, sign-in from another tab, etc.).
+    // We do NOT call setUser/setProfile in the tab-focus handler below —
+    // getSession() there only triggers Supabase's auto-refresh mechanism, and
+    // onAuthStateChange fires when anything actually changes.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
-        setSession(session)
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          const profileData = await fetchProfile(session.user.id)
-          setProfile(profileData)
-        } else {
+        if (event === 'SIGNED_OUT' || !session) {
+          // If the user was previously logged in, flag it for the login page.
+          if (wasLoggedInRef.current) {
+            sessionStorage.setItem('session_expired', '1')
+          }
+          wasLoggedInRef.current = false
+          setUser(null)
           setProfile(null)
+          setSession(null)
+        } else {
+          // TOKEN_REFRESHED, SIGNED_IN, USER_UPDATED, etc.
+          wasLoggedInRef.current = true
+          setSession(session)
+          setUser(session.user)
+          // Fetch profile without clearing the existing one first — this keeps
+          // the UI stable (no blank flash) while the fetch is in-flight.
+          const profileData = await fetchProfile(session.user.id)
+          if (profileData) setProfile(profileData)
         }
       } catch (err) {
         console.error('Error in auth state change:', err)
@@ -87,41 +112,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [fetchProfile])
 
-  // Re-validate session whenever the user returns to this tab.
-  // Handles two cases:
-  //   1. visibilitychange — tab was hidden/backgrounded (timers throttled by browser)
-  //   2. pageshow with persisted=true — tab was restored from bfcache (Chrome's
-  //      Back/Forward Cache completely freezes JS; timers never ran at all)
-  // In both cases we call getSession() which will transparently refresh the access
-  // token via the refresh token if needed.  If there is no valid session at all we
-  // mark sessionStorage so the login page can show an "expired" message.
+  // When the user returns to this tab (from bfcache or just switching tabs),
+  // call getSession() to nudge Supabase into auto-refreshing the access token
+  // if it has expired.  We do NOT manually update React state here — that is
+  // handled exclusively by onAuthStateChange above, which fires when the token
+  // actually changes or when the session is truly gone.  This design eliminates
+  // the race condition where both revalidate() and onAuthStateChange fought
+  // over the same state simultaneously.
   useEffect(() => {
-    const revalidate = async () => {
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-      if (!currentSession) {
-        // Only flag as "expired" if the user was previously logged in
-        if (user) {
-          sessionStorage.setItem('session_expired', '1')
-        }
-        setUser(null)
-        setProfile(null)
-        setSession(null)
-      } else {
-        setSession(currentSession)
-        setUser(currentSession.user)
-        if (currentSession.user) {
-          const profileData = await fetchProfile(currentSession.user.id)
-          if (profileData) setProfile(profileData)
-        }
-      }
+    const handleTabFocus = () => {
+      supabase.auth.getSession().catch(() => {})
     }
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') revalidate()
+      if (document.visibilityState === 'visible') handleTabFocus()
     }
     const handlePageShow = (e: PageTransitionEvent) => {
-      // e.persisted is true when the page is restored from bfcache
-      if (e.persisted) revalidate()
+      // e.persisted === true means the page was restored from bfcache
+      // (Chrome freezes JS entirely in bfcache; timers including Supabase's
+      //  auto-refresh timer never ran, so the access token may have expired).
+      if (e.persisted) handleTabFocus()
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -130,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('pageshow', handlePageShow)
     }
-  }, [fetchProfile, user])
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -181,6 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    wasLoggedInRef.current = false
     // Clear local state immediately for instant UI feedback
     setUser(null)
     setProfile(null)
