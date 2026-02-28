@@ -21,7 +21,6 @@ import {
   LEAVE_STATUS_LABELS,
   LEAVE_STATUS_COLORS,
 } from '@/lib/leave'
-import Link from 'next/link'
 
 interface LeaveApplicationCardProps {
   application: LeaveApplicationWithDetails
@@ -203,14 +202,15 @@ export default function LeaveApplicationCard({
           <div className="pt-2 border-t border-slate-100 space-y-2">
             {/* View Calendar Button - Always show for approvers */}
             {application.applicant_id && (
-              <Link
+              <a
                 href={`/tasks?date=${application.start_date}&user=${application.applicant_id}`}
                 target="_blank"
+                rel="noopener noreferrer"
                 className="w-full btn-secondary text-xs flex items-center justify-center gap-1.5"
               >
                 <ExternalLink size={14} />
                 View Applicant's Weekly Calendar
-              </Link>
+              </a>
             )}
 
             {/* Review Buttons - Only for pending approvals */}

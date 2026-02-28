@@ -67,9 +67,17 @@ function TasksPageContent() {
     loadTeamMembers()
   }, [loadTeamMembers])
 
+  const urlUserId = searchParams.get('user')
+  const urlDate = searchParams.get('date')
+
   useEffect(() => {
-    if (user) setViewingUserId(user.id)
-  }, [user])
+    if (!user) return
+    if (urlUserId && canAssignToOthers && urlUserId !== user.id) {
+      setViewingUserId(urlUserId)
+    } else {
+      setViewingUserId(user.id)
+    }
+  }, [user, urlUserId, canAssignToOthers])
 
   useEffect(() => {
     const tabParam = searchParams.get('tab')
@@ -152,6 +160,7 @@ function TasksPageContent() {
               canAssignToOthers={canAssignToOthers}
               availableAssignees={allAssignees}
               viewingUserId={viewingUserId !== user.id ? viewingUserId : undefined}
+              initialDate={urlDate || undefined}
             />
           )}
 
