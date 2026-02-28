@@ -215,15 +215,18 @@ export default function LeaveApplicationCard({
           <div className="pt-2 border-t border-slate-100 space-y-2">
             {/* View Calendar Button - Always show for approvers */}
             {application.applicant_id && (
-              <a
-                href={`/tasks?date=${application.start_date}&user=${application.applicant_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => window.open(
+                  `/tasks?date=${application.start_date}&user=${application.applicant_id}`,
+                  '_blank',
+                  'noopener,noreferrer'
+                )}
                 className="w-full btn-secondary text-xs flex items-center justify-center gap-1.5"
               >
                 <ExternalLink size={14} />
                 View Applicant's Weekly Calendar
-              </a>
+              </button>
             )}
 
             {/* Review Buttons - Only for pending approvals */}
