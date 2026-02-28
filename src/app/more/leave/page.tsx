@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ProtectedLayout from '@/components/ProtectedLayout'
 import { useAuth } from '@/contexts/AuthContext'
 import {
-  CalendarDays, Plus, Clock, History, Search, X, User,
+  CalendarDays, Plus, Clock, History, Search, X, User, Database,
 } from 'lucide-react'
 import LeaveApplicationCard from '@/components/leave/LeaveApplicationCard'
 import LeaveBalanceCard from '@/components/leave/LeaveBalanceCard'
@@ -14,6 +14,7 @@ import {
   LEAVE_TYPE_LABELS,
   fetchMyLeaveApplications,
   fetchLeaveBalance,
+  fetchAllLeaveApplications,
   searchLeaveRecipients,
   createStudentLeaveApplication,
   RecipientProfile,
@@ -39,13 +40,19 @@ const ROLE_COLOR: Record<string, string> = {
 export default function StudentLeavePage() {
   const { user, profile } = useAuth()
 
+  const isAdmin = profile?.role === 'admin'
+
   const [activeTab, setActiveTab] = useState<TabId>('active')
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  // Student's own applications
   const [applications, setApplications] = useState<LeaveApplicationWithDetails[]>([])
   const [balance, setBalance] = useState({ casual: { used: 0, total: 12 }, medical: { used: 0, total: 15 } })
+
+  // Admin: all student applications
+  const [allStudentApps, setAllStudentApps] = useState<LeaveApplicationWithDetails[]>([])
 
   // Recipient search
   const [recipientQuery, setRecipientQuery] = useState('')
@@ -63,16 +70,21 @@ export default function StudentLeavePage() {
   const [formError, setFormError] = useState('')
 
   const loadData = useCallback(async () => {
-    if (!user) return
+    if (!user || !profile) return
     setLoading(true)
-    const [apps, bal] = await Promise.all([
-      fetchMyLeaveApplications(user.id),
-      fetchLeaveBalance(user.id),
-    ])
-    setApplications(apps)
-    setBalance(bal)
+    if (isAdmin) {
+      const allApps = await fetchAllLeaveApplications()
+      setAllStudentApps(allApps.filter(app => app.applicant?.role === 'student'))
+    } else {
+      const [apps, bal] = await Promise.all([
+        fetchMyLeaveApplications(user.id),
+        fetchLeaveBalance(user.id),
+      ])
+      setApplications(apps)
+      setBalance(bal)
+    }
     setLoading(false)
-  }, [user])
+  }, [user, profile, isAdmin])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -147,8 +159,101 @@ export default function StudentLeavePage() {
 
   const activeApps = applications.filter(a => a.status === 'pending')
   const historyApps = applications.filter(a => a.status !== 'pending')
+  const activeStudentApps = allStudentApps.filter(a => a.status === 'pending')
+  const historyStudentApps = allStudentApps.filter(a => a.status !== 'pending')
   const today = new Date().toISOString().split('T')[0]
 
+  // ── ADMIN VIEW ──────────────────────────────────────────────
+  if (isAdmin) {
+    return (
+      <ProtectedLayout>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+          {/* Header */}
+          <div className="mb-6 flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-br from-rose-400 to-pink-500 rounded-xl shadow-lg">
+              <CalendarDays className="text-white" size={22} />
+            </div>
+            <div>
+              <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-800">Student Leave Applications</h1>
+              <p className="text-slate-500 text-sm">All student leave requests across the school</p>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="glass rounded-2xl p-1.5 mb-5 flex gap-1">
+            {([
+              { id: 'active' as TabId, label: 'Active', Icon: Clock, count: activeStudentApps.length },
+              { id: 'history' as TabId, label: 'History', Icon: History, count: historyStudentApps.length },
+            ]).map(({ id, label, Icon, count }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
+                  activeTab === id
+                    ? 'bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-md'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Icon size={14} />
+                {label}
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                    activeTab === id ? 'bg-white/25' : 'bg-slate-200 text-slate-600'
+                  }`}>{count}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+            >
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="spinner mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Loading…</p>
+                </div>
+              ) : (() => {
+                const list = activeTab === 'active' ? activeStudentApps : historyStudentApps
+                return list.length === 0 ? (
+                  <div className="glass rounded-2xl p-10 text-center">
+                    <Database size={36} className="text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 text-sm">
+                      {activeTab === 'active' ? 'No active student leave applications' : 'No past student leave applications'}
+                    </p>
+                  </div>
+                ) : (
+                  <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-3">
+                    {list.map(app => (
+                      <motion.div key={app.id} variants={itemVariants}>
+                        <LeaveApplicationCard
+                          application={app}
+                          currentUserId={user.id}
+                          currentUserRole={profile.role}
+                          isApprover={false}
+                          onStatusChange={loadData}
+                        />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )
+              })()}
+            </motion.div>
+          </AnimatePresence>
+
+        </div>
+      </ProtectedLayout>
+    )
+  }
+
+  // ── STUDENT / STAFF VIEW ────────────────────────────────────
   return (
     <ProtectedLayout>
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
