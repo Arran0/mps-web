@@ -173,24 +173,37 @@ export default function LeaveApplicationCard({
               {application.approvals.map(approval => (
                 <div
                   key={approval.id}
-                  className={`flex items-center justify-between text-xs px-3 py-2 rounded-lg ${
+                  className={`text-xs px-3 py-2 rounded-lg ${
                     approval.status === 'approved' ? 'bg-green-50' :
                     approval.status === 'rejected' ? 'bg-red-50' : 'bg-amber-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    {approval.status === 'approved' && <CheckCircle size={12} className="text-green-600" />}
-                    {approval.status === 'rejected' && <XCircle size={12} className="text-red-600" />}
-                    {approval.status === 'pending' && <Clock size={12} className="text-amber-600" />}
-                    <span className="font-medium capitalize">{approval.approver_role}</span>
-                    {approval.team && <span className="text-slate-500">({approval.team.name})</span>}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {approval.status === 'approved' && <CheckCircle size={12} className="text-green-600" />}
+                      {approval.status === 'rejected' && <XCircle size={12} className="text-red-600" />}
+                      {approval.status === 'pending' && <Clock size={12} className="text-amber-600" />}
+                      <span className="font-medium capitalize">
+                        {approval.approver?.full_name
+                          ? approval.approver.full_name
+                          : approval.approver_role}
+                      </span>
+                      {approval.team && <span className="text-slate-500">({approval.team.name})</span>}
+                    </div>
+                    <span className={`font-medium ${
+                      approval.status === 'approved' ? 'text-green-700' :
+                      approval.status === 'rejected' ? 'text-red-700' : 'text-amber-700'
+                    }`}>
+                      {LEAVE_STATUS_LABELS[approval.status]}
+                    </span>
                   </div>
-                  <span className={`font-medium ${
-                    approval.status === 'approved' ? 'text-green-700' :
-                    approval.status === 'rejected' ? 'text-red-700' : 'text-amber-700'
-                  }`}>
-                    {LEAVE_STATUS_LABELS[approval.status]}
-                  </span>
+                  {approval.comments && (
+                    <p className={`mt-1 pl-5 italic leading-snug ${
+                      approval.status === 'rejected' ? 'text-red-700' : 'text-slate-600'
+                    }`}>
+                      "{approval.comments}"
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
