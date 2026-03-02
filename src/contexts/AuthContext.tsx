@@ -23,9 +23,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Track whether the user was logged in so we can show the "session expired"
-  // banner on the login page.  Using a ref avoids stale-closure issues — it
-  // always reflects the latest value no matter which async callback reads it.
+  // Tracks whether the user was actively logged in.
+  // Using a ref (not state) avoids stale-closure problems in async callbacks.
   const wasLoggedInRef = useRef(false)
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -56,10 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchProfile])
 
   useEffect(() => {
-    // Initial session load.
-    // IMPORTANT: we await profile before calling setLoading(false) so that
-    // ProtectedLayout never briefly renders with user!=null but profile==null
-    // (which would produce a blank screen while the profile is still in-flight).
+    // Load the initial session.  We await the profile fetch before clearing
+    // the loading flag so ProtectedLayout's spinner covers the full bootstrap
+    // period — preventing the brief blank screen where user≠null but profile==null.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -74,33 +72,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    // onAuthStateChange is the single source of truth for all subsequent auth
-    // events (token refresh, sign-out, sign-in from another tab, etc.).
-    // We do NOT call setUser/setProfile in the tab-focus handler below —
-    // getSession() there only triggers Supabase's auto-refresh mechanism, and
-    // onAuthStateChange fires when anything actually changes.
+    // onAuthStateChange handles all future auth events (SIGNED_IN, SIGNED_OUT,
+    // TOKEN_REFRESHED, etc.).  The logic here is kept close to the original
+    // working version; the only addition is the wasLoggedInRef tracking so we
+    // can display an "your session expired" banner on the login page.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
-        if (event === 'SIGNED_OUT' || !session) {
-          // If the user was previously logged in, flag it for the login page.
-          if (wasLoggedInRef.current) {
-            sessionStorage.setItem('session_expired', '1')
-          }
-          wasLoggedInRef.current = false
-          setUser(null)
-          setProfile(null)
-          setSession(null)
-        } else {
-          // TOKEN_REFRESHED, SIGNED_IN, USER_UPDATED, etc.
-          wasLoggedInRef.current = true
-          setSession(session)
-          setUser(session.user)
-          // Fetch profile without clearing the existing one first — this keeps
-          // the UI stable (no blank flash) while the fetch is in-flight.
+        // If the session disappeared while the user was logged in, flag it so
+        // the login page can show an "your session has expired" message.
+        if (!session && wasLoggedInRef.current) {
+          sessionStorage.setItem('session_expired', '1')
+        }
+        wasLoggedInRef.current = !!session?.user
+
+        setSession(session)
+        setUser(session?.user ?? null)
+        if (session?.user) {
           const profileData = await fetchProfile(session.user.id)
-          if (profileData) setProfile(profileData)
+          setProfile(profileData)
+        } else {
+          setProfile(null)
         }
       } catch (err) {
         console.error('Error in auth state change:', err)
@@ -112,13 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [fetchProfile])
 
-  // When the user returns to this tab (from bfcache or just switching tabs),
-  // call getSession() to nudge Supabase into auto-refreshing the access token
-  // if it has expired.  We do NOT manually update React state here — that is
-  // handled exclusively by onAuthStateChange above, which fires when the token
-  // actually changes or when the session is truly gone.  This design eliminates
-  // the race condition where both revalidate() and onAuthStateChange fought
-  // over the same state simultaneously.
+  // When the user returns to this tab (after switching tabs or bfcache
+  // restoration), nudge Supabase to auto-refresh the access token if needed.
+  // We do NOT update React state here — onAuthStateChange fires automatically
+  // when something actually changes (TOKEN_REFRESHED, SIGNED_OUT, etc.), so
+  // this removes the old race condition where revalidate() and
+  // onAuthStateChange fought over the same state simultaneously.
   useEffect(() => {
     const handleTabFocus = () => {
       supabase.auth.getSession().catch(() => {})
@@ -127,10 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') handleTabFocus()
     }
+    // pageshow with persisted=true fires when Chrome restores a tab from
+    // bfcache — JS was frozen, so Supabase's auto-refresh timer never ran.
     const handlePageShow = (e: PageTransitionEvent) => {
-      // e.persisted === true means the page was restored from bfcache
-      // (Chrome freezes JS entirely in bfcache; timers including Supabase's
-      //  auto-refresh timer never ran, so the access token may have expired).
       if (e.persisted) handleTabFocus()
     }
 
@@ -191,6 +182,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    // Reset the ref before signing out so onAuthStateChange(SIGNED_OUT) doesn't
+    // mistakenly set the "session expired" flag for a voluntary sign-out.
     wasLoggedInRef.current = false
     // Clear local state immediately for instant UI feedback
     setUser(null)

@@ -81,7 +81,7 @@ export default function AnnouncementCard({
   canDelete,
   onDelete,
 }: AnnouncementCardProps) {
-  const [isExpanded,  setIsExpanded]  = useState(false)
+  const [isExpanded,  setIsExpanded]  = useState(true)
   const [showAudience, setShowAudience] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [deleting,    setDeleting]    = useState(false)
