@@ -401,9 +401,11 @@ function TaskModal({
                 <Edit3 size={16} />
               </button>
             )}
-            <button onClick={onDelete} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-              <Trash2 size={16} />
-            </button>
+            {canEdit && (
+              <button onClick={onDelete} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete task">
+                <Trash2 size={16} />
+              </button>
+            )}
             <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
               <X size={18} />
             </button>

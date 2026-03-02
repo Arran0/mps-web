@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { isStaffRole, isAdminRole, getRoleDisplayName, getRoleBadgeColor } from '@/lib/supabase'
 import MPSLogo from './MPSLogo'
@@ -98,6 +98,7 @@ const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
 export default function Navbar() {
   const { user, profile, signOut, loading } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
@@ -307,15 +308,19 @@ export default function Navbar() {
                       {activeDropdown === item.label && (
                         <div className="ml-8 mt-1 space-y-1 animate-slide-down">
                           {item.children.map((child) => (
-                            <Link
+                            <button
                               key={child.href}
-                              href={child.href}
-                              className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-                              onClick={() => setMobileMenuOpen(false)}
+                              type="button"
+                              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors text-left"
+                              onClick={() => {
+                                setMobileMenuOpen(false)
+                                setActiveDropdown(null)
+                                router.push(child.href)
+                              }}
                             >
                               {child.icon}
                               <span>{child.label}</span>
-                            </Link>
+                            </button>
                           ))}
                         </div>
                       )}
