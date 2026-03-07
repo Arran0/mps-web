@@ -46,6 +46,9 @@ export interface TaskComment {
   task_id: string
   user_id: string
   content: string
+  attachment_url?: string | null
+  attachment_name?: string | null
+  attachment_type?: 'image' | 'document' | 'link' | null
   created_at: string
   user?: UserProfile
 }
@@ -559,14 +562,36 @@ export async function addChecklistItem(taskId: string, text: string, sortOrder: 
 // Comments
 // ============================================
 
-export async function addComment(taskId: string, userId: string, content: string): Promise<TaskComment | null> {
+export async function addComment(
+  taskId: string,
+  userId: string,
+  content: string,
+  attachment?: { url: string; name: string; type: 'image' | 'document' | 'link' }
+): Promise<TaskComment | null> {
   const { data, error } = await supabase
     .from('task_comments')
-    .insert({ task_id: taskId, user_id: userId, content })
+    .insert({
+      task_id: taskId,
+      user_id: userId,
+      content,
+      attachment_url: attachment?.url ?? null,
+      attachment_name: attachment?.name ?? null,
+      attachment_type: attachment?.type ?? null,
+    })
     .select('*, user:profiles(*)')
     .single()
   if (error) return null
   return data as TaskComment
+}
+
+export async function uploadTaskAttachment(file: File, taskId: string, userId: string): Promise<{ url: string; name: string; type: 'image' | 'document' } | null> {
+  const ext = file.name.split('.').pop() ?? 'bin'
+  const path = `${taskId}/${userId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('task-attachments').upload(path, file)
+  if (error) return null
+  const { data } = supabase.storage.from('task-attachments').getPublicUrl(path)
+  const isImage = file.type.startsWith('image/')
+  return { url: data.publicUrl, name: file.name, type: isImage ? 'image' : 'document' }
 }
 
 // ============================================

@@ -417,8 +417,29 @@ export async function addMemberByEmail(classroomId: string, email: string, role:
     return { success: false, error: 'User not found with that email' }
   }
 
+  // Enforce role matching: students must be enrolled as students, teachers as teachers
+  if (role === 'student' && profile.role !== 'student') {
+    return { success: false, error: `This user is a ${profile.role}, not a student. Only students can be enrolled as students.` }
+  }
+  if (role === 'teacher' && profile.role !== 'teacher') {
+    return { success: false, error: `This user is a ${profile.role}, not a teacher. Only teachers can be enrolled as teachers.` }
+  }
+
   const success = await addClassroomMember(classroomId, profile.id, role)
   return { success, error: success ? undefined : 'Failed to add member' }
+}
+
+export async function deleteClassroom(classroomId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('classrooms')
+    .delete()
+    .eq('id', classroomId)
+
+  if (error) {
+    console.error('Failed to delete classroom:', error.message)
+    return false
+  }
+  return true
 }
 
 export async function removeClassroomMember(classroomId: string, userId: string): Promise<boolean> {

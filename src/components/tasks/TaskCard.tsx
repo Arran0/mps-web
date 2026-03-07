@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -22,6 +22,12 @@ import {
   Plus,
   ShieldCheck,
   Users,
+  Paperclip,
+  Link2,
+  FileText,
+  Image as ImageIcon,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react'
 import {
   TaskWithDetails,
@@ -42,6 +48,7 @@ import {
   addComment,
   addChecklistItem,
   deleteTask,
+  uploadTaskAttachment,
   TaskRecurrence,
   TaskTag,
 } from '@/lib/tasks'
@@ -102,6 +109,11 @@ export default function TaskCard({
   const [newComment, setNewComment] = useState('')
   const [newCheckItem, setNewCheckItem] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [pendingAttachment, setPendingAttachment] = useState<{ url: string; name: string; type: 'image' | 'document' | 'link' } | null>(null)
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [linkInput, setLinkInput] = useState('')
+  const [showLinkInput, setShowLinkInput] = useState(false)
+  const commentFileRef = useRef<HTMLInputElement>(null)
 
   const requireCheck = task.require_check ?? false
 
@@ -118,11 +130,32 @@ export default function TaskCard({
     onTaskUpdated?.()
   }
 
+  const handleCommentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setUploadingAttachment(true)
+    const result = await uploadTaskAttachment(file, task.id, user.id)
+    if (result) setPendingAttachment(result)
+    setUploadingAttachment(false)
+    e.target.value = ''
+  }
+
+  const handleAddLink = () => {
+    const trimmed = linkInput.trim()
+    if (!trimmed) return
+    const url = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`
+    setPendingAttachment({ url, name: trimmed, type: 'link' })
+    setLinkInput('')
+    setShowLinkInput(false)
+  }
+
   const handleAddComment = async () => {
-    if (!newComment.trim() || !user) return
+    if (!newComment.trim() && !pendingAttachment) return
+    if (!user) return
     setSubmitting(true)
-    await addComment(task.id, user.id, newComment.trim())
+    await addComment(task.id, user.id, newComment.trim(), pendingAttachment ?? undefined)
     setNewComment('')
+    setPendingAttachment(null)
     setSubmitting(false)
     onTaskUpdated?.()
   }
@@ -200,7 +233,9 @@ export default function TaskCard({
             <div className="flex items-center gap-2 flex-shrink-0">
               {task.is_overdue && <AlertTriangle size={14} className="text-red-500" />}
               {requireCheck && (
-                <ShieldCheck size={12} className="text-mps-blue-400" title="Verification required" />
+                <span title="Verification required">
+                  <ShieldCheck size={12} className="text-mps-blue-400" />
+                </span>
               )}
               {totalChecklist > 0 && (
                 <span className="text-xs text-slate-500">{completedChecklist}/{totalChecklist}</span>
@@ -237,6 +272,16 @@ export default function TaskCard({
                 submitting={submitting}
                 profile={profile}
                 availableAssignees={availableAssignees}
+                pendingAttachment={pendingAttachment}
+                setPendingAttachment={setPendingAttachment}
+                uploadingAttachment={uploadingAttachment}
+                commentFileRef={commentFileRef}
+                onCommentFileChange={handleCommentFileChange}
+                linkInput={linkInput}
+                setLinkInput={setLinkInput}
+                showLinkInput={showLinkInput}
+                setShowLinkInput={setShowLinkInput}
+                onAddLink={handleAddLink}
               />
             )}
           </AnimatePresence>,
@@ -342,6 +387,16 @@ export default function TaskCard({
               submitting={submitting}
               profile={profile}
               availableAssignees={availableAssignees}
+              pendingAttachment={pendingAttachment}
+              setPendingAttachment={setPendingAttachment}
+              uploadingAttachment={uploadingAttachment}
+              commentFileRef={commentFileRef}
+              onCommentFileChange={handleCommentFileChange}
+              linkInput={linkInput}
+              setLinkInput={setLinkInput}
+              showLinkInput={showLinkInput}
+              setShowLinkInput={setShowLinkInput}
+              onAddLink={handleAddLink}
             />
           )}
         </AnimatePresence>,
@@ -374,6 +429,16 @@ interface TaskModalProps {
   submitting: boolean
   profile: any
   availableAssignees?: UserProfile[]
+  pendingAttachment: { url: string; name: string; type: 'image' | 'document' | 'link' } | null
+  setPendingAttachment: (a: { url: string; name: string; type: 'image' | 'document' | 'link' } | null) => void
+  uploadingAttachment: boolean
+  commentFileRef: React.RefObject<HTMLInputElement>
+  onCommentFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  linkInput: string
+  setLinkInput: (v: string) => void
+  showLinkInput: boolean
+  setShowLinkInput: (v: boolean) => void
+  onAddLink: () => void
 }
 
 function TaskModal({
@@ -382,6 +447,9 @@ function TaskModal({
   onTaskUpdated,
   newComment, setNewComment, newCheckItem, setNewCheckItem,
   submitting, profile, availableAssignees = [],
+  pendingAttachment, setPendingAttachment, uploadingAttachment,
+  commentFileRef, onCommentFileChange,
+  linkInput, setLinkInput, showLinkInput, setShowLinkInput, onAddLink,
 }: TaskModalProps) {
   const requireCheck = task.require_check ?? false
 
@@ -861,24 +929,117 @@ function TaskModal({
               {task.comments.map(comment => (
                 <div key={comment.id} className="bg-slate-50 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0">
                       <span className="text-white text-xs font-bold">
                         {comment.user?.full_name?.charAt(0) || '?'}
                       </span>
                     </div>
                     <span className="text-xs font-medium text-slate-700">{comment.user?.full_name || 'Unknown'}</span>
-                    <span className="text-xs text-slate-400">
-                      {new Date(comment.created_at).toLocaleDateString()}
-                    </span>
+                    <span className="text-xs text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</span>
                   </div>
-                  <p className="text-sm text-slate-600 pl-8">{comment.content}</p>
+                  {comment.content && (
+                    <p className="text-sm text-slate-600 pl-8">{comment.content}</p>
+                  )}
+                  {comment.attachment_url && (
+                    <div className="pl-8 mt-1.5">
+                      {comment.attachment_type === 'image' ? (
+                        <a href={comment.attachment_url} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={comment.attachment_url}
+                            alt={comment.attachment_name || 'Image'}
+                            className="max-h-40 rounded-lg border border-slate-200 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        </a>
+                      ) : comment.attachment_type === 'link' ? (
+                        <a
+                          href={comment.attachment_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-mps-blue-600 hover:text-mps-blue-700 bg-mps-blue-50 px-3 py-1.5 rounded-lg border border-mps-blue-100"
+                        >
+                          <ExternalLink size={12} />
+                          {comment.attachment_name || comment.attachment_url}
+                        </a>
+                      ) : (
+                        <a
+                          href={comment.attachment_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200"
+                        >
+                          <FileText size={12} />
+                          {comment.attachment_name || 'Document'}
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               {task.comments.length === 0 && (
                 <p className="text-sm text-slate-400 text-center py-3">No comments yet</p>
               )}
             </div>
+
+            {/* Pending attachment preview */}
+            {pendingAttachment && (
+              <div className="mt-2 flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                {pendingAttachment.type === 'image' ? (
+                  <ImageIcon size={14} className="text-mps-blue-500 flex-shrink-0" />
+                ) : pendingAttachment.type === 'link' ? (
+                  <Link2 size={14} className="text-mps-blue-500 flex-shrink-0" />
+                ) : (
+                  <FileText size={14} className="text-slate-500 flex-shrink-0" />
+                )}
+                <span className="text-xs text-slate-600 flex-1 truncate">{pendingAttachment.name}</span>
+                <button onClick={() => setPendingAttachment(null)} className="p-0.5 text-slate-400 hover:text-red-500">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+
+            {/* Link input */}
+            {showLinkInput && (
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={linkInput}
+                  onChange={e => setLinkInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') onAddLink(); if (e.key === 'Escape') setShowLinkInput(false) }}
+                  placeholder="Paste a link..."
+                  className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-mps-blue-500"
+                  autoFocus
+                />
+                <button onClick={onAddLink} className="text-xs px-3 py-1.5 bg-mps-blue-500 text-white rounded-lg">Add</button>
+                <button onClick={() => setShowLinkInput(false)} className="text-xs px-2 py-1.5 text-slate-500 hover:text-slate-700">Cancel</button>
+              </div>
+            )}
+
+            {/* Comment input row */}
             <div className="flex items-center gap-2 mt-3">
+              <input
+                ref={commentFileRef}
+                type="file"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                className="hidden"
+                onChange={onCommentFileChange}
+              />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => commentFileRef.current?.click()}
+                  disabled={uploadingAttachment}
+                  title="Attach file"
+                  className="p-1.5 text-slate-400 hover:text-mps-blue-500 hover:bg-mps-blue-50 rounded-lg transition-colors"
+                >
+                  {uploadingAttachment ? <Loader2 size={15} className="animate-spin" /> : <Paperclip size={15} />}
+                </button>
+                <button
+                  onClick={() => setShowLinkInput(!showLinkInput)}
+                  title="Add link"
+                  className="p-1.5 text-slate-400 hover:text-mps-blue-500 hover:bg-mps-blue-50 rounded-lg transition-colors"
+                >
+                  <Link2 size={15} />
+                </button>
+              </div>
               <input
                 type="text"
                 value={newComment}
@@ -889,8 +1050,8 @@ function TaskModal({
               />
               <button
                 onClick={onAddComment}
-                disabled={submitting || !newComment.trim()}
-                className="p-2 bg-mps-blue-500 text-white rounded-lg hover:bg-mps-blue-600 disabled:opacity-50 transition-colors"
+                disabled={submitting || (!newComment.trim() && !pendingAttachment)}
+                className="p-2 bg-mps-blue-500 text-white rounded-lg hover:bg-mps-blue-600 disabled:opacity-50 transition-colors flex-shrink-0"
               >
                 <Send size={14} />
               </button>
