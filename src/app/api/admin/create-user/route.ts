@@ -52,10 +52,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Invite user by email — sends a password-setup link
+    // Determine the site's public URL for the redirect link in the invite email.
+    // Priority: NEXT_PUBLIC_SITE_URL env var → request Origin header → Supabase URL (fallback).
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
+      request.headers.get('origin') ||
+      supabaseUrl
+
+    // Invite user by email — sends a password-setup / account-activation link
     const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { role, full_name },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || supabaseUrl}/update-password`,
+      redirectTo: `${siteUrl}/update-password`,
     })
 
     if (inviteError) {
