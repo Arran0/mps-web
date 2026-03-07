@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import {
   Users, Search, Edit3, Check, X, GraduationCap, Briefcase,
-  Shield, Crown, Settings, AlertCircle, Plus, ChevronDown,
+  Shield, Crown, Settings, AlertCircle, Plus, ChevronDown, Copy, Link,
 } from 'lucide-react'
 import {
   ProfileWithTeams, fetchAllProfiles, updateProfile,
@@ -57,6 +57,8 @@ export default function AdminUsersPage() {
   const [newTeamIds, setNewTeamIds] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   useEffect(() => {
     if (profile && profile.role !== 'admin') router.push('/home')
@@ -125,6 +127,9 @@ export default function AdminUsersPage() {
     if (!result.success) { setCreateError(result.error || 'Failed to create user'); return }
     setNewEmail(''); setNewFullName(''); setNewRole('student'); setNewGrade(undefined)
     setNewSection(undefined); setNewTeamIds([]); setShowCreate(false)
+    if (result.inviteLink) {
+      setInviteLink(result.inviteLink)
+    }
     loadData()
   }
 
@@ -133,6 +138,13 @@ export default function AdminUsersPage() {
 
   const toggleNewTeam = (teamId: string) =>
     setNewTeamIds(prev => prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId])
+
+  const handleCopyLink = async () => {
+    if (!inviteLink) return
+    await navigator.clipboard.writeText(inviteLink)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
 
   if (!user || !profile || profile.role !== 'admin') return null
 
@@ -328,6 +340,45 @@ export default function AdminUsersPage() {
               ))
             )}
           </div>
+        )}
+
+        {/* Invite Link Modal (shown when email rate limit hit) */}
+        {typeof document !== 'undefined' && inviteLink && createPortal(
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setInviteLink(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-amber-100 rounded-xl"><Link size={18} className="text-amber-600" /></div>
+                <div>
+                  <h2 className="font-bold text-slate-800">Email rate limit reached</h2>
+                  <p className="text-xs text-slate-500">User created — share this invite link manually</p>
+                </div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+                <p className="text-xs text-slate-500 mb-1.5">Invite link (expires in 24 hours)</p>
+                <p className="text-xs font-mono text-slate-700 break-all select-all">{inviteLink}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCopyLink}
+                  className="flex-1 btn-primary text-sm flex items-center justify-center gap-2"
+                >
+                  <Copy size={14} /> {linkCopied ? 'Copied!' : 'Copy Link'}
+                </button>
+                <button onClick={() => setInviteLink(null)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>,
+          document.body
         )}
 
         {/* Edit Modal */}
