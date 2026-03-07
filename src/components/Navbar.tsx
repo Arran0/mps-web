@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { isStaffRole, isAdminRole, getRoleDisplayName, getRoleBadgeColor } from '@/lib/supabase'
 import MPSLogo from './MPSLogo'
+import Avatar from './Avatar'
 import {
   Home,
   ClipboardList,
@@ -222,9 +223,7 @@ export default function Navbar() {
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                   className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors duration-200"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white font-medium shadow-md">
-                    {profile?.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase()}
-                  </div>
+                  <Avatar avatarUrl={profile?.avatar_url} name={profile?.full_name} email={user.email} size={40} className="shadow-md" />
                   <div className="hidden sm:block text-left">
                     <p className="text-sm font-medium text-slate-700 truncate max-w-[120px]">
                       {profile?.full_name || 'User'}

@@ -58,6 +58,7 @@ import {
 } from '@/lib/projects'
 import { UserProfile } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import Avatar from '@/components/Avatar'
 
 function canEditTaskFn(task: TaskWithDetails, userId: string, userRole: string): boolean {
   if (userRole === 'admin') return true
@@ -492,9 +493,11 @@ function TaskGridChip({
     if (ok) onStatusChange(task.id, next)
   }
 
+  const hasComments = task.comments.length > 0
+
   return (
     <div
-      className={`w-full text-[11px] p-1.5 rounded-lg border transition-all ${CHIP_STYLE[task.status]}`}
+      className={`w-full text-[11px] p-1.5 rounded-lg border transition-all relative ${CHIP_STYLE[task.status]} ${hasComments ? 'ring-1 ring-blue-300/60' : ''}`}
     >
       <div className="flex items-start gap-1">
         <button
@@ -519,6 +522,13 @@ function TaskGridChip({
           )}
         </button>
       </div>
+      {/* Comment indicator dot — bottom-right corner */}
+      {hasComments && (
+        <span className="absolute bottom-1 right-1 flex items-center gap-0.5 text-blue-400/80">
+          <MessageSquare size={9} className="fill-blue-300/60" />
+          <span className="text-[8px] font-semibold leading-none">{task.comments.length}</span>
+        </span>
+      )}
     </div>
   )
 }
@@ -1057,9 +1067,7 @@ function TaskCalendarModal({
                 {localComments.map(comment => (
                   <div key={comment.id} className="bg-slate-50 rounded-xl p-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">{comment.user?.full_name?.charAt(0) || '?'}</span>
-                      </div>
+                      <Avatar avatarUrl={comment.user?.avatar_url} name={comment.user?.full_name} size={22} />
                       <span className="text-xs font-medium text-slate-700">{comment.user?.full_name || 'Unknown'}</span>
                       <span className="text-xs text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</span>
                     </div>
