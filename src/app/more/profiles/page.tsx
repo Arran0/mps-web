@@ -16,12 +16,14 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  Trash2,
 } from 'lucide-react'
 import {
   ProfileWithTeams,
   fetchAllProfiles,
   updateProfile,
   createNewUser,
+  deleteUser,
   NewUserInput,
   ROLE_COLORS,
 } from '@/lib/admin'
@@ -99,6 +101,16 @@ export default function ProfilesPage() {
       grade: p.grade?.toString() || '',
       section: p.section || '',
     })
+  }
+
+  const handleDeleteProfile = async (userId: string, name: string) => {
+    if (!window.confirm(`Delete account for "${name}"? This cannot be undone.`)) return
+    const result = await deleteUser(userId)
+    if (result.success) {
+      await loadProfiles()
+    } else {
+      alert('Failed to delete: ' + result.error)
+    }
   }
 
   const handleSaveEdit = async (userId: string) => {
@@ -311,12 +323,22 @@ export default function ProfilesPage() {
                         </span>
                       )}
                       {isAdmin && editingProfile !== p.id && (
-                        <button
-                          onClick={() => handleStartEdit(p)}
-                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                        >
-                          <Edit3 size={14} />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleStartEdit(p)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit profile"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProfile(p.id, p.full_name || p.email)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Delete account"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
                       )}
                       <button
                         onClick={() => setExpandedProfile(expandedProfile === p.id ? null : p.id)}

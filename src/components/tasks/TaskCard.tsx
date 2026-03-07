@@ -54,6 +54,7 @@ import {
 } from '@/lib/tasks'
 import { useAuth } from '@/contexts/AuthContext'
 import { UserProfile } from '@/lib/supabase'
+import Avatar from '@/components/Avatar'
 
 interface TaskCardProps {
   task: TaskWithDetails
@@ -935,11 +936,7 @@ function TaskModal({
               {task.comments.map(comment => (
                 <div key={comment.id} className="bg-slate-50 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-xs font-bold">
-                        {comment.user?.full_name?.charAt(0) || '?'}
-                      </span>
-                    </div>
+                    <Avatar avatarUrl={comment.user?.avatar_url} name={comment.user?.full_name} size={22} />
                     <span className="text-xs font-medium text-slate-700">{comment.user?.full_name || 'Unknown'}</span>
                     <span className="text-xs text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</span>
                   </div>

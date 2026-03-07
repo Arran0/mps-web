@@ -165,6 +165,27 @@ export async function createNewUser(input: NewUserInput): Promise<{ success: boo
   }
 }
 
+// Delete a user — calls server-side API route (needs SUPABASE_SERVICE_ROLE_KEY)
+export async function deleteUser(userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return { success: false, error: 'Not authenticated' }
+
+    const response = await fetch('/api/admin/delete-user', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ userId }),
+    })
+    return await response.json()
+  } catch (err) {
+    console.error('Error deleting user:', err)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
 // Note: Creating auth users requires Supabase Admin API
 // For now, this function creates only the profile (user must sign up via auth first)
 // In production, you'd use Supabase Admin API to create auth.users
