@@ -125,53 +125,40 @@ export async function fetchAllTeams(): Promise<{ id: string; name: string }[]> {
   return data || []
 }
 
-// Create a new user with auth and profile
+// Create a new user — calls the server-side API route which uses the service role key
 export async function createNewUser(input: NewUserInput): Promise<{ success: boolean; error?: string; userId?: string }> {
   try {
-    // Generate a temporary password
-    const tempPassword = Math.random().toString(36).slice(-12) + 'Aa1!'
+    // Get current session token to authenticate the API call
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return { success: false, error: 'Not authenticated' }
 
-    // Create auth user using Supabase Admin API
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: input.email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        role: input.role,
-        full_name: input.full_name,
+    const response = await fetch('/api/admin/create-user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
       },
+      body: JSON.stringify({
+        email: input.email,
+        full_name: input.full_name,
+        role: input.role,
+        grade: input.grade,
+        section: input.section,
+      }),
     })
 
-    if (authError || !authData.user) {
-      console.error('Failed to create auth user:', authError)
-      return { success: false, error: authError?.message || 'Failed to create user' }
-    }
+    const result = await response.json()
 
-    // Update the profile (it should be created automatically via trigger)
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        full_name: input.full_name,
-        role: input.role,
-        grade: input.grade || null,
-        section: input.section || null,
-      })
-      .eq('id', authData.user.id)
-
-    if (profileError) {
-      console.error('Failed to update profile:', profileError)
-      // Continue anyway, profile might not exist yet
+    if (!result.success) {
+      return { success: false, error: result.error || 'Failed to create user' }
     }
 
     // Set team memberships if provided
-    if (input.team_ids && input.team_ids.length > 0) {
-      await updateTeamMemberships(authData.user.id, input.team_ids)
+    if (result.userId && input.team_ids && input.team_ids.length > 0) {
+      await updateTeamMemberships(result.userId, input.team_ids)
     }
 
-    // Send password reset email so user can set their own password
-    await supabase.auth.resetPasswordForEmail(input.email)
-
-    return { success: true, userId: authData.user.id }
+    return { success: true, userId: result.userId }
   } catch (err) {
     console.error('Error creating user:', err)
     return { success: false, error: 'An unexpected error occurred' }

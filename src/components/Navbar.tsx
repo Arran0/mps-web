@@ -82,7 +82,7 @@ const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
     moreChildren.push(
       { label: 'Classroom Management', href: '/more/classrooms', icon: <BookOpen size={18} /> },
       { label: 'Teacher Teams', href: '/more/teacher-teams', icon: <Users size={18} /> },
-      { label: 'Profiles', href: '/more/profiles', icon: <UserPlus size={18} /> },
+      { label: 'Profile Manager', href: '/more/profiles', icon: <UserPlus size={18} /> },
     )
   }
 

@@ -10,7 +10,6 @@ import {
   ClipboardList,
   CreditCard,
   Calendar,
-  GraduationCap,
   ArrowRight,
   Bell,
   Megaphone,
@@ -53,14 +52,6 @@ function formatRelativeDate(dateStr: string): string {
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-interface QuickButton {
-  label: string
-  href: string
-  icon: React.ReactNode
-  color: string
-  description?: string
 }
 
 export default function HomePage() {
@@ -112,37 +103,12 @@ export default function HomePage() {
   }
 
   // Task Manager quick access (for all staff including admin)
-  const taskManagerButtons: QuickButton[] = [
-    { label: 'Weekly Calendar', href: '/tasks?tab=weekly', icon: <CalendarDays size={24} />, color: 'from-amber-400 to-orange-500', description: 'View weekly task calendar' },
-    { label: 'Analytics', href: '/tasks?tab=analytics', icon: <BarChart3 size={24} />, color: 'from-purple-400 to-purple-600', description: 'View task analytics' },
-    { label: 'Projects', href: '/tasks?tab=projects', icon: <FolderKanban size={24} />, color: 'from-cyan-400 to-cyan-600', description: 'Manage projects' },
-    { label: 'Dashboard', href: '/tasks?tab=dashboard', icon: <LayoutDashboard size={24} />, color: 'from-emerald-400 to-emerald-600', description: 'Advanced dashboard' },
+  const taskManagerButtons = [
+    { label: 'Weekly Calendar', href: '/tasks?tab=weekly', icon: <CalendarDays size={24} />, color: 'from-amber-400 to-orange-500' },
+    { label: 'Analytics', href: '/tasks?tab=analytics', icon: <BarChart3 size={24} />, color: 'from-purple-400 to-purple-600' },
+    { label: 'Projects', href: '/tasks?tab=projects', icon: <FolderKanban size={24} />, color: 'from-cyan-400 to-cyan-600' },
+    { label: 'Dashboard', href: '/tasks?tab=dashboard', icon: <LayoutDashboard size={24} />, color: 'from-emerald-400 to-emerald-600' },
   ]
-
-  // Student quick access
-  const studentQuickAccess: QuickButton[] = [
-    { label: 'Academics', href: '/academics', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
-    { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
-    { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
-    { label: 'Feedback', href: '/more/feedback', icon: <MessageSquare size={24} />, color: 'from-orange-400 to-red-500' },
-  ]
-
-  // Teacher/Coordinator/Principal quick access
-  const staffQuickAccess: QuickButton[] = [
-    { label: 'Academics', href: '/academics', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
-    { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
-    { label: 'Staff Leave', href: '/more/staff-leave', icon: <CalendarDays size={24} />, color: 'from-pink-400 to-pink-600' },
-  ]
-
-  // Admin quick access
-  const adminQuickAccess: QuickButton[] = [
-    { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={24} />, color: 'from-emerald-400 to-emerald-600' },
-    { label: 'Academics', href: '/academics', icon: <BookOpen size={24} />, color: 'from-purple-400 to-mps-blue-600' },
-    { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={24} />, color: 'from-cyan-400 to-cyan-600' },
-    { label: 'Staff Leave', href: '/more/staff-leave', icon: <CalendarDays size={24} />, color: 'from-pink-400 to-pink-600' },
-  ]
-
-  const quickAccess = isAdmin ? adminQuickAccess : isStudent ? studentQuickAccess : staffQuickAccess
 
   return (
     <ProtectedLayout>
@@ -243,28 +209,6 @@ export default function HomePage() {
             </motion.div>
           )}
 
-          {/* Quick Access Section */}
-          <motion.div variants={itemVariants} className="mb-8">
-            <div className="flex items-center mb-4">
-              <h2 className="font-display text-xl font-bold text-slate-800">Quick Access</h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {quickAccess.map((link) => (
-                <Link key={link.label} href={link.href}>
-                  <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-mps-blue-200 hover:shadow-sm transition-all group">
-                    <div className={`w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br ${link.color} flex items-center justify-center text-white shadow-md`}>
-                      {link.icon}
-                    </div>
-                    <span className="font-medium text-slate-700 text-sm group-hover:text-mps-blue-600 transition-colors">
-                      {link.label}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </motion.div>
-
           {/* More Services Section */}
           <motion.div variants={itemVariants}>
             <div className="flex items-center mb-4">
@@ -333,7 +277,7 @@ export default function HomePage() {
                       <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center text-white shadow-md">
                         <UserPlus size={20} />
                       </div>
-                      <span className="font-medium text-slate-700 text-sm group-hover:text-red-600 transition-colors">Profile Management</span>
+                      <span className="font-medium text-slate-700 text-sm group-hover:text-red-600 transition-colors">Profile Manager</span>
                     </div>
                   </Link>
                 </>
