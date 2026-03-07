@@ -18,6 +18,7 @@ import {
   Loader2,
   Users,
   Lock,
+  Trash2,
 } from 'lucide-react'
 import {
   ClassroomWithDetails,
@@ -28,6 +29,7 @@ import {
   fetchClassroomById,
   addMemberByEmail,
   removeClassroomMember,
+  deleteClassroom,
   isClassroomClosed,
 } from '@/lib/classrooms'
 import { supabase } from '@/lib/supabase'
@@ -222,6 +224,18 @@ export default function ClassroomManagerPage() {
     if (['principal', 'admin'].includes(memberRole)) return
     await removeClassroomMember(classroomId, userId)
     await loadClassroomDetails(classroomId)
+  }
+
+  const handleDeleteClassroom = async (classroomId: string, title: string) => {
+    if (!window.confirm(`Delete classroom "${title}"? This cannot be undone.`)) return
+    const ok = await deleteClassroom(classroomId)
+    if (ok) {
+      if (expandedClassroom === classroomId) {
+        setExpandedClassroom(null)
+        setExpandedDetails(null)
+      }
+      await loadClassrooms()
+    }
   }
 
   if (!user || !profile) return null
@@ -428,6 +442,7 @@ export default function ClassroomManagerPage() {
                       onAddMemberRoleChange={setAddMemberRole}
                       onAddMember={() => handleAddMember(classroom.id)}
                       onRemoveMember={(uid, role) => handleRemoveMember(classroom.id, uid, role)}
+                      onDelete={() => handleDeleteClassroom(classroom.id, classroom.title)}
                     />
                   ))}
                 </motion.div>
@@ -466,6 +481,7 @@ export default function ClassroomManagerPage() {
                       onAddMemberRoleChange={setAddMemberRole}
                       onAddMember={() => handleAddMember(classroom.id)}
                       onRemoveMember={(uid, role) => handleRemoveMember(classroom.id, uid, role)}
+                      onDelete={() => handleDeleteClassroom(classroom.id, classroom.title)}
                     />
                   ))}
                 </motion.div>
@@ -509,6 +525,7 @@ interface ClassroomCardProps {
   onAddMemberRoleChange: (role: ClassroomMemberRole) => void
   onAddMember: () => void
   onRemoveMember: (userId: string, role: string) => void
+  onDelete: () => void
 }
 
 function ClassroomCard({
@@ -533,6 +550,7 @@ function ClassroomCard({
   onAddMemberRoleChange,
   onAddMember,
   onRemoveMember,
+  onDelete,
 }: ClassroomCardProps) {
   return (
     <motion.div variants={itemVariants} className={`glass rounded-2xl overflow-hidden ${closed ? 'opacity-75' : ''}`}>
@@ -570,15 +588,24 @@ function ClassroomCard({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {isAdmin && (
-              <button
-                onClick={e => { e.stopPropagation(); onStartEdit() }}
-                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                title="Edit classroom"
-              >
-                <Edit3 size={15} />
-              </button>
+              <>
+                <button
+                  onClick={e => { e.stopPropagation(); onStartEdit() }}
+                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Edit classroom"
+                >
+                  <Edit3 size={15} />
+                </button>
+                <button
+                  onClick={e => { e.stopPropagation(); onDelete() }}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                  title="Delete classroom"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </>
             )}
             {expanded
               ? <ChevronUp size={20} className="text-slate-400" />
