@@ -18,31 +18,59 @@ export default function UpdatePasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Supabase puts the tokens in the URL hash for invite/recovery links.
-  // We listen for the PASSWORD_RECOVERY or SIGNED_IN event which fires after
-  // the SDK automatically exchanges the tokens from the hash.
   useEffect(() => {
-    // Immediately check for an existing session (the SDK may have already exchanged tokens)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    let cancelled = false
+
+    async function bootstrap() {
+      // 1. PKCE flow: Supabase v2 invite/reset links send ?code= in the query string
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+
+      if (code) {
+        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+        if (!cancelled) {
+          if (!exchangeError && data.session) {
+            setSessionReady(true)
+          }
+          setChecking(false)
+        }
+        return
+      }
+
+      // 2. Legacy hash-based flow: check if SDK already exchanged tokens from URL hash
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!cancelled && session) {
         setSessionReady(true)
         setChecking(false)
+        return
       }
-    })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
-        setSessionReady(true)
-        setChecking(false)
+      // 3. Listen for PASSWORD_RECOVERY / SIGNED_IN events (hash token flow)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
+          if (!cancelled) {
+            setSessionReady(true)
+            setChecking(false)
+          }
+        }
+      })
+
+      // 4. Timeout: if no session after 5 s, link is invalid/expired
+      const timer = setTimeout(() => {
+        if (!cancelled) setChecking(false)
+      }, 5000)
+
+      return () => {
+        subscription.unsubscribe()
+        clearTimeout(timer)
       }
-    })
+    }
 
-    // Timeout: if no session after 5 s, the link may be invalid/expired
-    const timer = setTimeout(() => setChecking(false), 5000)
+    const cleanup = bootstrap()
 
     return () => {
-      subscription.unsubscribe()
-      clearTimeout(timer)
+      cancelled = true
+      cleanup.then(fn => fn?.())
     }
   }, [])
 

@@ -24,7 +24,7 @@ import { useRouter } from 'next/navigation'
 const STORAGE_BUCKET = 'classroom-files'   // reuse existing public bucket
 
 export default function ProfilePage() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const router = useRouter()
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
@@ -33,6 +33,8 @@ export default function ProfilePage() {
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [bannerError, setBannerError] = useState<string | null>(null)
+  const [bannerSuccess, setBannerSuccess] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -73,6 +75,7 @@ export default function ProfilePage() {
       const url = `${urlData.publicUrl}?t=${Date.now()}`
       await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id)
       setAvatarUrl(url)
+      await refreshProfile()
     } catch (err: any) {
       alert('Upload failed: ' + (err?.message ?? err))
     }
@@ -85,22 +88,27 @@ export default function ProfilePage() {
     const file = e.target.files?.[0]
     if (!file || !user || !isAdmin) return
     setUploadingBanner(true)
+    setBannerError(null)
+    setBannerSuccess(false)
     try {
       const ext = file.name.split('.').pop() ?? 'jpg'
       const path = `site/profile_banner.${ext}`
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(path, file, { upsert: true })
-      if (error) throw error
+      if (uploadError) throw new Error('Storage upload failed: ' + uploadError.message)
       const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
       const url = `${urlData.publicUrl}?t=${Date.now()}`
       // Store in site_settings so every user's profile page loads it
-      await supabase
+      const { error: upsertError } = await supabase
         .from('site_settings')
         .upsert({ key: 'profile_banner', value: url }, { onConflict: 'key' })
+      if (upsertError) throw new Error('Settings save failed: ' + upsertError.message)
       setBannerUrl(url)
+      setBannerSuccess(true)
+      setTimeout(() => setBannerSuccess(false), 3000)
     } catch (err: any) {
-      alert('Banner upload failed: ' + (err?.message ?? err))
+      setBannerError(err?.message ?? 'Banner upload failed')
     }
     setUploadingBanner(false)
     e.target.value = ''
@@ -312,6 +320,16 @@ export default function ProfilePage() {
                   {uploadingBanner ? 'Uploading…' : 'Upload'}
                 </button>
               </div>
+              {bannerError && (
+                <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs bg-red-50 text-red-700">
+                  <AlertCircle size={13} /> {bannerError}
+                </div>
+              )}
+              {bannerSuccess && (
+                <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs bg-green-50 text-green-700">
+                  <Check size={13} /> Banner updated successfully
+                </div>
+              )}
             </motion.div>
           )}
 

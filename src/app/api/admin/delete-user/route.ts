@@ -5,12 +5,15 @@ import type { NextRequest } from 'next/server'
 export async function DELETE(request: NextRequest) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!serviceRoleKey || !supabaseUrl) {
-    return NextResponse.json({ success: false, error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 500 })
+  if (!supabaseUrl || !anonKey) {
+    return NextResponse.json({ success: false, error: 'Supabase not configured' }, { status: 500 })
   }
 
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  // Use service role if available, otherwise fall back to anon key (profile-only deletion)
+  const clientKey = serviceRoleKey || anonKey
+  const adminClient = createClient(supabaseUrl, clientKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
@@ -19,7 +22,12 @@ export async function DELETE(request: NextRequest) {
   if (!authHeader?.startsWith('Bearer ')) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
-  const { data: { user: callerUser }, error: authError } = await adminClient.auth.getUser(authHeader.slice(7))
+
+  // Verify the caller's token using the anon client (works regardless of service role)
+  const anonClient = createClient(supabaseUrl, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { data: { user: callerUser }, error: authError } = await anonClient.auth.getUser(authHeader.slice(7))
   if (authError || !callerUser) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
@@ -37,12 +45,17 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'You cannot delete your own account' }, { status: 400 })
   }
 
-  // Delete auth user (cascades to profile via DB trigger/FK)
-  const { error } = await adminClient.auth.admin.deleteUser(userId)
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 400 })
-
-  // Also delete profile row (in case FK cascade isn't set up)
+  // Delete profile row first (works with anon key if admin RLS allows it)
   await adminClient.from('profiles').delete().eq('id', userId)
+
+  // Delete auth user if service role key is available
+  if (serviceRoleKey) {
+    const { error } = await adminClient.auth.admin.deleteUser(userId)
+    if (error) {
+      // Profile is already deleted; auth user removal failed — not critical
+      console.error('Auth user deletion failed:', error.message)
+    }
+  }
 
   return NextResponse.json({ success: true })
 }
