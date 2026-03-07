@@ -111,7 +111,7 @@ export default function UpdatePasswordPage() {
       >
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <MPSLogo size={64} />
+          <MPSLogo size="lg" />
         </div>
 
         <div className="glass-strong rounded-3xl shadow-2xl p-8">
