@@ -9,6 +9,7 @@ import { UserProfile, UserRole } from '@/lib/supabase'
 interface TeamAnalyticsProps {
   userId: string
   userRole: UserRole
+  isTeacher?: boolean
 }
 
 interface MemberStats {
@@ -22,7 +23,7 @@ interface MemberStats {
   }
 }
 
-export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) {
+export default function TeamAnalytics({ userId, userRole, isTeacher = false }: TeamAnalyticsProps) {
   const [members, setMembers] = useState<MemberStats[]>([])
   const [loading, setLoading] = useState(true)
   const [leaderboardBasis, setLeaderboardBasis] = useState<'completed' | 'bonus'>('completed')
@@ -45,7 +46,7 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
       if (leaderboardBasis === 'completed') return b.stats.completed - a.stats.completed
       return b.stats.bonus - a.stats.bonus
     })
-    .slice(0, userRole === 'principal' || userRole === 'admin' ? 10 : members.length)
+    .slice(0, (userRole === 'principal' || userRole === 'admin') ? 10 : members.length)
 
   // Aggregate stats
   const totalCompleted = members.reduce((s, m) => s + m.stats.completed, 0)
@@ -58,7 +59,9 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
 
   return (
     <div className="space-y-5">
-      <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Monthly report · {currentMonth}</p>
+      <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+        {isTeacher ? 'My Team · ' : ''}Monthly report · {currentMonth}
+      </p>
 
       {loading ? (
         <div className="text-center py-16">
@@ -155,7 +158,7 @@ export default function TeamAnalytics({ userId, userRole }: TeamAnalyticsProps) 
                 <Trophy size={18} className="text-amber-500" />
                 <h3 className="font-semibold text-slate-700">
                   Leaderboard
-                  {(userRole === 'principal' || userRole === 'admin') && ' (Top 10)'}
+                  {(userRole === 'principal' || userRole === 'admin') ? ' (Top 10)' : isTeacher ? ' (My Team)' : ''}
                 </h3>
               </div>
               <select

@@ -47,7 +47,7 @@ function TasksPageContent() {
 
   const showTeamAnalytics = profile ? canViewTeamAnalytics(profile.role) : false
   const canAssignToOthers = profile ? ['coordinator', 'principal', 'admin'].includes(profile.role) : false
-  // Teachers can cycle: not_done -> partial -> done
+  // Teachers can cycle: not_done -> partial -> done (completed if no check required)
   // Coordinators, principals, admins can also set: done -> checked
   const canCheck = profile ? ['coordinator', 'principal', 'admin'].includes(profile.role) : false
 
@@ -56,9 +56,10 @@ function TasksPageContent() {
     return true
   })
 
-  // Load team members for coordinator/principal/admin
+  // Load team members for coordinator/principal/admin AND teachers (for team analytics)
   const loadTeamMembers = useCallback(async () => {
-    if (!user || !profile || !canAssignToOthers) return
+    if (!user || !profile) return
+    if (!canAssignToOthers && profile.role !== 'teacher') return
     const members = await fetchTeamMembers(user.id, profile.role)
     setTeamMembers(members)
   }, [user, profile, canAssignToOthers])
@@ -175,6 +176,7 @@ function TasksPageContent() {
             <TeamAnalytics
               userId={user.id}
               userRole={profile.role}
+              isTeacher={profile.role === 'teacher'}
             />
           )}
 
