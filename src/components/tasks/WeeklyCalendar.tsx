@@ -497,7 +497,7 @@ function TaskGridChip({
 
   return (
     <div
-      className={`w-full text-[11px] p-1.5 rounded-lg border transition-all relative ${CHIP_STYLE[task.status]} ${hasComments ? 'ring-1 ring-blue-300/60' : ''}`}
+      className={`w-full text-[11px] p-1.5 rounded-lg border transition-all relative ${CHIP_STYLE[task.status]} ${hasComments ? 'border-l-[3px] border-l-blue-400' : ''}`}
     >
       <div className="flex items-start gap-1">
         <button
@@ -522,11 +522,10 @@ function TaskGridChip({
           )}
         </button>
       </div>
-      {/* Comment indicator dot — bottom-right corner */}
+      {/* Comment count badge — top-right corner */}
       {hasComments && (
-        <span className="absolute bottom-1 right-1 flex items-center gap-0.5 text-blue-400/80">
-          <MessageSquare size={9} className="fill-blue-300/60" />
-          <span className="text-[8px] font-semibold leading-none">{task.comments.length}</span>
+        <span className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 bg-blue-500 text-white rounded-full px-1 min-w-[14px] h-[14px] justify-center shadow-sm">
+          <span className="text-[9px] font-bold leading-none">{task.comments.length}</span>
         </span>
       )}
     </div>
