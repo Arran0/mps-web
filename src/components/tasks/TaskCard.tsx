@@ -241,8 +241,11 @@ export default function TaskCard({
                 <span className="text-xs text-slate-500">{completedChecklist}/{totalChecklist}</span>
               )}
               {task.comments.length > 0 && (
-                <span className="text-xs text-slate-500 flex items-center gap-0.5">
-                  <MessageSquare size={10} /> {task.comments.length}
+                <span className="relative flex-shrink-0">
+                  <MessageSquare size={14} className="text-slate-400" />
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {task.comments.length > 9 ? '9+' : task.comments.length}
+                  </span>
                 </span>
               )}
               <ChevronRight size={14} className="text-slate-400" />
@@ -356,8 +359,11 @@ export default function TaskCard({
                 </span>
               )}
               {task.comments.length > 0 && (
-                <span className="text-xs text-slate-500 flex items-center gap-1">
-                  <MessageSquare size={12} /> {task.comments.length}
+                <span className="relative flex-shrink-0">
+                  <MessageSquare size={14} className="text-slate-400" />
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {task.comments.length > 9 ? '9+' : task.comments.length}
+                  </span>
                 </span>
               )}
             </div>

@@ -179,8 +179,8 @@ export default function ProfilesPage() {
               <UserPlus className="text-white" size={24} />
             </div>
             <div>
-              <h1 className="font-display text-3xl font-bold text-slate-800">Profiles</h1>
-              <p className="text-slate-500 text-sm">Manage user profiles and roles</p>
+              <h1 className="font-display text-3xl font-bold text-slate-800">Profile Manager</h1>
+              <p className="text-slate-500 text-sm">Create and manage user accounts</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

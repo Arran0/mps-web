@@ -8,19 +8,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import {
   Mail,
-  User,
   Shield,
   Calendar,
-  Camera,
   LogOut,
-  Lock,
-  CheckCircle,
   KeyRound,
-  ImageIcon,
   Loader2,
   Check,
   AlertCircle,
-  Upload,
+  Camera,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -28,12 +23,10 @@ export default function ProfilePage() {
   const { user, profile, signOut } = useAuth()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const bannerInputRef = useRef<HTMLInputElement>(null)
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [uploadingBanner, setUploadingBanner] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -42,7 +35,6 @@ export default function ProfilePage() {
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
-  // Load avatar from profile and banner from app_settings
   const loadBanner = useCallback(async () => {
     const { data } = await supabase
       .from('app_settings')
@@ -57,7 +49,6 @@ export default function ProfilePage() {
     loadBanner()
   }, [profile, loadBanner])
 
-  // Upload avatar
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
@@ -69,43 +60,17 @@ export default function ProfilePage() {
         .from('avatars')
         .upload(path, file, { upsert: true })
       if (uploadError) throw uploadError
-
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
-      const publicUrl = urlData.publicUrl + `?t=${Date.now()}`
-
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
       await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id)
       setAvatarUrl(publicUrl)
     } catch (err) {
       console.error('Avatar upload failed:', err)
     }
     setUploadingAvatar(false)
+    e.target.value = ''
   }
 
-  // Upload banner (admin only)
-  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !user || !isAdmin) return
-    setUploadingBanner(true)
-    try {
-      const ext = file.name.split('.').pop()
-      const path = `global/banner.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('banners')
-        .upload(path, file, { upsert: true })
-      if (uploadError) throw uploadError
-
-      const { data: urlData } = supabase.storage.from('banners').getPublicUrl(path)
-      const publicUrl = urlData.publicUrl + `?t=${Date.now()}`
-
-      await supabase.from('app_settings').upsert({ key: 'profile_banner_url', value: publicUrl, updated_at: new Date().toISOString() })
-      setBannerUrl(publicUrl)
-    } catch (err) {
-      console.error('Banner upload failed:', err)
-    }
-    setUploadingBanner(false)
-  }
-
-  // Password reset email
   const handlePasswordReset = async () => {
     if (!user?.email) return
     setPasswordLoading(true)
@@ -113,11 +78,11 @@ export default function ProfilePage() {
     const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
       redirectTo: `${window.location.origin}/update-password`,
     })
-    if (error) {
-      setPasswordMsg({ type: 'error', text: error.message })
-    } else {
-      setPasswordMsg({ type: 'success', text: `Password reset email sent to ${user.email}` })
-    }
+    setPasswordMsg(
+      error
+        ? { type: 'error', text: error.message }
+        : { type: 'success', text: `Reset link sent to ${user.email}` }
+    )
     setPasswordLoading(false)
   }
 
@@ -128,285 +93,162 @@ export default function ProfilePage() {
 
   if (!user || !profile) return null
 
+  const initials = profile.full_name
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'
+
   return (
     <ProtectedLayout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
 
-        {/* Profile Header Card */}
+        {/* Profile Card */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-strong rounded-3xl overflow-hidden mb-6 shadow-xl"
+          className="glass-strong rounded-3xl overflow-hidden shadow-2xl mb-5"
         >
           {/* Banner */}
-          <div className="h-32 sm:h-40 relative group">
+          <div className="h-36 sm:h-44 relative">
             {bannerUrl ? (
-              <Image src={bannerUrl} alt="Banner" fill className="object-cover" />
+              <Image src={bannerUrl} alt="" fill className="object-cover" />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-r from-mps-blue-600 via-mps-blue-500 to-mps-green-500" />
+              <div className="absolute inset-0 bg-gradient-to-br from-mps-blue-600 via-mps-blue-500 to-mps-green-500" />
             )}
-            {/* Banner overlay pattern */}
-            <div className="absolute inset-0 opacity-10"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}
+            {/* Subtle pattern overlay */}
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='1' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3'/%3E%3Ccircle cx='13' cy='13' r='3'/%3E%3C/g%3E%3C/svg%3E")` }}
             />
-            {/* Admin: change banner button */}
-            {isAdmin && (
-              <>
-                <input
-                  ref={bannerInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleBannerChange}
-                />
-                <button
-                  onClick={() => bannerInputRef.current?.click()}
-                  disabled={uploadingBanner}
-                  className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-black/40 hover:bg-black/60 text-white text-xs rounded-lg backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100"
-                >
-                  {uploadingBanner ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
-                  Change Banner
-                </button>
-              </>
-            )}
           </div>
 
-          {/* Avatar + Info */}
-          <div className="px-6 sm:px-8 pb-6">
-            <div className="flex items-end gap-5 -mt-12">
-              {/* Avatar */}
-              <div className="relative flex-shrink-0 group/avatar">
-                <div className="w-24 h-24 rounded-2xl bg-white p-1 shadow-2xl">
-                  {avatarUrl ? (
-                    <Image src={avatarUrl} alt="Avatar" width={88} height={88} className="rounded-xl object-cover w-full h-full" />
-                  ) : (
-                    <div className="w-full h-full rounded-xl bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center">
-                      <span className="text-white text-3xl font-bold">
-                        {profile.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarChange}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingAvatar}
-                  className="absolute -bottom-1 -right-1 p-2 bg-white rounded-xl shadow-lg hover:shadow-xl border border-slate-100 transition-all"
-                >
-                  {uploadingAvatar ? (
-                    <Loader2 size={14} className="text-mps-blue-500 animate-spin" />
-                  ) : (
-                    <Camera size={14} className="text-slate-600" />
-                  )}
-                </button>
+          {/* Avatar centred, overlapping banner */}
+          <div className="flex flex-col items-center -mt-14 pb-6 px-6">
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="relative group rounded-full focus:outline-none"
+              title="Change profile picture"
+            >
+              {/* Avatar circle */}
+              <div className="w-28 h-28 rounded-full ring-4 ring-white shadow-xl overflow-hidden bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center">
+                {avatarUrl ? (
+                  <Image src={avatarUrl} alt="Avatar" width={112} height={112} className="object-cover w-full h-full" />
+                ) : (
+                  <span className="text-white text-4xl font-bold">{initials}</span>
+                )}
               </div>
+              {/* Camera overlay on hover */}
+              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                {uploadingAvatar ? (
+                  <Loader2 size={22} className="text-white animate-spin" />
+                ) : (
+                  <Camera size={22} className="text-white" />
+                )}
+              </div>
+            </button>
 
-              {/* Name / role */}
-              <div className="pb-2 flex-1 min-w-0">
-                <h1 className="font-display text-2xl font-bold text-slate-800 truncate">
-                  {profile.full_name || 'User'}
-                </h1>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${getRoleBadgeColor(profile.role)}`}>
-                    {getRoleDisplayName(profile.role)}
-                  </span>
-                  <span className="text-slate-400 text-xs">•</span>
-                  <div className="flex items-center gap-1 text-mps-green-600 text-xs font-medium">
-                    <CheckCircle size={12} />
-                    Verified
-                  </div>
-                  <span className="text-slate-400 text-xs">•</span>
-                  <span className="text-slate-500 text-xs">
-                    Since {profile.created_at ? formatDate(profile.created_at) : '—'}
-                  </span>
+            {/* Name & role */}
+            <h1 className="mt-3 font-display text-2xl font-bold text-slate-800 text-center">
+              {profile.full_name || 'User'}
+            </h1>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap justify-center">
+              <span className={`text-xs px-3 py-1 rounded-full font-semibold ${getRoleBadgeColor(profile.role)}`}>
+                {getRoleDisplayName(profile.role)}
+              </span>
+            </div>
+
+            {/* Profile info rows */}
+            <div className="w-full mt-5 space-y-2.5">
+              <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3">
+                <Mail size={16} className="text-mps-green-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-400">Email</p>
+                  <p className="font-medium text-slate-700 text-sm truncate">{user.email}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3">
+                <Shield size={16} className="text-purple-500 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-slate-400">Role</p>
+                  <p className="font-medium text-slate-700 text-sm">{getRoleDisplayName(profile.role)}</p>
+                </div>
+              </div>
+              {profile.created_at && (
+                <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3">
+                  <Calendar size={16} className="text-amber-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-400">Member since</p>
+                    <p className="font-medium text-slate-700 text-sm">{formatDate(profile.created_at)}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
 
-        {/* Info + Actions Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-
-          {/* Personal Information */}
+        {/* Actions */}
+        <div className="space-y-3">
+          {/* Password Reset */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 }}
-            className="lg:col-span-3"
+            className="glass rounded-2xl p-5"
           >
-            <div className="glass rounded-2xl p-6 h-full">
-              <h2 className="font-semibold text-slate-800 mb-5 flex items-center gap-2.5">
-                <div className="p-2 bg-gradient-to-br from-mps-blue-500 to-mps-blue-600 rounded-xl text-white shadow">
-                  <User size={16} />
-                </div>
-                Profile Details
-              </h2>
-
-              <div className="space-y-3">
-                {/* Full Name */}
-                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-                  <User size={16} className="text-mps-blue-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Full Name</p>
-                    <p className="font-semibold text-slate-800">{profile.full_name || '—'}</p>
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-                  <Mail size={16} className="text-mps-green-500 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-slate-400 mb-0.5">Email Address</p>
-                    <p className="font-semibold text-slate-800 truncate">{user.email || '—'}</p>
-                  </div>
-                </div>
-
-                {/* Role */}
-                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-                  <Shield size={16} className="text-purple-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Role</p>
-                    <p className="font-semibold text-slate-800">{getRoleDisplayName(profile.role)}</p>
-                  </div>
-                </div>
-
-                {/* Member Since */}
-                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-                  <Calendar size={16} className="text-amber-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Member Since</p>
-                    <p className="font-semibold text-slate-800">
-                      {profile.created_at ? formatDate(profile.created_at) : '—'}
-                    </p>
-                  </div>
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                  <KeyRound size={16} className="text-violet-500" />
+                  Change Password
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">A reset link will be sent to your email</p>
               </div>
-
-              <p className="text-xs text-slate-400 mt-4 flex items-center gap-1.5">
-                <Lock size={11} />
-                Profile details can only be changed by an administrator.
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.14 }}
-            className="lg:col-span-2 space-y-4"
-          >
-            {/* Change Photo */}
-            <div className="glass rounded-2xl p-5">
-              <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <div className="p-1.5 bg-gradient-to-br from-sky-400 to-blue-500 rounded-lg text-white shadow">
-                  <Camera size={14} />
-                </div>
-                Profile Picture
-              </h3>
-              <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                Upload a photo to personalise your profile. Only you can change your own picture.
-              </p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingAvatar}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-mps-blue-200 hover:border-mps-blue-400 hover:bg-mps-blue-50 text-mps-blue-600 text-sm font-medium transition-all"
-              >
-                {uploadingAvatar ? (
-                  <><Loader2 size={15} className="animate-spin" /> Uploading...</>
-                ) : (
-                  <><Upload size={15} /> Choose Photo</>
-                )}
-              </button>
-            </div>
-
-            {/* Change Password */}
-            <div className="glass rounded-2xl p-5">
-              <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <div className="p-1.5 bg-gradient-to-br from-violet-400 to-purple-500 rounded-lg text-white shadow">
-                  <KeyRound size={14} />
-                </div>
-                Password
-              </h3>
-              <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                We'll send a secure link to your email address to reset your password.
-              </p>
-
-              <AnimatePresence mode="wait">
-                {passwordMsg && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className={`flex items-start gap-2 p-3 rounded-lg text-xs mb-3 ${
-                      passwordMsg.type === 'success'
-                        ? 'bg-green-50 text-green-700 border border-green-200'
-                        : 'bg-red-50 text-red-700 border border-red-200'
-                    }`}
-                  >
-                    {passwordMsg.type === 'success' ? <Check size={13} className="flex-shrink-0 mt-0.5" /> : <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />}
-                    {passwordMsg.text}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
               <button
                 onClick={handlePasswordReset}
                 disabled={passwordLoading}
-                className="w-full btn-primary text-sm py-2.5 flex items-center justify-center gap-2"
+                className="btn-primary text-sm py-2 px-4 flex items-center gap-1.5 flex-shrink-0"
               >
-                {passwordLoading ? (
-                  <><Loader2 size={15} className="animate-spin" /> Sending...</>
-                ) : (
-                  <><KeyRound size={15} /> Send Reset Email</>
-                )}
+                {passwordLoading ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+                {passwordLoading ? 'Sending…' : 'Send link'}
               </button>
             </div>
-
-            {/* Admin: Change Banner */}
-            {isAdmin && (
-              <div className="glass rounded-2xl p-5">
-                <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <div className="p-1.5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg text-white shadow">
-                    <ImageIcon size={14} />
-                  </div>
-                  Profile Banner
-                  <span className="text-xs text-amber-600 font-normal ml-auto">Admin only</span>
-                </h3>
-                <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                  This banner appears on every user's profile page across the school.
-                </p>
-                <button
-                  onClick={() => bannerInputRef.current?.click()}
-                  disabled={uploadingBanner}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-amber-200 hover:border-amber-400 hover:bg-amber-50 text-amber-600 text-sm font-medium transition-all"
+            <AnimatePresence>
+              {passwordMsg && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${
+                    passwordMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                  }`}
                 >
-                  {uploadingBanner ? (
-                    <><Loader2 size={15} className="animate-spin" /> Uploading...</>
-                  ) : (
-                    <><Upload size={15} /> Change Banner</>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {/* Sign Out */}
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-100 transition-colors text-rose-600 font-medium"
-            >
-              <LogOut size={18} />
-              Sign Out
-            </button>
+                  {passwordMsg.type === 'success' ? <Check size={13} /> : <AlertCircle size={13} />}
+                  {passwordMsg.text}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
+
+          {/* Sign Out */}
+          <motion.button
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.14 }}
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-100 transition-colors text-rose-600 font-semibold"
+          >
+            <LogOut size={18} />
+            Sign Out
+          </motion.button>
         </div>
+
+        <p className="text-center text-xs text-slate-400 mt-5">
+          Profile details can only be updated by an administrator.
+        </p>
       </div>
     </ProtectedLayout>
   )

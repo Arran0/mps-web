@@ -116,7 +116,7 @@ export function getDynamicStatusLabel(status: TaskStatus, requireCheck: boolean)
     if (status === 'done') return 'Completed'
     if (status === 'checked') return 'Completed'
   } else {
-    if (status === 'done') return 'Awaiting Check'
+    if (status === 'done') return 'Done (awaiting check)'
     if (status === 'checked') return 'Completed'
   }
   return STATUS_LABELS[status]
@@ -479,10 +479,12 @@ export async function fetchTodayTasks(userId: string): Promise<{ today: TaskWith
 
 export async function fetchWeekTasks(userId: string, weekStart: Date): Promise<TaskWithDetails[]> {
   const allTasks = await fetchTasksForUser(userId)
-  const startStr = weekStart.toISOString().split('T')[0]
+  // Use local date formatting to avoid UTC offset issues with toISOString()
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  const startStr = fmt(weekStart)
   const end = new Date(weekStart)
   end.setDate(end.getDate() + 6)
-  const endStr = end.toISOString().split('T')[0]
+  const endStr = fmt(end)
 
   return allTasks.filter(t => t.due_date && t.due_date >= startStr && t.due_date <= endStr)
 }
