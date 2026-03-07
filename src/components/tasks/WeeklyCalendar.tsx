@@ -18,6 +18,13 @@ import {
   Circle,
   CircleDot,
   CheckCircle2,
+  CheckSquare,
+  Square,
+  MessageSquare,
+  Send,
+  ShieldCheck,
+  Repeat,
+  Trash2,
 } from 'lucide-react'
 import NewTaskForm from './NewTaskForm'
 import {
@@ -28,9 +35,20 @@ import {
   STATUS_DOT_COLORS,
   STATUS_LABELS,
   STATUS_COLORS,
+  RECURRENCE_LABELS,
+  getDynamicStatusLabel,
+  getDynamicStatusColors,
+  getDynamicDotColor,
   getNextStatus,
   updateTaskStatus,
   updateTask,
+  updateTaskAssignees,
+  toggleChecklistItem,
+  addChecklistItem,
+  addComment,
+  deleteTask,
+  TaskRecurrence,
+  TaskTag,
 } from '@/lib/tasks'
 import {
   fetchSubtasksForCalendar,
@@ -39,6 +57,25 @@ import {
   updateSubtask,
 } from '@/lib/projects'
 import { UserProfile } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+
+function canEditTaskFn(task: TaskWithDetails, userId: string, userRole: string): boolean {
+  if (userRole === 'admin') return true
+  const isAssignee = task.assignees.some(a => a.user_id === userId)
+  const creatorRole = task.creator?.role
+  if (userRole === 'principal') {
+    if (isAssignee && creatorRole === 'admin') return false
+    return true
+  }
+  if (userRole === 'coordinator') {
+    if (isAssignee && (creatorRole === 'principal' || creatorRole === 'admin')) return false
+    return true
+  }
+  if (userRole === 'teacher') {
+    return task.created_by === userId
+  }
+  return false
+}
 
 interface WeeklyCalendarProps {
   userId: string
@@ -49,6 +86,7 @@ interface WeeklyCalendarProps {
   viewingUserId?: string
   initialDate?: string
 }
+
 
 function getWeekStart(date: Date): Date {
   const d = new Date(date)
@@ -109,9 +147,11 @@ export default function WeeklyCalendar({
   const [openTask, setOpenTask]       = useState<TaskWithDetails | null>(null)
   const [openSubtask, setOpenSubtask] = useState<SubtaskWithProject | null>(null)
 
+  const { user } = useAuth()
   const targetUserId = viewingUserId || userId
   const todayStr = formatDate(new Date())
-  const canEdit = ['coordinator', 'principal', 'admin'].includes(profile.role)
+  // canEdit for subtasks uses simpler role-based check
+  const canEditSubtasks = ['coordinator', 'principal', 'admin'].includes(profile.role)
 
   const initialLoadDone = useRef(false)
 
@@ -171,7 +211,7 @@ export default function WeeklyCalendar({
   }
 
   const handleSubtaskStatusTap = async (subtask: SubtaskWithProject) => {
-    const next = getNextStatus(subtask.status, canCheck)
+    const next = getNextStatus(subtask.status, canCheck, true)
     if (next === subtask.status) return
     const result = await updateSubtaskStatus(subtask.id, next, subtask.project_id, subtask.project_sequential)
     if (result.success) {
@@ -377,11 +417,13 @@ export default function WeeklyCalendar({
             <TaskCalendarModal
               task={openTask}
               canCheck={canCheck}
-              canEdit={canEdit}
+              userId={user?.id || userId}
+              userRole={profile.role}
               onClose={() => setOpenTask(null)}
               onStatusChange={handleTaskStatusChange}
               onTaskDeleted={handleTaskDeleted}
               onTaskUpdated={loadTasks}
+              availableAssignees={availableAssignees}
             />
           )}
         </AnimatePresence>,
@@ -395,7 +437,7 @@ export default function WeeklyCalendar({
             <SubtaskDetailModal
               subtask={openSubtask}
               canCheck={canCheck}
-              canEdit={canEdit}
+              canEdit={canEditSubtasks}
               onClose={() => setOpenSubtask(null)}
               onStatusTap={handleSubtaskStatusTap}
               onSubtaskUpdated={loadTasks}
@@ -444,7 +486,7 @@ function TaskGridChip({
 }) {
   const handleIconClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    const next = getNextStatus(task.status, canCheck)
+    const next = getNextStatus(task.status, canCheck, task.require_check ?? true)
     if (next === task.status) return
     const ok = await updateTaskStatus(task.id, next)
     if (ok) onStatusChange(task.id, next)
@@ -539,32 +581,93 @@ function SubtaskGridChip({
 function TaskCalendarModal({
   task,
   canCheck,
-  canEdit,
+  userId,
+  userRole,
   onClose,
   onStatusChange,
   onTaskDeleted,
   onTaskUpdated,
+  availableAssignees = [],
 }: {
   task: TaskWithDetails
   canCheck: boolean
-  canEdit: boolean
+  userId: string
+  userRole: string
   onClose: () => void
   onStatusChange: (id: string, status: TaskStatus) => void
   onTaskDeleted: (id: string) => void
   onTaskUpdated: () => void
+  availableAssignees?: UserProfile[]
 }) {
-  const [editing, setEditing]       = useState(false)
-  const [editTitle, setEditTitle]   = useState(task.title)
-  const [editDesc, setEditDesc]     = useState(task.description || '')
-  const [editDate, setEditDate]     = useState(task.due_date || '')
-  const [editTiming, setEditTiming] = useState(task.timing || '')
-  const [saving, setSaving]         = useState(false)
+  const requireCheck = task.require_check ?? false
+  const canEdit = canEditTaskFn(task, userId, userRole)
+
+  const [editing, setEditing]             = useState(false)
+  const [editTitle, setEditTitle]         = useState(task.title)
+  const [editDesc, setEditDesc]           = useState(task.description || '')
+  const [editDate, setEditDate]           = useState(task.due_date || '')
+  const [editStartTime, setEditStartTime] = useState(task.timing || '')
+  const [editEndTime, setEditEndTime]     = useState(task.end_time || '')
+  const [editRequireCheck, setEditRequireCheck] = useState(requireCheck)
+  const [editRecurrence, setEditRecurrence] = useState<TaskRecurrence>(task.recurrence || 'none')
+  const [editBonusPoints, setEditBonusPoints] = useState(task.bonus_points || 0)
+  const [editTag, setEditTag]             = useState<TaskTag>(task.tag)
+  const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>(task.assignees.map(a => a.user_id))
+  const [editChecklistItems, setEditChecklistItems] = useState<string[]>(task.checklist.map(c => c.text))
+  const [newEditCheckItem, setNewEditCheckItem] = useState('')
+  const [saving, setSaving]               = useState(false)
+
+  // Live checklist / comments interaction
+  const [newCheckItem, setNewCheckItem]   = useState('')
+  const [newComment, setNewComment]       = useState('')
+  const [submitting, setSubmitting]       = useState(false)
+  const [localChecklist, setLocalChecklist] = useState(task.checklist)
+  const [localComments, setLocalComments]   = useState(task.comments)
+
+  const canEditAssignees = ['coordinator', 'principal', 'admin'].includes(userRole)
 
   const handleStatusClick = async () => {
-    const next = getNextStatus(task.status, canCheck)
+    const next = getNextStatus(task.status, canCheck, requireCheck)
     if (next === task.status) return
     const ok = await updateTaskStatus(task.id, next)
     if (ok) onStatusChange(task.id, next)
+  }
+
+  const handleToggleChecklist = async (itemId: string, current: boolean) => {
+    await toggleChecklistItem(itemId, !current)
+    setLocalChecklist(prev => prev.map(c => c.id === itemId ? { ...c, is_completed: !current } : c))
+    onTaskUpdated()
+  }
+
+  const handleAddCheckItem = async () => {
+    if (!newCheckItem.trim()) return
+    const item = await addChecklistItem(task.id, newCheckItem.trim(), localChecklist.length)
+    if (item) {
+      setLocalChecklist(prev => [...prev, item])
+      setNewCheckItem('')
+      onTaskUpdated()
+    }
+  }
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return
+    setSubmitting(true)
+    const comment = await addComment(task.id, userId, newComment.trim())
+    if (comment) {
+      setLocalComments(prev => [...prev, comment])
+      setNewComment('')
+      onTaskUpdated()
+    }
+    setSubmitting(false)
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Delete this task?')) return
+    const ok = await deleteTask(task.id)
+    if (ok) {
+      onClose()
+      onTaskDeleted(task.id)
+    }
   }
 
   const handleSave = async () => {
@@ -572,16 +675,36 @@ function TaskCalendarModal({
     setSaving(true)
     const ok = await updateTask(task.id, {
       title: editTitle.trim(),
-      description: editDesc.trim() || undefined,
-      due_date: editDate || undefined,
-      timing: editTiming || undefined,
+      description: editDesc.trim() || null,
+      due_date: editDate || null,
+      timing: editStartTime || null,
+      end_time: editEndTime || null,
+      require_check: editRequireCheck,
+      recurrence: editRecurrence,
+      bonus_points: editBonusPoints,
+      tag: editTag,
     })
+
+    if (canEditAssignees) {
+      const origIds = task.assignees.map(a => a.user_id).sort()
+      const newIds = [...editAssigneeIds].sort()
+      if (JSON.stringify(origIds) !== JSON.stringify(newIds)) {
+        await updateTaskAssignees(task.id, editAssigneeIds)
+      }
+    }
+
     setSaving(false)
     if (ok) {
       setEditing(false)
       onTaskUpdated()
     }
   }
+
+  const statusLabel = getDynamicStatusLabel(task.status, requireCheck)
+  const statusColorClass = getDynamicStatusColors(task.status, requireCheck)
+  const dotColorClass = getDynamicDotColor(task.status, requireCheck)
+
+  const completedChecklist = localChecklist.filter(c => c.is_completed).length
 
   return (
     <motion.div
@@ -600,22 +723,39 @@ function TaskCalendarModal({
       >
         {/* Header */}
         <div className="sticky top-0 bg-white rounded-t-3xl border-b border-slate-100 p-5 flex items-center justify-between z-10">
-          <button
-            onClick={handleStatusClick}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 font-bold text-sm transition-all active:scale-95 hover:shadow-lg ${STATUS_COLORS[task.status]}`}
-            title="Tap to change status"
-          >
-            <div className={`w-3.5 h-3.5 rounded-full ${STATUS_DOT_COLORS[task.status]} animate-pulse`} />
-            {STATUS_LABELS[task.status]}
-            <ChevronRight size={14} className="opacity-50" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleStatusClick}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 font-bold text-sm transition-all active:scale-95 hover:shadow-lg ${statusColorClass}`}
+              title="Tap to change status"
+            >
+              <div className={`w-3.5 h-3.5 rounded-full ${dotColorClass} animate-pulse`} />
+              {statusLabel}
+              <ChevronRight size={14} className="opacity-50" />
+            </button>
+            {task.bonus_points > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                {task.bonus_points} BP
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {canEdit && !editing && (
               <button
                 onClick={() => setEditing(true)}
                 className="p-2 text-mps-blue-500 hover:text-mps-blue-700 hover:bg-mps-blue-50 rounded-lg transition-colors"
+                title="Edit task"
               >
                 <Edit3 size={16} />
+              </button>
+            )}
+            {canEdit && (
+              <button
+                onClick={handleDelete}
+                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete task"
+              >
+                <Trash2 size={16} />
               </button>
             )}
             <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
@@ -645,24 +785,152 @@ function TaskCalendarModal({
                 rows={2}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 resize-none bg-white"
               />
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Due Date</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={e => setEditDate(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">Due Date</label>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Start Time</label>
                   <input
-                    type="date"
-                    value={editDate}
-                    onChange={e => setEditDate(e.target.value)}
+                    type="time"
+                    value={editStartTime}
+                    onChange={e => setEditStartTime(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">Timing</label>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">End Time</label>
                   <input
                     type="time"
-                    value={editTiming}
-                    onChange={e => setEditTiming(e.target.value)}
+                    value={editEndTime}
+                    onChange={e => setEditEndTime(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Recurrence</label>
+                  <select
+                    value={editRecurrence}
+                    onChange={e => setEditRecurrence(e.target.value as TaskRecurrence)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                  >
+                    {(Object.keys(RECURRENCE_LABELS) as TaskRecurrence[]).map(r => (
+                      <option key={r} value={r}>{RECURRENCE_LABELS[r]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Bonus Points</label>
+                  <select
+                    value={editBonusPoints}
+                    onChange={e => setEditBonusPoints(Number(e.target.value))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mps-blue-500/50 bg-white"
+                  >
+                    <option value="0">None</option>
+                    <option value="1">1 Point</option>
+                    <option value="2">2 Points</option>
+                    <option value="3">3 Points</option>
+                    <option value="4">4 Points</option>
+                    <option value="5">5 Points</option>
+                  </select>
+                </div>
+              </div>
+              {/* Require Check */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={14} className={editRequireCheck ? 'text-mps-blue-600' : 'text-slate-400'} />
+                  <p className="text-xs font-medium text-slate-700">Require Verification</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditRequireCheck(prev => !prev)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${editRequireCheck ? 'bg-mps-blue-500' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${editRequireCheck ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+              {/* Assignees edit */}
+              {canEditAssignees && availableAssignees.length > 0 && (
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Assignees</label>
+                  <div className="max-h-28 overflow-y-auto border border-slate-200 rounded-xl p-1.5 space-y-0.5 bg-white">
+                    {availableAssignees.map(u => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => setEditAssigneeIds(prev =>
+                          prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id]
+                        )}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs transition-colors ${
+                          editAssigneeIds.includes(u.id)
+                            ? 'bg-mps-blue-50 text-mps-blue-700 border border-mps-blue-200'
+                            : 'hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${editAssigneeIds.includes(u.id) ? 'bg-mps-blue-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          {u.full_name?.charAt(0) || '?'}
+                        </div>
+                        <span>{u.full_name}</span>
+                        <span className="text-slate-400 ml-auto">{u.role}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Checklist edit */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Checklist Items</label>
+                <div className="space-y-1 mb-1.5">
+                  {editChecklistItems.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
+                      <span className="text-xs text-slate-700 flex-1">{item}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditChecklistItems(prev => prev.filter((_, idx) => idx !== i))}
+                        className="text-slate-400 hover:text-red-500"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newEditCheckItem}
+                    onChange={e => setNewEditCheckItem(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (newEditCheckItem.trim()) {
+                          setEditChecklistItems(prev => [...prev, newEditCheckItem.trim()])
+                          setNewEditCheckItem('')
+                        }
+                      }
+                    }}
+                    placeholder="Add item..."
+                    className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-mps-blue-500 bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newEditCheckItem.trim()) {
+                        setEditChecklistItems(prev => [...prev, newEditCheckItem.trim()])
+                        setNewEditCheckItem('')
+                      }
+                    }}
+                    className="p-1.5 text-mps-blue-600 hover:bg-mps-blue-50 rounded-lg"
+                  >
+                    <Plus size={14} />
+                  </button>
                 </div>
               </div>
               <div className="flex items-center gap-2 pt-1">
@@ -696,7 +964,7 @@ function TaskCalendarModal({
                 )}
                 {task.timing && (
                   <div className="flex items-center gap-1.5 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg">
-                    <Clock size={14} /> {task.timing}
+                    <Clock size={14} /> {task.timing}{task.end_time ? ` – ${task.end_time}` : ''}
                   </div>
                 )}
                 {task.bonus_points > 0 && (
@@ -704,17 +972,122 @@ function TaskCalendarModal({
                     <Star size={14} /> {task.bonus_points} BP
                   </div>
                 )}
+                {task.recurrence && task.recurrence !== 'none' && (
+                  <div className="flex items-center gap-1.5 text-sm text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg">
+                    <Repeat size={14} /> {RECURRENCE_LABELS[task.recurrence]}
+                  </div>
+                )}
+                {requireCheck && (
+                  <div className="flex items-center gap-1.5 text-sm text-mps-blue-600 bg-mps-blue-50 px-3 py-1.5 rounded-lg font-medium">
+                    <ShieldCheck size={14} /> Verification Required
+                  </div>
+                )}
               </div>
 
               {task.assignees && task.assignees.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-700 mb-1.5">Assignee</h4>
-                  <span className="text-xs bg-mps-blue-50 text-mps-blue-700 px-2.5 py-1 rounded-full font-medium">
-                    {task.assignees[0].user?.full_name ?? task.assignees[0].user_id}
-                  </span>
+                  <h4 className="text-sm font-semibold text-slate-700 mb-1.5">Assignees</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {task.assignees.map(a => (
+                      <span key={a.id} className="text-xs bg-mps-blue-50 text-mps-blue-700 px-2.5 py-1 rounded-full font-medium">
+                        {a.user?.full_name ?? a.user_id}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
             </>
+          )}
+
+          {/* Checklist (always shown in view mode) */}
+          {!editing && (
+            <div>
+              <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                <CheckSquare size={14} />
+                Checklist
+                {localChecklist.length > 0 && (
+                  <span className="text-xs font-normal text-slate-500">({completedChecklist}/{localChecklist.length})</span>
+                )}
+              </h4>
+              <div className="space-y-1.5">
+                {localChecklist.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleToggleChecklist(item.id, item.is_completed)}
+                    className="flex items-center gap-2 w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    {item.is_completed ? (
+                      <CheckSquare size={16} className="text-mps-green-600 flex-shrink-0" />
+                    ) : (
+                      <Square size={16} className="text-slate-400 flex-shrink-0" />
+                    )}
+                    <span className={`text-sm ${item.is_completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                      {item.text}
+                    </span>
+                  </button>
+                ))}
+                {localChecklist.length === 0 && (
+                  <p className="text-xs text-slate-400 italic">No checklist items yet</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="text"
+                  value={newCheckItem}
+                  onChange={e => setNewCheckItem(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddCheckItem()}
+                  placeholder="Add checklist item..."
+                  className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-mps-blue-500"
+                />
+                <button onClick={handleAddCheckItem} className="text-mps-blue-600 hover:text-mps-blue-700 p-1.5">
+                  <CheckSquare size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Comments (always shown in view mode) */}
+          {!editing && (
+            <div>
+              <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                <MessageSquare size={14} />
+                Comments ({localComments.length})
+              </h4>
+              <div className="space-y-3 max-h-40 overflow-y-auto">
+                {localComments.map(comment => (
+                  <div key={comment.id} className="bg-slate-50 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">{comment.user?.full_name?.charAt(0) || '?'}</span>
+                      </div>
+                      <span className="text-xs font-medium text-slate-700">{comment.user?.full_name || 'Unknown'}</span>
+                      <span className="text-xs text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <p className="text-sm text-slate-600 pl-8">{comment.content}</p>
+                  </div>
+                ))}
+                {localComments.length === 0 && (
+                  <p className="text-sm text-slate-400 text-center py-2">No comments yet</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !submitting && handleAddComment()}
+                  placeholder="Write a comment..."
+                  className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-mps-blue-500"
+                />
+                <button
+                  onClick={handleAddComment}
+                  disabled={submitting || !newComment.trim()}
+                  className="p-2 bg-mps-blue-500 text-white rounded-lg hover:bg-mps-blue-600 disabled:opacity-50 transition-colors"
+                >
+                  <Send size={14} />
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </motion.div>

@@ -67,6 +67,7 @@ const getNavItems = (isStaff: boolean, isAdmin: boolean): NavItem[] => {
     icon: <GraduationCap size={20} />,
   })
 
+  // "More" dropdown for desktop only; mobile gets flat links on home page
   const moreChildren: { label: string; href: string; icon: React.ReactNode }[] = [
     { label: 'Student Leave', href: '/more/leave', icon: <Calendar size={18} /> },
     { label: 'Fee Manager', href: '/more/fees', icon: <CreditCard size={18} /> },
@@ -259,6 +260,7 @@ export default function Navbar() {
                     onClick={() => {
                       setProfileDropdownOpen(false)
                       signOut()
+                      router.push('/login')
                     }}
                     className="dropdown-item w-full text-rose-600 hover:bg-rose-50"
                   >
@@ -308,19 +310,18 @@ export default function Navbar() {
                       {activeDropdown === item.label && (
                         <div className="ml-8 mt-1 space-y-1 animate-slide-down">
                           {item.children.map((child) => (
-                            <button
+                            <Link
                               key={child.href}
-                              type="button"
-                              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors text-left"
+                              href={child.href}
+                              className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
                               onClick={() => {
                                 setMobileMenuOpen(false)
                                 setActiveDropdown(null)
-                                router.push(child.href)
                               }}
                             >
                               {child.icon}
                               <span>{child.label}</span>
-                            </button>
+                            </Link>
                           ))}
                         </div>
                       )}

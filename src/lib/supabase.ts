@@ -38,9 +38,9 @@ export const isPrincipalRole = (role: UserRole): boolean => {
   return role === 'principal'
 }
 
-// Check if user can see Team Analytics (admin, coordinator, or principal)
+// Check if user can see Team Analytics (all staff roles)
 export const canViewTeamAnalytics = (role: UserRole): boolean => {
-  return ['admin', 'coordinator', 'principal'].includes(role)
+  return ['admin', 'coordinator', 'principal', 'teacher'].includes(role)
 }
 
 export const getRoleDisplayName = (role: UserRole): string => {

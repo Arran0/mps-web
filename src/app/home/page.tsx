@@ -21,6 +21,8 @@ import {
   BookOpen,
   ImageIcon,
   MessageSquare,
+  Users,
+  UserPlus,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
@@ -242,7 +244,7 @@ export default function HomePage() {
           )}
 
           {/* Quick Access Section */}
-          <motion.div variants={itemVariants}>
+          <motion.div variants={itemVariants} className="mb-8">
             <div className="flex items-center mb-4">
               <h2 className="font-display text-xl font-bold text-slate-800">Quick Access</h2>
             </div>
@@ -260,6 +262,82 @@ export default function HomePage() {
                   </div>
                 </Link>
               ))}
+            </div>
+          </motion.div>
+
+          {/* More Services Section */}
+          <motion.div variants={itemVariants}>
+            <div className="flex items-center mb-4">
+              <h2 className="font-display text-xl font-bold text-slate-800">More Services</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* Student Leave - all users */}
+              <Link href="/more/leave">
+                <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-cyan-200 hover:shadow-sm transition-all group">
+                  <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white shadow-md">
+                    <Calendar size={20} />
+                  </div>
+                  <span className="font-medium text-slate-700 text-sm group-hover:text-cyan-600 transition-colors">Student Leave</span>
+                </div>
+              </Link>
+              {/* Fee Manager - all users */}
+              <Link href="/more/fees">
+                <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 hover:shadow-sm transition-all group">
+                  <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-md">
+                    <CreditCard size={20} />
+                  </div>
+                  <span className="font-medium text-slate-700 text-sm group-hover:text-emerald-600 transition-colors">Fee Manager</span>
+                </div>
+              </Link>
+              {/* Feedback - all users */}
+              <Link href="/more/feedback">
+                <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-indigo-200 hover:shadow-sm transition-all group">
+                  <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-md">
+                    <MessageSquare size={20} />
+                  </div>
+                  <span className="font-medium text-slate-700 text-sm group-hover:text-indigo-600 transition-colors">Feedback</span>
+                </div>
+              </Link>
+              {/* Staff Leave - staff only */}
+              {isStaff && (
+                <Link href="/more/staff-leave">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-purple-200 hover:shadow-sm transition-all group">
+                    <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white shadow-md">
+                      <CalendarDays size={20} />
+                    </div>
+                    <span className="font-medium text-slate-700 text-sm group-hover:text-purple-600 transition-colors">Staff Leave</span>
+                  </div>
+                </Link>
+              )}
+              {/* Admin-only services */}
+              {isAdmin && (
+                <>
+                  <Link href="/more/classrooms">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-sm transition-all group">
+                      <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white shadow-md">
+                        <BookOpen size={20} />
+                      </div>
+                      <span className="font-medium text-slate-700 text-sm group-hover:text-blue-600 transition-colors">Classroom Management</span>
+                    </div>
+                  </Link>
+                  <Link href="/more/teacher-teams">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-pink-200 hover:shadow-sm transition-all group">
+                      <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white shadow-md">
+                        <Users size={20} />
+                      </div>
+                      <span className="font-medium text-slate-700 text-sm group-hover:text-pink-600 transition-colors">Teacher Teams</span>
+                    </div>
+                  </Link>
+                  <Link href="/more/profiles">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl border border-slate-100 hover:border-red-200 hover:shadow-sm transition-all group">
+                      <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center text-white shadow-md">
+                        <UserPlus size={20} />
+                      </div>
+                      <span className="font-medium text-slate-700 text-sm group-hover:text-red-600 transition-colors">Profile Management</span>
+                    </div>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
 

@@ -15,7 +15,9 @@ export interface Task {
   status: TaskStatus
   is_overdue: boolean
   due_date: string | null
-  timing: string | null
+  timing: string | null       // legacy / start_time alias
+  end_time: string | null     // new end-time field
+  require_check: boolean      // false = not_done>partial>done(completed); true = not_done>partial>done(await)>checked(completed)
   tag: TaskTag
   bonus_points: number
   recurrence: TaskRecurrence
@@ -66,13 +68,16 @@ export interface TaskWithDetails extends Task {
   assignees: (TaskAssignee & { user?: UserProfile })[]
   checklist: TaskChecklistItem[]
   comments: TaskComment[]
+  creator?: UserProfile
 }
 
 export interface NewTaskInput {
   title: string
   description?: string
   due_date?: string
-  timing?: string
+  timing?: string      // start time
+  end_time?: string    // end time
+  require_check?: boolean
   tag?: TaskTag
   bonus_points?: number
   recurrence?: TaskRecurrence
@@ -98,11 +103,33 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   checked: 'Checked',
 }
 
+/**
+ * Returns the display label for a status, taking require_check into account.
+ * - require_check=false: done → "Completed" (final state for everyone)
+ * - require_check=true:  done → "Awaiting Check", checked → "Completed"
+ */
+export function getDynamicStatusLabel(status: TaskStatus, requireCheck: boolean): string {
+  if (!requireCheck) {
+    if (status === 'done') return 'Completed'
+    if (status === 'checked') return 'Completed'
+  } else {
+    if (status === 'done') return 'Awaiting Check'
+    if (status === 'checked') return 'Completed'
+  }
+  return STATUS_LABELS[status]
+}
+
 export const STATUS_COLORS: Record<TaskStatus, string> = {
   not_done: 'bg-red-100 text-red-700 border-red-200',
   partial: 'bg-amber-100 text-amber-700 border-amber-200',
   done: 'bg-green-100 text-green-700 border-green-200',
   checked: 'bg-blue-100 text-blue-700 border-blue-200',
+}
+
+/** Dynamic status colors: when require_check=true, done is orange (awaiting), checked is green */
+export function getDynamicStatusColors(status: TaskStatus, requireCheck: boolean): string {
+  if (requireCheck && status === 'done') return 'bg-orange-100 text-orange-700 border-orange-200'
+  return STATUS_COLORS[status]
 }
 
 export const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
@@ -112,6 +139,11 @@ export const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
   checked: 'bg-blue-500',
 }
 
+export function getDynamicDotColor(status: TaskStatus, requireCheck: boolean): string {
+  if (requireCheck && status === 'done') return 'bg-orange-500'
+  return STATUS_DOT_COLORS[status]
+}
+
 export const RECURRENCE_LABELS: Record<TaskRecurrence, string> = {
   none: 'No Repeat',
   daily: 'Daily',
@@ -119,12 +151,24 @@ export const RECURRENCE_LABELS: Record<TaskRecurrence, string> = {
   monthly: 'Monthly',
 }
 
-export function getNextStatus(current: TaskStatus, canCheck: boolean): TaskStatus {
+/**
+ * Returns the next status in the cycle.
+ *
+ * require_check = false (no verification needed):
+ *   not_done → partial → done ("Completed") → not_done  (everyone cycles the same)
+ *
+ * require_check = true (verification required):
+ *   Teacher (canCheck=false): not_done → partial → done ("Awaiting Check") → done (stuck)
+ *   Coordinator+ (canCheck=true): not_done → partial → done → checked ("Completed") → not_done
+ */
+export function getNextStatus(current: TaskStatus, canCheck: boolean, requireCheck = true): TaskStatus {
   if (current === 'not_done') return 'partial'
   if (current === 'partial') return 'done'
-  if (current === 'done' && canCheck) return 'checked'
-  if (current === 'done' && !canCheck) return 'not_done' // cycle back for teachers
-  if (current === 'checked') return 'not_done' // cycle back for coordinators+
+  if (current === 'done') {
+    if (requireCheck && canCheck) return 'checked'
+    return 'not_done' // cycle back: completed (no check) or stuck then back (check required but can't check)
+  }
+  if (current === 'checked') return 'not_done'
   return current
 }
 
@@ -133,7 +177,6 @@ export function getNextStatus(current: TaskStatus, canCheck: boolean): TaskStatu
 // ============================================
 
 export async function createTask(input: NewTaskInput, createdBy: string): Promise<Task | null> {
-  // Create one individual task per assignee (bulk assign = separate tasks with same properties)
   const assigneeIds = input.assignee_ids.length > 0 ? input.assignee_ids : [createdBy]
   let firstTask: Task | null = null
 
@@ -145,6 +188,8 @@ export async function createTask(input: NewTaskInput, createdBy: string): Promis
         description: input.description || null,
         due_date: input.due_date || null,
         timing: input.timing || null,
+        end_time: input.end_time || null,
+        require_check: input.require_check ?? false,
         tag: input.tag || null,
         bonus_points: input.bonus_points || 0,
         recurrence: input.recurrence || 'none',
@@ -158,10 +203,8 @@ export async function createTask(input: NewTaskInput, createdBy: string): Promis
       continue
     }
 
-    // Assign to this specific member
     await supabase.from('task_assignees').insert({ task_id: task.id, user_id: assigneeId })
 
-    // Insert checklist items
     if (input.checklist_items && input.checklist_items.length > 0) {
       const checklistRecords = input.checklist_items.map((text, i) => ({
         task_id: task.id,
@@ -188,7 +231,6 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
     return false
   }
 
-  // When a recurring task is marked "checked", auto-create the next occurrence
   if (status === 'checked') {
     await spawnNextRecurrence(taskId)
   }
@@ -196,23 +238,16 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
   return true
 }
 
-/** Build a YYYY-MM-DD string from parts, letting Date handle overflow (e.g. day 32 → next month). */
+/** Build a YYYY-MM-DD string from parts, letting Date handle overflow. */
 function formatDateParts(year: number, month: number, day: number): string {
-  const d = new Date(year, month - 1, day) // month is 0-indexed in Date constructor
+  const d = new Date(year, month - 1, day)
   const yy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   return `${yy}-${mm}-${dd}`
 }
 
-/**
- * When a recurring task is checked, create a new task with the next due date.
- * daily  → +1 day
- * weekly → +7 days
- * monthly → +1 month
- */
 async function spawnNextRecurrence(taskId: string): Promise<void> {
-  // Fetch the original task
   const { data: task } = await supabase
     .from('tasks')
     .select('*')
@@ -221,7 +256,6 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
 
   if (!task || !task.recurrence || task.recurrence === 'none') return
 
-  // Compute next due date using pure string math to avoid timezone shifts
   let nextDate: string | null = null
   if (task.due_date) {
     const [y, m, d] = task.due_date.split('-').map(Number)
@@ -234,7 +268,6 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
     }
   }
 
-  // Create new task (same properties, reset status)
   const { data: newTask, error } = await supabase
     .from('tasks')
     .insert({
@@ -243,6 +276,8 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
       status: 'not_done',
       due_date: nextDate,
       timing: task.timing,
+      end_time: task.end_time || null,
+      require_check: task.require_check ?? false,
       tag: task.tag,
       bonus_points: task.bonus_points || 0,
       recurrence: task.recurrence,
@@ -256,7 +291,6 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
     return
   }
 
-  // Copy assignees from original task
   const { data: assignees } = await supabase
     .from('task_assignees')
     .select('user_id')
@@ -268,7 +302,6 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
     )
   }
 
-  // Copy checklist items (unchecked) from original task
   const { data: checklist } = await supabase
     .from('task_checklist_items')
     .select('text, sort_order')
@@ -282,7 +315,10 @@ async function spawnNextRecurrence(taskId: string): Promise<void> {
   }
 }
 
-export async function updateTask(taskId: string, updates: Partial<Pick<Task, 'title' | 'description' | 'due_date' | 'timing' | 'tag' | 'bonus_points' | 'is_overdue' | 'recurrence'>>): Promise<boolean> {
+export async function updateTask(
+  taskId: string,
+  updates: Partial<Pick<Task, 'title' | 'description' | 'due_date' | 'timing' | 'end_time' | 'require_check' | 'tag' | 'bonus_points' | 'is_overdue' | 'recurrence'>>
+): Promise<boolean> {
   const { error } = await supabase
     .from('tasks')
     .update(updates)
@@ -293,6 +329,51 @@ export async function updateTask(taskId: string, updates: Partial<Pick<Task, 'ti
     return false
   }
   return true
+}
+
+export async function updateTaskAssignees(taskId: string, assigneeIds: string[]): Promise<boolean> {
+  // Delete existing assignees
+  const { error: delErr } = await supabase
+    .from('task_assignees')
+    .delete()
+    .eq('task_id', taskId)
+
+  if (delErr) {
+    console.error('Error deleting assignees:', delErr)
+    return false
+  }
+
+  // Insert new assignees
+  if (assigneeIds.length === 0) return true
+
+  const { error: insErr } = await supabase
+    .from('task_assignees')
+    .insert(assigneeIds.map(uid => ({ task_id: taskId, user_id: uid })))
+
+  if (insErr) {
+    console.error('Error inserting assignees:', insErr)
+    return false
+  }
+
+  return true
+}
+
+export async function updateChecklistItems(taskId: string, items: string[]): Promise<boolean> {
+  // Delete existing items
+  const { error: delErr } = await supabase
+    .from('task_checklist_items')
+    .delete()
+    .eq('task_id', taskId)
+
+  if (delErr) return false
+
+  if (items.length === 0) return true
+
+  const { error: insErr } = await supabase
+    .from('task_checklist_items')
+    .insert(items.map((text, i) => ({ task_id: taskId, text, sort_order: i })))
+
+  return !insErr
 }
 
 export async function deleteTask(taskId: string): Promise<boolean> {
@@ -354,16 +435,28 @@ export async function fetchTasksByIds(taskIds: string[]): Promise<TaskWithDetail
     .in('task_id', taskIds)
     .order('created_at', { ascending: true })
 
+  // Fetch creator profiles for permission checking
+  const creatorIds = [...new Set((tasks as Task[]).map(t => t.created_by))]
+  const { data: creatorProfiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', creatorIds)
+
+  const creatorMap = new Map<string, UserProfile>()
+  creatorProfiles?.forEach(p => creatorMap.set(p.id, p as UserProfile))
+
   const todayStr = new Date().toISOString().split('T')[0]
 
   return (tasks as Task[]).map(task => ({
     ...task,
     recurrence: task.recurrence || 'none',
-    // Compute overdue dynamically: past due_date + not checked (done but unchecked is still overdue)
+    require_check: task.require_check ?? false,
+    end_time: task.end_time || null,
     is_overdue: !!(task.due_date && task.due_date < todayStr && task.status !== 'checked'),
     assignees: (allAssignees || []).filter(a => a.task_id === task.id),
     checklist: (allChecklists || []).filter(c => c.task_id === task.id),
     comments: (allComments || []).filter(c => c.task_id === task.id),
+    creator: creatorMap.get(task.created_by),
   }))
 }
 
@@ -423,7 +516,6 @@ export async function fetchAnalyticsData(userId: string, period: 'week' | 'month
     return false
   })
 
-  // Also fetch project subtasks assigned to this user
   const { data: subtasks } = await supabase
     .from('subtasks')
     .select('status, due_date, created_at')
@@ -483,7 +575,7 @@ export async function addComment(taskId: string, userId: string, content: string
 
 /**
  * Fetch accessible team members based on role hierarchy:
- * - Teacher: no access to others
+ * - Teacher: members of the same team(s) as the teacher (including coordinator)
  * - Coordinator: only teachers in their own team
  * - Principal: all teachers + coordinators (all teams)
  * - Admin: all teachers + coordinators + principals (everyone)
@@ -492,12 +584,11 @@ export async function addComment(taskId: string, userId: string, content: string
  */
 export async function fetchTeamMembers(userId: string, userRole: UserRole): Promise<UserProfile[]> {
   if (userRole === 'admin') {
-    // Admin sees all: teachers, coordinators, principals
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .in('role', ['teacher', 'coordinator', 'principal'])
-      .neq('id', userId) // exclude self
+      .neq('id', userId)
       .order('full_name')
 
     if (error) return []
@@ -505,12 +596,11 @@ export async function fetchTeamMembers(userId: string, userRole: UserRole): Prom
   }
 
   if (userRole === 'principal') {
-    // Principal sees all teachers and coordinators (NOT other principals, NOT admin)
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .in('role', ['teacher', 'coordinator'])
-      .neq('id', userId) // exclude self
+      .neq('id', userId)
       .order('full_name')
 
     if (error) return []
@@ -518,7 +608,6 @@ export async function fetchTeamMembers(userId: string, userRole: UserRole): Prom
   }
 
   if (userRole === 'coordinator') {
-    // Coordinator sees only teachers in their same team(s)
     const { data: myTeams } = await supabase
       .from('team_members')
       .select('team_id')
@@ -537,13 +626,41 @@ export async function fetchTeamMembers(userId: string, userRole: UserRole): Prom
     const uniqueUsers = new Map<string, UserProfile>()
     members.forEach(m => {
       const profile = m.user as unknown as UserProfile
-      // Exclude self, only include teachers (not other coordinators)
       if (profile && m.user_id !== userId && profile.role === 'teacher') {
         uniqueUsers.set(m.user_id, profile)
       }
     })
 
-    // Sort alphabetically
+    return Array.from(uniqueUsers.values()).sort((a, b) =>
+      (a.full_name || '').localeCompare(b.full_name || '')
+    )
+  }
+
+  if (userRole === 'teacher') {
+    // Teacher sees all members of their team(s), including coordinator
+    const { data: myTeams } = await supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('user_id', userId)
+
+    if (!myTeams || myTeams.length === 0) return []
+
+    const teamIds = myTeams.map(t => t.team_id)
+    const { data: members } = await supabase
+      .from('team_members')
+      .select('user_id, user:profiles(*)')
+      .in('team_id', teamIds)
+
+    if (!members) return []
+
+    const uniqueUsers = new Map<string, UserProfile>()
+    members.forEach(m => {
+      const profile = m.user as unknown as UserProfile
+      if (profile && m.user_id !== userId) {
+        uniqueUsers.set(m.user_id, profile)
+      }
+    })
+
     return Array.from(uniqueUsers.values()).sort((a, b) =>
       (a.full_name || '').localeCompare(b.full_name || '')
     )
@@ -558,7 +675,6 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
 }> {
   const teamMembers = await fetchTeamMembers(userId, userRole)
 
-  // Include self for stats
   const { data: selfProfile } = await supabase
     .from('profiles')
     .select('*')
@@ -574,7 +690,6 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
 
   const memberStats = await Promise.all(
     allMembers.map(async (member) => {
-      // Fetch regular tasks
       const tasks = await fetchTasksForUser(member.id)
       const monthTasks = tasks.filter(t => {
         if (t.due_date && t.due_date >= monthStart) return true
@@ -582,7 +697,6 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
         return false
       })
 
-      // Fetch project subtasks for this member
       const { data: subtasks } = await supabase
         .from('subtasks')
         .select('status, due_date, created_at, tag, bonus_points')
@@ -594,7 +708,6 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
         return false
       })
 
-      // Combined stats
       const allItems = [
         ...monthTasks.map(t => ({ status: t.status, tag: t.tag, bonus_points: t.bonus_points || 0, is_overdue: t.is_overdue })),
         ...monthSubtasks.map((s: any) => ({
@@ -606,7 +719,6 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
       ]
 
       const completed = allItems.filter(t => t.status === 'checked').length
-      // Only count bonus points from tasks that have been fully checked (completed)
       const bonus = allItems
         .filter(t => t.status === 'checked')
         .reduce((sum, t) => sum + (t.bonus_points || 0), 0)
@@ -626,7 +738,6 @@ export async function fetchTeamAnalytics(userId: string, userRole: UserRole): Pr
     })
   )
 
-  // Team-wide completion rate: all members checked / all members total
   const teamTotal = memberStats.reduce((s, m) => s + m.stats.total, 0)
   const teamChecked = memberStats.reduce((s, m) => s + m.stats.completed, 0)
   const teamCompletionRate = teamTotal > 0 ? Math.round((teamChecked / teamTotal) * 100) : 0
