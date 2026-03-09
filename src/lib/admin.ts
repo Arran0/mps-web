@@ -126,7 +126,7 @@ export async function fetchAllTeams(): Promise<{ id: string; name: string }[]> {
 }
 
 // Create a new user — calls the server-side API route which uses the service role key
-export async function createNewUser(input: NewUserInput): Promise<{ success: boolean; error?: string; userId?: string }> {
+export async function createNewUser(input: NewUserInput): Promise<{ success: boolean; error?: string; userId?: string; inviteLink?: string }> {
   try {
     // Get current session token to authenticate the API call
     const { data: { session } } = await supabase.auth.getSession()
@@ -158,7 +158,7 @@ export async function createNewUser(input: NewUserInput): Promise<{ success: boo
       await updateTeamMemberships(result.userId, input.team_ids)
     }
 
-    return { success: true, userId: result.userId }
+    return { success: true, userId: result.userId, inviteLink: result.inviteLink }
   } catch (err) {
     console.error('Error creating user:', err)
     return { success: false, error: 'An unexpected error occurred' }

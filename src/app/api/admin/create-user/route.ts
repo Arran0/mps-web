@@ -65,15 +65,45 @@ export async function POST(request: NextRequest) {
       redirectTo: `${siteUrl}/update-password`,
     })
 
+    let newUserId: string | undefined
+    let inviteLink: string | undefined
+
     if (inviteError) {
-      // If user already exists, try creating with generateLink instead
+      // If user already exists, return a clear error
       if (inviteError.message?.includes('already been registered')) {
         return NextResponse.json({ success: false, error: 'A user with this email already exists' }, { status: 409 })
       }
-      return NextResponse.json({ success: false, error: inviteError.message }, { status: 400 })
+
+      // If rate limited, fall back to generating a link without sending email
+      const isRateLimit =
+        inviteError.message?.toLowerCase().includes('rate limit') ||
+        inviteError.message?.toLowerCase().includes('email') ||
+        inviteError.status === 429
+
+      if (!isRateLimit) {
+        return NextResponse.json({ success: false, error: inviteError.message }, { status: 400 })
+      }
+
+      // Generate invite link silently (no email sent)
+      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+        type: 'invite',
+        email,
+        options: {
+          data: { role, full_name },
+          redirectTo: `${siteUrl}/update-password`,
+        },
+      })
+
+      if (linkError || !linkData) {
+        return NextResponse.json({ success: false, error: linkError?.message || 'Failed to generate invite link' }, { status: 400 })
+      }
+
+      newUserId = linkData.user?.id
+      inviteLink = linkData.properties?.action_link
+    } else {
+      newUserId = inviteData.user?.id
     }
 
-    const newUserId = inviteData.user?.id
     if (!newUserId) {
       return NextResponse.json({ success: false, error: 'Failed to get user ID after invite' }, { status: 500 })
     }
@@ -95,7 +125,7 @@ export async function POST(request: NextRequest) {
       // Not a fatal error — profile trigger may handle it
     }
 
-    return NextResponse.json({ success: true, userId: newUserId })
+    return NextResponse.json({ success: true, userId: newUserId, inviteLink })
   } catch (err) {
     console.error('Create user error:', err)
     return NextResponse.json({ success: false, error: 'Unexpected server error' }, { status: 500 })
