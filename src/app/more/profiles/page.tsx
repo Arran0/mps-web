@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ProtectedLayout from '@/components/ProtectedLayout'
+import Avatar from '@/components/Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   UserPlus,
@@ -241,9 +242,7 @@ export default function ProfilesPage() {
                 <div className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white font-bold shadow-md">
-                        {p.full_name?.charAt(0)?.toUpperCase() || '?'}
-                      </div>
+                      <Avatar avatarUrl={p.avatar_url} name={p.full_name} size={44} />
                       <div>
                         {editingProfile === p.id ? (
                           <div className="space-y-2" onClick={e => e.stopPropagation()}>

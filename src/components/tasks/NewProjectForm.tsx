@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { createProject, NewProjectInput } from '@/lib/projects'
 import { UserProfile } from '@/lib/supabase'
+import Avatar from '@/components/Avatar'
 
 interface NewProjectFormProps {
   isOpen: boolean
@@ -214,15 +215,7 @@ export default function NewProjectForm({
                             : 'hover:bg-slate-50 text-slate-700'
                         }`}
                       >
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                            isSelected
-                              ? 'bg-mps-blue-500 text-white'
-                              : 'bg-slate-200 text-slate-600'
-                          }`}
-                        >
-                          {user.full_name?.charAt(0) || '?'}
-                        </div>
+                        <Avatar avatarUrl={user.avatar_url} name={user.full_name} size={24} />
                         <span>{user.full_name}</span>
                         {isCurrentUser && (
                           <span className="text-xs text-slate-400 ml-auto">You</span>

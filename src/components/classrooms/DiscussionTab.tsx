@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MessageSquare, Send, Reply, Trash2 } from 'lucide-react'
 import { DiscussionPost, createDiscussionPost, fetchDiscussionPosts, deleteDiscussionPost } from '@/lib/classrooms'
 import { UserRole } from '@/lib/supabase'
+import Avatar from '@/components/Avatar'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface DiscussionTabProps {
   classroomId: string
@@ -25,6 +27,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function DiscussionTab({ classroomId, userId, userRole }: DiscussionTabProps) {
+  const { profile: currentUserProfile } = useAuth()
   const [posts, setPosts] = useState<DiscussionPost[]>([])
   const [loading, setLoading] = useState(true)
   const [newPostContent, setNewPostContent] = useState('')
@@ -102,9 +105,7 @@ export default function DiscussionTab({ classroomId, userId, userRole }: Discuss
             <div key={post.id} className="glass rounded-2xl p-4">
               {/* Post */}
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                  {post.user?.full_name?.charAt(0) || '?'}
-                </div>
+                <Avatar avatarUrl={post.user?.avatar_url} name={post.user?.full_name} size={36} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-slate-800">{post.user?.full_name || 'Unknown'}</span>
@@ -135,9 +136,7 @@ export default function DiscussionTab({ classroomId, userId, userRole }: Discuss
                 <div className="ml-12 mt-3 space-y-3 border-l-2 border-slate-100 pl-4">
                   {post.replies.map((reply) => (
                     <div key={reply.id} className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-300 to-mps-blue-300 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                        {reply.user?.full_name?.charAt(0) || '?'}
-                      </div>
+                      <Avatar avatarUrl={reply.user?.avatar_url} name={reply.user?.full_name} size={28} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-slate-700">{reply.user?.full_name || 'Unknown'}</span>
@@ -196,9 +195,7 @@ export default function DiscussionTab({ classroomId, userId, userRole }: Discuss
       {/* New Post Form */}
       <div className="glass rounded-2xl p-4">
         <form onSubmit={handlePost} className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-            {userId.charAt(0).toUpperCase()}
-          </div>
+          <Avatar avatarUrl={currentUserProfile?.avatar_url} name={currentUserProfile?.full_name} size={36} />
           <div className="flex-1">
             <textarea
               value={newPostContent}

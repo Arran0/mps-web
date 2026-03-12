@@ -17,6 +17,7 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import ProjectCard from './ProjectCard'
+import Avatar from '@/components/Avatar'
 import NewProjectForm from './NewProjectForm'
 import {
   ProjectWithDetails,
@@ -249,14 +250,8 @@ export default function ProjectsList({
 
           <div className="flex -space-x-2 flex-shrink-0">
             {project.members.slice(0, 4).map(m => (
-              <div
-                key={m.id}
-                className="w-7 h-7 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center border-2 border-white"
-                title={m.user?.full_name || 'Unknown'}
-              >
-                <span className="text-white text-[9px] font-bold">
-                  {m.user?.full_name?.charAt(0) || '?'}
-                </span>
+              <div key={m.id} className="rounded-full border-2 border-white" title={m.user?.full_name || 'Unknown'}>
+                <Avatar avatarUrl={m.user?.avatar_url} name={m.user?.full_name} size={28} />
               </div>
             ))}
             {project.members.length > 4 && (

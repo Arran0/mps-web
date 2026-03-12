@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ProtectedLayout from '@/components/ProtectedLayout'
+import Avatar from '@/components/Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   Users,
@@ -366,9 +367,7 @@ export default function TeacherTeamsPage() {
                             team.members.map(member => (
                               <div key={member.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50/80">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-xs font-bold">
-                                    {member.user?.full_name?.charAt(0) || '?'}
-                                  </div>
+                                  <Avatar avatarUrl={member.user?.avatar_url} name={member.user?.full_name} size={32} />
                                   <div>
                                     <p className="text-sm font-medium text-slate-700">{member.user?.full_name || 'Unknown'}</p>
                                     <p className="text-xs text-slate-500">{member.user?.email}</p>

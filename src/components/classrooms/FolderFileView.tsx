@@ -19,6 +19,7 @@ import {
   extractYouTubeEmbedUrl, uploadClassroomFile, uploadSubmissionFile,
 } from '@/lib/classrooms'
 import { UserRole, UserProfile } from '@/lib/supabase'
+import Avatar from '@/components/Avatar'
 
 interface FolderFileViewProps {
   classroomId: string
@@ -694,9 +695,7 @@ export default function FolderFileView({
                                       const pct   = stats ? Math.round((stats.completed / stats.total) * 100) : 0
                                       return (
                                         <div key={s.user_id} className="flex items-center gap-3">
-                                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                                            {s.user.full_name.charAt(0)}
-                                          </div>
+                                          <Avatar avatarUrl={s.user.avatar_url} name={s.user.full_name} size={28} />
                                           <span className="text-xs font-medium text-slate-700 w-32 truncate flex-shrink-0">
                                             {s.user.full_name}
                                           </span>
@@ -1136,9 +1135,7 @@ export default function FolderFileView({
 
                     return (
                       <div key={member.user_id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                          {member.user.full_name.charAt(0)}
-                        </div>
+                        <Avatar avatarUrl={member.user.avatar_url} name={member.user.full_name} size={32} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-700">{member.user.full_name}</p>
                           {sub && sub.submission_type === 'text' && (

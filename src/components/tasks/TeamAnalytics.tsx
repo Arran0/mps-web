@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Trophy, TrendingUp, Star, AlertTriangle, CheckCircle2, BarChart3 } from 'lucide-react'
 import { fetchTeamAnalytics } from '@/lib/tasks'
 import { UserProfile, UserRole } from '@/lib/supabase'
+import Avatar from '@/components/Avatar'
 
 interface TeamAnalyticsProps {
   userId: string
@@ -112,9 +113,7 @@ export default function TeamAnalytics({ userId, userRole, isTeacher = false }: T
                     <tr key={m.user.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">{m.user.full_name?.charAt(0) || '?'}</span>
-                          </div>
+                          <Avatar avatarUrl={m.user.avatar_url} name={m.user.full_name} size={28} />
                           <div>
                             <p className="font-medium text-slate-800">{m.user.full_name}</p>
                             <p className="text-xs text-slate-400">{m.user.role}</p>
@@ -196,9 +195,7 @@ export default function TeamAnalytics({ userId, userRole, isTeacher = false }: T
                   </div>
 
                   {/* Avatar */}
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-xs font-bold">{m.user.full_name?.charAt(0) || '?'}</span>
-                  </div>
+                  <Avatar avatarUrl={m.user.avatar_url} name={m.user.full_name} size={28} />
 
                   {/* Name */}
                   <div className="flex-1 min-w-0">

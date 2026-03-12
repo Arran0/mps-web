@@ -14,6 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { AnnouncementWithDetails, AnnouncementAttachment, deleteAnnouncement } from '@/lib/announcements'
+import Avatar from '@/components/Avatar'
 
 interface AnnouncementCardProps {
   announcement: AnnouncementWithDetails
@@ -126,9 +127,7 @@ export default function AnnouncementCard({
         <div className="p-3.5 flex items-center justify-between gap-3">
           {/* Avatar + title */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0 text-white text-sm font-bold">
-              {announcement.creator?.full_name?.charAt(0) || '?'}
-            </div>
+            <Avatar avatarUrl={announcement.creator?.avatar_url} name={announcement.creator?.full_name} size={32} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-bold text-slate-800 text-sm leading-snug truncate">

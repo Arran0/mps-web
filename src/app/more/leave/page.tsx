@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ProtectedLayout from '@/components/ProtectedLayout'
+import Avatar from '@/components/Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   CalendarDays, Plus, Clock, History, Search, X, User, Database,
@@ -365,9 +366,7 @@ export default function StudentLeavePage() {
                               onClick={() => handleSelectRecipient(r)}
                               className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 text-left transition-colors border-b border-slate-50 last:border-0"
                             >
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                {r.full_name.charAt(0).toUpperCase()}
-                              </div>
+                              <Avatar avatarUrl={r.avatar_url} name={r.full_name} size={32} />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-slate-800 truncate">{r.full_name}</p>
                                 <p className="text-xs text-slate-500 truncate">{r.email}</p>

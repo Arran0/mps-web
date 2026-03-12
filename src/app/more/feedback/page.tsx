@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import ProtectedLayout from '@/components/ProtectedLayout'
+import Avatar from '@/components/Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -394,7 +395,6 @@ function AdminFeedbackCard({ feedback, adminId, onDeleted, onReplied }: AdminFee
   }
 
   const submitter = feedback.submitter
-  const initials = submitter?.full_name?.charAt(0)?.toUpperCase() || '?'
 
   return (
     <motion.div
@@ -409,9 +409,7 @@ function AdminFeedbackCard({ feedback, adminId, onDeleted, onReplied }: AdminFee
         className="w-full p-4 flex items-start justify-between gap-3 text-left hover:bg-slate-50/50 transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-            {initials}
-          </div>
+          <Avatar avatarUrl={submitter?.avatar_url} name={submitter?.full_name} size={36} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-semibold text-slate-800 text-sm">{submitter?.full_name || 'Unknown'}</p>

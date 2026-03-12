@@ -37,6 +37,7 @@ import {
   getNextStatus,
 } from '@/lib/tasks'
 import { UserProfile } from '@/lib/supabase'
+import Avatar from '@/components/Avatar'
 
 interface ProjectCardProps {
   project: ProjectWithDetails
@@ -437,11 +438,7 @@ export default function ProjectCard({
                     key={m.id}
                     className="flex items-center gap-1.5 text-xs bg-mps-blue-50 text-mps-blue-700 px-2.5 py-1 rounded-full font-medium"
                   >
-                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-[9px] font-bold">
-                        {m.user?.full_name?.charAt(0) || '?'}
-                      </span>
-                    </div>
+                    <Avatar avatarUrl={m.user?.avatar_url} name={m.user?.full_name} size={20} />
                     {m.user?.full_name || 'Unknown'}
                   </span>
                 ))}
@@ -743,11 +740,7 @@ export default function ProjectCard({
               <div>
                 <h4 className="text-sm font-semibold text-slate-700 mb-2">Assignee</h4>
                 <span className="flex items-center gap-1.5 text-xs bg-mps-blue-50 text-mps-blue-700 px-2.5 py-1 rounded-full font-medium w-fit">
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-mps-blue-500 to-mps-green-500 flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-[9px] font-bold">
-                      {selectedSubtask.assignee.full_name?.charAt(0) || '?'}
-                    </span>
-                  </div>
+                  <Avatar avatarUrl={selectedSubtask.assignee.avatar_url} name={selectedSubtask.assignee.full_name} size={20} />
                   {selectedSubtask.assignee.full_name}
                 </span>
               </div>
