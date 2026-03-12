@@ -10,6 +10,7 @@ import {
   ClassroomMember, ClassroomWithDetails,
 } from '@/lib/classrooms'
 import { UserRole, UserProfile } from '@/lib/supabase'
+import Avatar from '@/components/Avatar'
 
 interface AssessmentsTabProps {
   classroomId: string
@@ -288,9 +289,7 @@ export default function AssessmentsTab({ classroomId, userId, userRole, classroo
                       const mark = marks[student.user_id] || { marks: '', max_marks: '100' }
                       return (
                         <div key={student.user_id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                            {student.user.full_name.charAt(0)}
-                          </div>
+                          <Avatar avatarUrl={student.user.avatar_url} name={student.user.full_name} size={32} />
                           <span className="flex-1 text-sm font-medium text-slate-700 truncate">{student.user.full_name}</span>
                           <div className="flex items-center gap-1">
                             <input

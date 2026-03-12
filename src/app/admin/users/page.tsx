@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ProtectedLayout from '@/components/ProtectedLayout'
+import Avatar from '@/components/Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import {
@@ -292,9 +293,7 @@ export default function AdminUsersPage() {
                 >
                   {/* Name + email */}
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mps-blue-400 to-mps-green-400 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                      {u.full_name.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar avatarUrl={u.avatar_url} name={u.full_name} size={32} />
                     <div className="min-w-0">
                       <p className="font-medium text-slate-800 text-sm truncate">{u.full_name}</p>
                       <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
